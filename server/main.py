@@ -26,10 +26,10 @@ from pydantic import BaseModel
 # Project root (absolute) for .env loading
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Load .env when uvicorn imports this (needed for reload worker subprocess)
+# Load .env when uvicorn imports this; override=False so env vars (e.g. Railway) win
 try:
     from dotenv import load_dotenv
-    load_dotenv(_PROJECT_ROOT / ".env")
+    load_dotenv(_PROJECT_ROOT / ".env", override=False)
 except ImportError:
     pass
 
@@ -66,7 +66,7 @@ def _ensure_env_loaded():
     if env_file.is_file():
         try:
             from dotenv import load_dotenv
-            load_dotenv(env_file)
+            load_dotenv(env_file, override=False)
         except Exception:
             pass
         # Fallback: set OPENROUTER_API_KEY from file if still missing

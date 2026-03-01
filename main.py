@@ -8,7 +8,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _project_root = Path(__file__).resolve().parent
-load_dotenv(_project_root / ".env")
+# override=False so Railway Variables take precedence over .env file
+load_dotenv(_project_root / ".env", override=False)
 
 if __name__ == "__main__":
     api_key = (os.environ.get("OPENROUTER_API_KEY") or "").strip()

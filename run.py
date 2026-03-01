@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 # Load .env from project root (resolve to absolute path so it works from any cwd)
 _project_root = Path(__file__).resolve().parent
 _env_path = _project_root / ".env"
-load_dotenv(_env_path)
+# override=False so Railway Variables (and existing env) are not overwritten by .env file
+load_dotenv(_env_path, override=False)
 
 import uvicorn
 
