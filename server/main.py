@@ -19,7 +19,7 @@ from typing import Any, Optional, List, Dict
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -576,18 +576,33 @@ async def health() -> dict[str, str]:
 # Static files (UI)
 # ---------------------------------------------------------------------------
 
+def _index_path() -> Path:
+    return DIST_DIR / "index.html"
+
+
 @app.get("/")
-async def serve_index() -> FileResponse:
-    return FileResponse(DIST_DIR / "index.html")
+async def serve_index():
+    idx = _index_path()
+    if idx.exists():
+        return FileResponse(idx)
+    return HTMLResponse(
+        "<!DOCTYPE html><html><body><h1>Frontend not built</h1>"
+        "<p>Run <code>npm run build</code> in frontend/ and deploy again.</p>"
+        "<p><a href='/health'>/health</a></p></body></html>",
+        status_code=503,
+    )
 
 
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str) -> FileResponse:
+async def serve_spa(full_path: str):
     """Serve React SPA for all non-API routes."""
     file_path = DIST_DIR / full_path
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
-    return FileResponse(DIST_DIR / "index.html")
+    idx = _index_path()
+    if idx.exists():
+        return FileResponse(idx)
+    return PlainTextResponse("Not found", status_code=404)
 
 
 # Ensure static/dist/assets exists so mount doesn't fail (created by frontend build)
