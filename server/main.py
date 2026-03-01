@@ -350,11 +350,10 @@ def _load_question_prompt_spec() -> str:
 
 
 def _parse_questions_json(raw: str) -> List[Dict]:
-    """Extract and parse JSON array from LLM response, tolerating markdown fences."""
+    """Extract and parse JSON array from LLM response, tolerating markdown fences and minor JSON quirks."""
     text = raw.strip()
     if text.startswith("```"):
         lines = text.splitlines()
-        # drop first and last fence lines
         inner = []
         in_block = False
         for line in lines:
@@ -366,12 +365,19 @@ def _parse_questions_json(raw: str) -> List[Dict]:
             if in_block:
                 inner.append(line)
         text = "\n".join(inner).strip()
-    # find first [ … ]
     start = text.find("[")
     end = text.rfind("]")
     if start == -1 or end == -1:
         raise ValueError(f"No JSON array found in LLM output: {text[:200]}")
-    return json.loads(text[start : end + 1])
+    json_str = text[start : end + 1]
+    # Fix common LLM JSON mistakes: trailing commas before ] or }
+    import re
+    json_str = re.sub(r",\s*]", "]", json_str)
+    json_str = re.sub(r",\s*}", "}", json_str)
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON from LLM at line {e.lineno} col {e.colno}: {e.msg}. Snippet: {json_str[max(0,e.pos-50):e.pos+50]!r}")
 
 
 def _read_openrouter_key_from_env_file() -> tuple[str, str]:
