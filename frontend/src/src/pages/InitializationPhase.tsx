@@ -42,8 +42,13 @@ export const InitializationPhase: React.FC = () => {
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err);
+        const text = await res.text();
+        let msg = text;
+        try {
+          const json = JSON.parse(text);
+          if (typeof json.detail === 'string') msg = json.detail;
+        } catch {}
+        throw new Error(msg);
       }
       const data = await res.json();
       if (timerRef.current) clearInterval(timerRef.current);

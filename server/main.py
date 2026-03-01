@@ -23,6 +23,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Project root (absolute) for .env loading
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Load .env when uvicorn imports this (needed for reload worker subprocess)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_PROJECT_ROOT / ".env")
+except ImportError:
+    pass
+
 # Pipeline imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -47,6 +57,31 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 DIST_DIR = STATIC_DIR / "dist"
 
 app = FastAPI(title="Island Agent Init", version="1.0.0")
+
+
+@app.on_event("startup")
+def _ensure_env_loaded():
+    """Load .env on startup so worker always has OPENROUTER_API_KEY (fixes uvicorn reload)."""
+    env_file = _PROJECT_ROOT / ".env"
+    if env_file.is_file():
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(env_file)
+        except Exception:
+            pass
+        # Fallback: set OPENROUTER_API_KEY from file if still missing
+        if not (os.environ.get("OPENROUTER_API_KEY") or "").strip():
+            try:
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        if k.strip() == "OPENROUTER_API_KEY" and v.strip():
+                            os.environ["OPENROUTER_API_KEY"] = v.strip().strip('"\'')
+                            break
+            except Exception:
+                pass
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -273,7 +308,8 @@ async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
 # generate-game: seed + 12 dark questions via Grok in one call
 # ---------------------------------------------------------------------------
 
-GROK_MODEL = "x-ai/grok-3-mini"
+# Model for /generate-game; override in .env as DEFAULT_MODEL if Grok returns 401
+GROK_MODEL = os.environ.get("DEFAULT_MODEL", "x-ai/grok-3-mini").strip() or "x-ai/grok-3-mini"
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 
 
@@ -338,6 +374,33 @@ def _parse_questions_json(raw: str) -> List[Dict]:
     return json.loads(text[start : end + 1])
 
 
+def _read_openrouter_key_from_env_file() -> str:
+    """Read OPENROUTER_API_KEY from .env file (worker may not have it in os.environ)."""
+    key = (os.environ.get("OPENROUTER_API_KEY") or "").replace("\ufeff", "").strip().strip("\r\n\t ")
+    if key:
+        return key
+    # Try project root, then cwd (worker may have different cwd)
+    for env_path in [_PROJECT_ROOT / ".env", Path.cwd() / ".env"]:
+        if not env_path.is_file():
+            continue
+        try:
+            text = env_path.read_text(encoding="utf-8-sig")  # -sig strips BOM
+            for line in text.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, _, v = line.partition("=")
+                    if k.strip() == "OPENROUTER_API_KEY":
+                        v = v.strip().strip("\"'").replace("\ufeff", "").strip("\r\n\t ")
+                        if v:
+                            os.environ["OPENROUTER_API_KEY"] = v
+                            return v
+        except Exception:
+            continue
+    raise EnvironmentError("OPENROUTER_API_KEY not set and not found in .env")
+
+
 @app.post("/generate-game", response_model=GenerateGameResponse)
 async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
     """
@@ -347,75 +410,82 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
     import asyncio
     from pipeline.seed_generator import random_meta_params, call_openrouter
     from pipeline.seed_generator import build_seed_user_prompt, SEED_SYSTEM_PROMPT
-    from functools import partial
 
-    # 1. Generate seed (run sync httpx in thread to avoid blocking event loop)
-    meta_params = random_meta_params()
-    seed_text = await asyncio.to_thread(
-        call_openrouter,
-        SEED_SYSTEM_PROMPT,
-        build_seed_user_prompt(meta_params),
-        req.model,
-        0.9,   # temperature
-        350,   # max_tokens
-        120,   # timeout seconds
-    )
+    # Read key from .env and pass explicitly (uvicorn reload worker often has no env)
+    api_key = _read_openrouter_key_from_env_file()
 
-    # 2. Load question spec
-    spec = _load_question_prompt_spec()
+    try:
+        # 1. Generate seed (run sync httpx in thread to avoid blocking event loop)
+        meta_params = random_meta_params()
+        seed_text = await asyncio.to_thread(
+            call_openrouter,
+            SEED_SYSTEM_PROMPT,
+            build_seed_user_prompt(meta_params),
+            req.model,
+            0.9,   # temperature
+            350,   # max_tokens
+            120,   # timeout seconds
+            api_key,
+        )
 
-    # 3. Call Grok to generate 12 questions (long call — 4000 tokens, needs more time)
-    question_user_prompt = (
-        f"Personality seed for this player:\n\n{seed_text}\n\n"
-        "Generate exactly 12 questions following the specification above. "
-        "Return ONLY the JSON array. No markdown, no commentary."
-    )
+        # 2. Load question spec
+        spec = _load_question_prompt_spec()
 
-    raw_questions = await asyncio.to_thread(
-        call_openrouter,
-        spec,
-        question_user_prompt,
-        req.model,
-        0.92,   # temperature
-        4000,   # max_tokens
-        180,    # timeout seconds — Grok needs time for 12 questions
-    )
+        # 3. Call Grok to generate 12 questions (long call — 4000 tokens, needs more time)
+        question_user_prompt = (
+            f"Personality seed for this player:\n\n{seed_text}\n\n"
+            "Generate exactly 12 questions following the specification above. "
+            "Return ONLY the JSON array. No markdown, no commentary."
+        )
 
-    # 4. Parse
-    questions_data = _parse_questions_json(raw_questions)
+        raw_questions = await asyncio.to_thread(
+            call_openrouter,
+            spec,
+            question_user_prompt,
+            req.model,
+            0.92,   # temperature
+            4000,   # max_tokens
+            180,    # timeout seconds — Grok needs time for 12 questions
+            api_key,
+        )
 
-    questions: List[GameQuestion] = []
-    for q in questions_data:
-        answers = []
-        for a in q.get("answers", []):
-            effects_raw = a.get("effects", {})
-            effects = AnswerEffects(
-                cooperationBias=int(effects_raw.get("cooperationBias", 0)),
-                deceptionTendency=int(effects_raw.get("deceptionTendency", 0)),
-                strategicHorizon=int(effects_raw.get("strategicHorizon", 0)),
-                riskAppetite=int(effects_raw.get("riskAppetite", 0)),
-            )
-            answers.append(GameAnswer(id=str(a["id"]), text=str(a["text"]), effects=effects))
-        questions.append(GameQuestion(
-            id=int(q["id"]),
-            text=str(q["text"]),
-            allowCustom=bool(q.get("allowCustom", False)),
-            answers=answers,
-        ))
+        # 4. Parse
+        questions_data = _parse_questions_json(raw_questions)
 
-    # 5. Store session
-    session_id = str(uuid.uuid4())
-    session = SessionState(
-        seed_text=seed_text,
-        meta_params=meta_params.to_dict(),
-    )
-    save_session(session_id, session)
+        questions: List[GameQuestion] = []
+        for q in questions_data:
+            answers = []
+            for a in q.get("answers", []):
+                effects_raw = a.get("effects", {})
+                effects = AnswerEffects(
+                    cooperationBias=int(effects_raw.get("cooperationBias", 0)),
+                    deceptionTendency=int(effects_raw.get("deceptionTendency", 0)),
+                    strategicHorizon=int(effects_raw.get("strategicHorizon", 0)),
+                    riskAppetite=int(effects_raw.get("riskAppetite", 0)),
+                )
+                answers.append(GameAnswer(id=str(a["id"]), text=str(a["text"]), effects=effects))
+            questions.append(GameQuestion(
+                id=int(q["id"]),
+                text=str(q["text"]),
+                allowCustom=bool(q.get("allowCustom", False)),
+                answers=answers,
+            ))
 
-    return GenerateGameResponse(
-        session_id=session_id,
-        seed_text=seed_text,
-        questions=questions,
-    )
+        # 5. Store session
+        session_id = str(uuid.uuid4())
+        session = SessionState(
+            seed_text=seed_text,
+            meta_params=meta_params.to_dict(),
+        )
+        save_session(session_id, session)
+
+        return GenerateGameResponse(
+            session_id=session_id,
+            seed_text=seed_text,
+            questions=questions,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------------------------
@@ -520,4 +590,7 @@ async def serve_spa(full_path: str) -> FileResponse:
     return FileResponse(DIST_DIR / "index.html")
 
 
-app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+# Ensure static/dist/assets exists so mount doesn't fail (created by frontend build)
+_assets_dir = DIST_DIR / "assets"
+_assets_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")

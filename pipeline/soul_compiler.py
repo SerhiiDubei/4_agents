@@ -64,7 +64,13 @@ def call_openrouter(
     temperature: float = 0.75,
     max_tokens: int = 400,
 ) -> str:
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    except Exception:
+        pass
+    raw_key = os.environ.get("OPENROUTER_API_KEY") or ""
+    api_key = raw_key.replace("\ufeff", "").strip().strip("\r\n\t ")
     if not api_key:
         raise EnvironmentError("OPENROUTER_API_KEY is not set")
 

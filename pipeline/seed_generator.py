@@ -160,8 +160,18 @@ def call_openrouter(
     temperature: float = 0.85,
     max_tokens: int = 300,
     timeout: int = 120,
+    api_key: Optional[str] = None,
 ) -> str:
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if api_key:
+        api_key = api_key.replace("\ufeff", "").strip().strip("\r\n\t ")
+    if not api_key:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+        except Exception:
+            pass
+        raw_key = os.environ.get("OPENROUTER_API_KEY") or ""
+        api_key = raw_key.replace("\ufeff", "").strip().strip("\r\n\t ")
     if not api_key:
         raise EnvironmentError("OPENROUTER_API_KEY is not set")
 
@@ -188,6 +198,17 @@ def call_openrouter(
         json=payload,
         timeout=timeout,
     )
+    if response.status_code == 401:
+        body = response.text
+        try:
+            err_json = response.json()
+            if "error" in err_json and isinstance(err_json["error"], dict):
+                body = err_json["error"].get("message", body)
+        except Exception:
+            pass
+        raise EnvironmentError(
+            f"OpenRouter 401 Unauthorized. Key invalid or disabled. OpenRouter says: {body}"
+        )
     response.raise_for_status()
     data = response.json()
     return data["choices"][0]["message"]["content"].strip()
