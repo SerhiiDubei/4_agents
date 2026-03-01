@@ -374,11 +374,15 @@ def _parse_questions_json(raw: str) -> List[Dict]:
     return json.loads(text[start : end + 1])
 
 
-def _read_openrouter_key_from_env_file() -> str:
-    """Read OPENROUTER_API_KEY from .env file (worker may not have it in os.environ)."""
+def _read_openrouter_key_from_env_file() -> tuple[str, str]:
+    """
+    Read OPENROUTER_API_KEY. Used by /generate-game when you press Start.
+    Key is taken from: 1) process env (e.g. Railway Variables), 2) .env file in project root.
+    Returns (key, source) where source is "env" or "file".
+    """
     key = (os.environ.get("OPENROUTER_API_KEY") or "").replace("\ufeff", "").strip().strip("\r\n\t ")
     if key:
-        return key
+        return key, "env"
     # Try project root, then cwd (worker may have different cwd)
     for env_path in [_PROJECT_ROOT / ".env", Path.cwd() / ".env"]:
         if not env_path.is_file():
@@ -395,7 +399,7 @@ def _read_openrouter_key_from_env_file() -> str:
                         v = v.strip().strip("\"'").replace("\ufeff", "").strip("\r\n\t ")
                         if v:
                             os.environ["OPENROUTER_API_KEY"] = v
-                            return v
+                            return v, "file"
         except Exception:
             continue
     raise EnvironmentError("OPENROUTER_API_KEY not set and not found in .env")
@@ -411,8 +415,9 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
     from pipeline.seed_generator import random_meta_params, call_openrouter
     from pipeline.seed_generator import build_seed_user_prompt, SEED_SYSTEM_PROMPT
 
-    # Read key from .env and pass explicitly (uvicorn reload worker often has no env)
-    api_key = _read_openrouter_key_from_env_file()
+    # Key for OpenRouter: from env (Railway Variables) or from .env file — passed into call_openrouter below
+    api_key, key_source = _read_openrouter_key_from_env_file()
+    print(f"[generate-game] OPENROUTER_API_KEY from {key_source}, len={len(api_key)}")
 
     try:
         # 1. Generate seed (run sync httpx in thread to avoid blocking event loop)
