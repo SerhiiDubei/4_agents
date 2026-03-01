@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Island — Agent Initialization</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --border: #2a2a30;
+      --text: #e8e8ec;
+      --muted: #6b6b78;
+      --accent: #7c6af7;
+      --accent-dim: #3d3470;
+      --success: #4ade80;
+      --danger: #f87171;
+      --radius: 10px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.65;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* ---------- Screen system ---------- */
+    .screen { display: none; flex-direction: column; gap: 28px; animation: fadeIn 0.35s ease; }
+    .screen.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------- Typography ---------- */
+    h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+    h2 { font-size: 17px; font-weight: 600; }
+    p  { color: #c4c4cc; }
+
+    .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ---------- Card ---------- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    /* ---------- Seed text ---------- */
+    .seed-text {
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      font-style: italic;
+    }
+
+    /* ---------- Progress ---------- */
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+    .progress-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* ---------- Context badge ---------- */
+    .context-badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 99px;
+    }
+
+    /* ---------- Question text ---------- */
+    .question-text {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    /* ---------- Options ---------- */
+    .options { display: flex; flex-direction: column; gap: 10px; }
+
+    .option {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      color: var(--text);
+      font-size: 14px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.1s;
+      line-height: 1.5;
+    }
+    .option:hover {
+      border-color: var(--accent);
+      background: rgba(124, 106, 247, 0.06);
+      transform: translateX(2px);
+    }
+    .option.selected {
+      border-color: var(--accent);
+      background: rgba(124, 106, 247, 0.12);
+    }
+
+    /* ---------- Free text ---------- */
+    .free-text-wrap {
+      margin-top: 4px;
+    }
+    .free-text-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+    /* ---------- CORE preview chips ---------- */
+    .core-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      padding: 4px 12px;
+      font-size: 12px;
+    }
+    .chip-bar {
+      width: 40px;
+      height: 4px;
+      background: var(--bg);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .chip-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+    }
+
+    /* ---------- Result ---------- */
+    .soul-output {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      max-height: 420px;
+      overflow-y: auto;
+      color: #c4c4cc;
+    }
+
+    .result-meta { display: flex; flex-direction: column; gap: 6px; }
+    .meta-row { display: flex; justify-content: space-between; font-size: 13px; }
+    .meta-key { color: var(--muted); }
+    .meta-val { color: var(--text); font-weight: 500; }
+
+    /* ---------- Spinner ---------- */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- Error ---------- */
+    .error-box {
+      background: rgba(248,113,113,0.08);
+      border: 1px solid var(--danger);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--danger);
+      display: none;
+    }
+    .error-box.visible { display: block; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ==================== SCREEN: WELCOME ==================== -->
+  <div id="screen-welcome" class="screen active">
+    <div>
+      <div class="label" style="margin-bottom:10px">Island — Agent Init</div>
+      <h1>Initialize your agent</h1>
+      <p style="margin-top:8px">You will be shown a personality seed, then answer 7 situational questions. Your choices shape the agent's core values and behavioral profile.</p>
+    </div>
+    <div id="error-welcome" class="error-box"></div>
+    <button class="btn btn-primary" id="btn-start" onclick="startInit()">
+      <span id="start-label">Generate seed</span>
+      <div id="start-spinner" class="spinner" style="display:none"></div>
+    </button>
+  </div>
+
+  <!-- ==================== SCREEN: SEED ==================== -->
+  <div id="screen-seed" class="screen">
+    <div>
+      <div class="label" style="margin-bottom:10px">Your personality seed</div>
+      <h1>Before you begin</h1>
+      <p style="margin-top:8px">Read this carefully. It describes who you are before any story starts.</p>
+    </div>
+    <div class="card">
+      <p class="seed-text" id="seed-text-display"></p>
+    </div>
+    <button class="btn btn-primary" onclick="startQuestions()">Continue to questions →</button>
+  </div>
+
+  <!-- ==================== SCREEN: QUESTION ==================== -->
+  <div id="screen-question" class="screen">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <span class="context-badge" id="q-context-label"></span>
+        <span class="progress-label" id="q-progress-label"></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="q-progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="question-text" id="q-text"></p>
+    </div>
+
+    <div id="error-question" class="error-box"></div>
+
+    <div class="options" id="q-options"></div>
+
+    <div class="free-text-wrap">
+      <div class="free-text-label">Or add your own thought (optional)</div>
+      <textarea id="q-free-text" placeholder="Write anything — it will influence your profile..."></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="btn-submit" onclick="submitAnswer()" disabled>
+      <span id="submit-label">Confirm choice</span>
+      <div id="submit-spinner" class="spinner" style="display:none"></div>
+    </button>
+  </div>
+
+  <!-- ==================== SCREEN: COMPILING ==================== -->
+  <div id="screen-compiling" class="screen">
+    <div>
+      <h1>Building your agent</h1>
+      <p style="margin-top:8px">Compiling SOUL.md and CORE.json from your answers. This takes 20–40 seconds.</p>
+    </div>
+    <div class="card" style="display:flex; align-items:center; gap:16px">
+      <div class="spinner"></div>
+      <span id="compile-status-text">Generating sections...</span>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: RESULT ==================== -->
+  <div id="screen-result" class="screen">
+    <div>
+      <div class="label" style="margin-bottom:10px; color: var(--success)">Complete</div>
+      <h1>Agent initialized</h1>
+      <p style="margin-top:8px">Your agent's files have been written. Below is the SOUL.md preview.</p>
+    </div>
+
+    <div class="card">
+      <div class="result-meta">
+        <div class="meta-row">
+          <span class="meta-key">Agent ID</span>
+          <span class="meta-val" id="result-agent-id"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">Output path</span>
+          <span class="meta-val" id="result-path" style="font-size:12px; word-break:break-all"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label" style="margin-bottom:10px">CORE values</div>
+      <div class="core-chips" id="result-core-chips"></div>
+    </div>
+
+    <div>
+      <div class="label" style="margin-bottom:10px">SOUL.md</div>
+      <pre class="soul-output" id="result-soul-md"></pre>
+    </div>
+
+    <button class="btn btn-ghost" onclick="resetAll()" style="width:100%">Initialize another agent</button>
+  </div>
+
+</div>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+  let state = {
+    sessionId: null,
+    totalQuestions: 0,
+    currentQuestion: null,
+    selectedDeltaKey: null,
+    selectedLabel: null,
+  };
+
+  // ---------------------------------------------------------------------------
+  // Screen management
+  // ---------------------------------------------------------------------------
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function setLoading(btnEl, spinnerEl, labelEl, loading) {
+    btnEl.disabled = loading;
+    spinnerEl.style.display = loading ? 'block' : 'none';
+    labelEl.style.display = loading ? 'none' : 'inline';
+  }
+
+  function showError(boxId, msg) {
+    const el = document.getElementById(boxId);
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  function clearError(boxId) {
+    const el = document.getElementById(boxId);
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+
+  // ---------------------------------------------------------------------------
+  // API helpers
+  // ---------------------------------------------------------------------------
+  async function api(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Request failed');
+    }
+    return res.json();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 1: Generate seed
+  // ---------------------------------------------------------------------------
+  async function startInit() {
+    clearError('error-welcome');
+    const btn = document.getElementById('btn-start');
+    const spinner = document.getElementById('start-spinner');
+    const label = document.getElementById('start-label');
+    setLoading(btn, spinner, label, true);
+
+    try {
+      const data = await api('/generate-seed', {});
+      state.sessionId = data.session_id;
+      state.totalQuestions = data.total_questions;
+
+      document.getElementById('seed-text-display').textContent = data.seed_text;
+      showScreen('screen-seed');
+    } catch (e) {
+      showError('error-welcome', e.message);
+    } finally {
+      setLoading(btn, spinner, label, false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 2: Start questions
+  // ---------------------------------------------------------------------------
+  async function startQuestions() {
+    await loadNextQuestion();
+  }
+
+  async function loadNextQuestion() {
+    showScreen('screen-question');
+    clearError('error-question');
+
+    // Reset selection
+    state.selectedDeltaKey = null;
+    state.selectedLabel = null;
+    document.getElementById('q-free-text').value = '';
+    document.getElementById('btn-submit').disabled = true;
+
+    try {
+      const data = await api('/generate-question', { session_id: state.sessionId });
+      state.currentQuestion = data;
+
+      // Progress
+      const num = data.question_number;
+      const total = data.total_questions;
+      document.getElementById('q-context-label').textContent = data.context_label;
+      document.getElementById('q-progress-label').textContent = `${num} / ${total}`;
+      document.getElementById('q-progress-fill').style.width = `${(num / total) * 100}%`;
+
+      // Question text
+      document.getElementById('q-text').textContent = data.question_text;
+
+      // Options
+      const container = document.getElementById('q-options');
+      container.innerHTML = '';
+      data.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option';
+        btn.textContent = opt.label;
+        btn.dataset.deltaKey = opt.delta_key;
+        btn.dataset.label = opt.label;
+        btn.onclick = () => selectOption(btn, opt.delta_key, opt.label);
+        container.appendChild(btn);
+      });
+    } catch (e) {
+      showError('error-question', e.message);
+    }
+  }
+
+  function selectOption(el, deltaKey, label) {
+    document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    state.selectedDeltaKey = deltaKey;
+    state.selectedLabel = label;
+    document.getElementById('btn-submit').disabled = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 3: Submit answer
+  // ---------------------------------------------------------------------------
+  async function submitAnswer() {
+    if (!state.selectedDeltaKey) return;
+    clearError('error-question');
+
+    const btn = document.getElementById('btn-submit');
+    const spinner = document.getElementById('submit-spinner');
+    const label = document.getElementById('submit-label');
+    setLoading(btn, spinner, label, true);
+
+    try {
+      const freeText = document.getElementById('q-free-text').value.trim() || null;
+      const data = await api('/submit-answer', {
+        session_id: state.sessionId,
+        delta_key: state.selectedDeltaKey,
+        choice_label: state.selectedLabel,
+        free_text: freeText,
+      });
+
+      if (data.is_complete) {
+        await compileSoul();
+      } else {
+        await loadNextQuestion();
+      }
+    } catch (e) {
+      showError('error-question', e.message);
+      setLoading(btn, spinner, label, false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 4: Compile
+  // ---------------------------------------------------------------------------
+  async function compileSoul() {
+    showScreen('screen-compiling');
+
+    const messages = [
+      'Generating sections...',
+      'Building identity profile...',
+      'Writing decision instincts...',
+      'Finalizing SOUL.md...',
+    ];
+    let msgIdx = 0;
+    const statusEl = document.getElementById('compile-status-text');
+    const interval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % messages.length;
+      statusEl.textContent = messages[msgIdx];
+    }, 4000);
+
+    try {
+      const data = await api('/compile-soul', { session_id: state.sessionId });
+      clearInterval(interval);
+
+      // Show result
+      document.getElementById('result-agent-id').textContent = data.agent_id;
+      document.getElementById('result-path').textContent = data.output_path;
+      document.getElementById('result-soul-md').textContent = data.soul_md;
+
+      // CORE chips
+      const core = data.core;
+      const coreKeys = ['cooperation_bias', 'deception_tendency', 'strategic_horizon', 'risk_appetite'];
+      const coreLabels = { cooperation_bias: 'Coop', deception_tendency: 'Deception', strategic_horizon: 'Horizon', risk_appetite: 'Risk' };
+      const chipsEl = document.getElementById('result-core-chips');
+      chipsEl.innerHTML = '';
+      coreKeys.forEach(k => {
+        const val = core[k] || 50;
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.innerHTML = `
+          <span>${coreLabels[k]}</span>
+          <div class="chip-bar"><div class="chip-fill" style="width:${val}%"></div></div>
+          <span>${val}</span>
+        `;
+        chipsEl.appendChild(chip);
+      });
+
+      showScreen('screen-result');
+    } catch (e) {
+      clearInterval(interval);
+      showScreen('screen-question');
+      showError('error-question', 'Compilation failed: ' + e.message);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reset
+  // ---------------------------------------------------------------------------
+  function resetAll() {
+    state = { sessionId: null, totalQuestions: 0, currentQuestion: null, selectedDeltaKey: null, selectedLabel: null };
+    showScreen('screen-welcome');
+  }
+</script>
+</body>
+</html>

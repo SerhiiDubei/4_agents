@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Press+Start+2P&family=VT323&display=swap');
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  body {
+    @apply bg-game-black text-white overflow-hidden selection:bg-game-pink selection:text-white;
+  }
+}
+@layer utilities {
+  .text-glow-pink {
+    text-shadow: 0 0 10px rgba(255, 45, 111, 0.8), 0 0 20px rgba(255, 45, 111, 0.4);
+  }
+  .text-glow-cyan {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4);
+  }
+  .box-glow-pink {
+    box-shadow: 0 0 15px rgba(255, 45, 111, 0.5), inset 0 0 15px rgba(255, 45, 111, 0.2);
+  }
+  .box-glow-cyan {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.2);
+  }
+  /* New Backgrounds for Rave King Story */
+  .bg-entrance {
+    background: radial-gradient(circle at center, #1a0a1f 0%, #0a0a0f 60%, #000000 100%);
+    background-size: 200% 200%;
+    animation: gradientPulse 10s ease infinite alternate;
+  }
+  .bg-dancefloor {
+    background: radial-gradient(circle at center, #2e0a22 0%, #1a0a2e 40%, #0a0a0f 100%);
+    background-size: 200% 200%;
+    animation: gradientStrobe 4s ease infinite alternate;
+  }
+  .bg-vip {
+    background: radial-gradient(circle at center, #2e220a 0%, #1a150a 50%, #0a0a0f 100%);
+    background-size: 200% 200%;
+    animation: gradientMove 12s ease infinite alternate;
+  }
+  .bg-throne {
+    background: radial-gradient(circle at center, #3e0a0a 0%, #1a0a0a 60%, #0a0a0f 100%);
+    background-size: 200% 200%;
+    animation: gradientPulse 6s ease infinite alternate;
+  }
+}
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes gradientPulse {
+  0% { background-size: 150% 150%; background-position: center; }
+  100% { background-size: 250% 250%; background-position: center; }
+}
+@keyframes gradientStrobe {
+  0% { background-position: 0% 0%; }
+  25% { background-position: 100% 100%; }
+  50% { background-position: 100% 0%; }
+  75% { background-position: 0% 100%; }
+  100% { background-position: 50% 50%; }
+}
+/* CRT Scanlines */
+.crt-overlay {
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+  z-index: 50;
+  position: absolute;
+  inset: 0;
+}
+/* Screen Flicker */
+.flicker {
+  animation: flickerAnim 0.12s infinite;
+  pointer-events: none;
+  z-index: 49;
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.015);
+}
+@keyframes flickerAnim {
+  0% { opacity: 0.9; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+/* Glitch Effect */
+.glitch-wrapper {
+  position: relative;
+}
+.glitch-text {
+  position: relative;
+  color: white;
+}
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+.glitch-text::before {
+  left: 3px;
+  text-shadow: -3px 0 #ff2d6f;
+  clip: rect(24px, 550px, 90px, 0);
+  animation: glitch-anim-2 2.5s infinite linear alternate-reverse;
+}
+.glitch-text::after {
+  left: -3px;
+  text-shadow: -3px 0 #00f0ff;
+  clip: rect(85px, 550px, 140px, 0);
+  animation: glitch-anim 2s infinite linear alternate-reverse;
+}
+@keyframes glitch-anim {
+  0% { clip: rect(39px, 9999px, 71px, 0); }
+  5% { clip: rect(41px, 9999px, 6px, 0); }
+  10% { clip: rect(11px, 9999px, 85px, 0); }
+  15% { clip: rect(89px, 9999px, 30px, 0); }
+  20% { clip: rect(27px, 9999px, 91px, 0); }
+  25% { clip: rect(54px, 9999px, 19px, 0); }
+  30% { clip: rect(7px, 9999px, 62px, 0); }
+  35% { clip: rect(98px, 9999px, 45px, 0); }
+  40% { clip: rect(32px, 9999px, 12px, 0); }
+  45% { clip: rect(66px, 9999px, 88px, 0); }
+  50% { clip: rect(15px, 9999px, 53px, 0); }
+  55% { clip: rect(81px, 9999px, 24px, 0); }
+  60% { clip: rect(49px, 9999px, 77px, 0); }
+  65% { clip: rect(92px, 9999px, 38px, 0); }
+  70% { clip: rect(22px, 9999px, 95px, 0); }
+  75% { clip: rect(58px, 9999px, 16px, 0); }
+  80% { clip: rect(8px, 9999px, 69px, 0); }
+  85% { clip: rect(74px, 9999px, 42px, 0); }
+  90% { clip: rect(35px, 9999px, 83px, 0); }
+  95% { clip: rect(96px, 9999px, 28px, 0); }
+  100% { clip: rect(19px, 9999px, 51px, 0); }
+}
+@keyframes glitch-anim-2 {
+  0% { clip: rect(65px, 9999px, 100px, 0); }
+  5% { clip: rect(52px, 9999px, 74px, 0); }
+  10% { clip: rect(79px, 9999px, 85px, 0); }
+  15% { clip: rect(75px, 9999px, 5px, 0); }
+  20% { clip: rect(67px, 9999px, 61px, 0); }
+  25% { clip: rect(14px, 9999px, 79px, 0); }
+  30% { clip: rect(1px, 9999px, 66px, 0); }
+  35% { clip: rect(86px, 9999px, 30px, 0); }
+  40% { clip: rect(23px, 9999px, 98px, 0); }
+  45% { clip: rect(85px, 9999px, 72px, 0); }
+  50% { clip: rect(71px, 9999px, 75px, 0); }
+  55% { clip: rect(2px, 9999px, 48px, 0); }
+  60% { clip: rect(30px, 9999px, 16px, 0); }
+  65% { clip: rect(59px, 9999px, 50px, 0); }
+  70% { clip: rect(41px, 9999px, 62px, 0); }
+  75% { clip: rect(2px, 9999px, 82px, 0); }
+  80% { clip: rect(47px, 9999px, 73px, 0); }
+  85% { clip: rect(3px, 9999px, 27px, 0); }
+  90% { clip: rect(26px, 9999px, 55px, 0); }
+  95% { clip: rect(42px, 9999px, 97px, 0); }
+  100% { clip: rect(38px, 9999px, 49px, 0); }
+}

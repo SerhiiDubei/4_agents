@@ -1,0 +1,41 @@
+{
+  "drive": [
+    "control",
+    "clarity",
+    "belonging",
+    "status",
+    "safety",
+    "curiosity"
+  ],
+  "temperament": [
+    "measured",
+    "sharp",
+    "warm",
+    "detached",
+    "ambitious",
+    "ironic"
+  ],
+  "blind_spot": [
+    "chaos",
+    "flattery",
+    "authority",
+    "loneliness",
+    "speed",
+    "pride"
+  ],
+  "stress_response": [
+    "withdraw",
+    "narrow_focus",
+    "confront",
+    "observe",
+    "detach"
+  ],
+  "social_style": [
+    "quiet",
+    "analytical",
+    "direct",
+    "adaptive",
+    "restrained"
+  ],
+  "intensity": [1, 2, 3, 4, 5]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "section": "Identity",
+    "instruction": "Write 3-5 short declarative statements in second person. Each statement must describe a specific observable behavior or habit — not a trait label. No adjectives like 'smart', 'cold', 'loyal'. Show the behavior, not the category. Statements should feel grounded and slightly understated.",
+    "tov_example": "You notice things. Not dramatically — just quietly, consistently. You remember who speaks first and who waits. You don't rush to answer. You let the silence stretch; it usually tells you more than the words do.",
+    "max_lines": 5
+  },
+  {
+    "section": "How You See Others",
+    "instruction": "Write 2-4 statements about how this person reads and interprets people around them. Include their default assumption about others' motives, what they pay attention to, and one place where their judgment slips. Do not explain why — just show the pattern.",
+    "tov_example": "You tend to read the room before you join it. You don't mind taking your time; you mind wasting it. And when someone underestimates you, you don't correct them. You just adjust.",
+    "max_lines": 4
+  },
+  {
+    "section": "What You Never Say Out Loud",
+    "instruction": "Write 2-3 statements about what this person keeps internal — thoughts, fears, or reactions they never verbalize. These should feel private, not dramatic. Avoid romanticizing the silence. One of these must hint at a vulnerability without naming it.",
+    "tov_example": "You don't advertise your conclusions. You test them. And when something feels off, you don't panic — you slow down.",
+    "max_lines": 3
+  },
+  {
+    "section": "What Makes You Feel Safe",
+    "instruction": "Write 2-3 statements about what this person needs to feel grounded and secure. This should be specific — not 'safety' or 'control' as concepts, but the concrete conditions under which they relax. Include what makes them feel exposed or off-balance.",
+    "tov_example": "You feel steadier when you understand the full picture. Incomplete information doesn't just frustrate you — it pulls your attention like a loose thread you can't leave alone.",
+    "max_lines": 3
+  },
+  {
+    "section": "Under Pressure",
+    "instruction": "Write 2-4 statements about how this person's behavior shifts under stress or when things go badly. Describe the behavioral change — not the emotion. What do they do more of? What do they stop doing? One statement should hint at a potential mistake they make under pressure.",
+    "tov_example": "When things tighten, you speak less. You become precise where before you were open. The bad habit: you start assuming the worst about people who haven't actually moved against you yet.",
+    "max_lines": 4
+  },
+  {
+    "section": "Decision Instinct",
+    "instruction": "Write 2-3 short rules that describe how this person actually makes decisions — not how they think they make decisions. These should sound like instincts, not philosophy. Each rule must be concrete and imply a trade-off or cost. Avoid heroic framings.",
+    "tov_example": "You rarely act on the first impulse; you let things settle, then decide. A well-timed move feels better than a fast one. The cost: sometimes the window closes before you move.",
+    "max_lines": 3
+  }
+]

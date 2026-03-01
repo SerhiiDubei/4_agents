@@ -1,0 +1,79 @@
+[
+  {
+    "context_id": "resource",
+    "label": "Resources",
+    "scenario_hint": "There are limited resources (food, tools, shelter). Not everyone can get an equal share. You have to decide how to act.",
+    "answer_slots": [
+      { "label": "Share what you have equally with everyone",     "delta_key": "share_fully" },
+      { "label": "Share, but keep more for yourself quietly",     "delta_key": "share_selectively" },
+      { "label": "Secure your share first, then see what's left", "delta_key": "act_alone" },
+      { "label": "Organize a group system so everyone contributes", "delta_key": "propose_deal" }
+    ]
+  },
+  {
+    "context_id": "trust",
+    "label": "First Contact",
+    "scenario_hint": "One of the others approaches you early and offers to share information. You don't know them yet. You don't know if this is genuine.",
+    "answer_slots": [
+      { "label": "Accept and share something in return",           "delta_key": "trust_immediately" },
+      { "label": "Listen but reveal nothing",                      "delta_key": "wait_and_observe" },
+      { "label": "Propose a concrete deal: I give X, you give Y", "delta_key": "propose_deal" },
+      { "label": "Keep distance — too early to commit",            "delta_key": "disengage_entirely" }
+    ]
+  },
+  {
+    "context_id": "conflict",
+    "label": "Betrayal",
+    "scenario_hint": "Someone made a promise to you and didn't keep it. It cost you something real. They didn't acknowledge it.",
+    "answer_slots": [
+      { "label": "Let it go — keep the relationship intact",       "delta_key": "forgive_move_on" },
+      { "label": "Bring it up directly and ask for an explanation","delta_key": "confront_directly" },
+      { "label": "Say nothing now — but adjust your behavior",     "delta_key": "passive_retaliation" },
+      { "label": "Cut them off entirely",                          "delta_key": "disengage_entirely" }
+    ]
+  },
+  {
+    "context_id": "information",
+    "label": "Hidden Knowledge",
+    "scenario_hint": "You discover something important that others don't know. This information could shift the balance of the group significantly.",
+    "answer_slots": [
+      { "label": "Tell everyone immediately — transparency first", "delta_key": "share_fully" },
+      { "label": "Tell only one person you trust",                  "delta_key": "share_selectively" },
+      { "label": "Keep it to yourself for now",                    "delta_key": "withhold" },
+      { "label": "Use it as leverage in your next conversation",   "delta_key": "use_as_leverage" }
+    ]
+  },
+  {
+    "context_id": "pressure",
+    "label": "Under Pressure",
+    "scenario_hint": "Things aren't going well. You're at a disadvantage and the situation is tightening. Others are watching how you react.",
+    "answer_slots": [
+      { "label": "Push harder — escalate to break through",        "delta_key": "push_hardest" },
+      { "label": "Step back and wait for the pressure to pass",    "delta_key": "fall_back" },
+      { "label": "Look for a compromise that reduces tension",     "delta_key": "find_compromise" },
+      { "label": "Go quiet — give nothing away",                   "delta_key": "go_silent" }
+    ]
+  },
+  {
+    "context_id": "alliance",
+    "label": "Alliance Offer",
+    "scenario_hint": "Someone proposes a formal alliance — you stick together for mutual benefit. It's tempting, but it also means depending on someone else.",
+    "answer_slots": [
+      { "label": "Accept — better together than alone",            "delta_key": "accept_alliance" },
+      { "label": "Negotiate — define terms before agreeing",       "delta_key": "negotiate_terms" },
+      { "label": "Agree, but plan to act independently anyway",   "delta_key": "fake_alliance" },
+      { "label": "Decline — keep your options open",              "delta_key": "decline_alliance" }
+    ]
+  },
+  {
+    "context_id": "reveal",
+    "label": "The Moment of Truth",
+    "scenario_hint": "You have proof that someone has been deceiving the group. You can act on it — or not. No one else knows you have this.",
+    "answer_slots": [
+      { "label": "Expose them publicly right now",                 "delta_key": "expose_immediately" },
+      { "label": "Keep it to yourself — it's more useful hidden", "delta_key": "keep_as_secret" },
+      { "label": "Use it privately as a bargaining chip",         "delta_key": "use_as_bargaining_chip" },
+      { "label": "Ignore it — not your problem",                  "delta_key": "ignore_it" }
+    ]
+  }
+]
