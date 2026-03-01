@@ -16,24 +16,25 @@ from dotenv import load_dotenv
 _project_root = Path(__file__).resolve().parent
 _env_path = _project_root / ".env"
 load_dotenv(_env_path)
-if not _env_path.exists():
-    print(f"Note: .env not found at {_env_path}")
 
 import uvicorn
 
 if __name__ == "__main__":
     api_key = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
     if not api_key:
-        print("ERROR: OPENROUTER_API_KEY is not set.")
-        print(f"  Looked for .env at: {_env_path}")
-        print("  Copy .env.example to .env and fill in your API key.")
-        raise SystemExit(1)
+        print("WARNING: OPENROUTER_API_KEY is not set. API calls will fail.")
+        print("  Railway: Project → Your service → Variables → Add OPENROUTER_API_KEY (exact name).")
+        print("  Locally: copy .env.example to .env and set your API key.")
+        # Don't exit — start server so container stays up and user can fix Variables
+    else:
+        print("OPENROUTER_API_KEY found.")
 
-    print("Starting Island Agent Init on http://localhost:8000")
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting Island Agent Init on http://0.0.0.0:{port}")
     # reload=False so the worker process inherits OPENROUTER_API_KEY from this process
     uvicorn.run(
         "server.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=False,
     )
