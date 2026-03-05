@@ -172,6 +172,24 @@ class CompileSoulResponse(BaseModel):
     output_path: str
 
 
+class CompileFromSessionRequest(BaseModel):
+    session_id: str
+    cooperation_bias: int
+    deception_tendency: int
+    strategic_horizon: int
+    risk_appetite: int
+    archetype_name: str = ""
+    model: str = "openai/gpt-4o-mini"
+
+
+class CompileFromSessionResponse(BaseModel):
+    session_id: str
+    agent_id: str
+    soul_md: str
+    core: dict
+    output_path: str
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -296,6 +314,65 @@ async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
     soul_md = compile_soul(compile_input, output_dir, model=req.model)
 
     return CompileSoulResponse(
+        session_id=req.session_id,
+        agent_id=agent_id,
+        soul_md=soul_md,
+        core=core_data,
+        output_path=str(output_dir),
+    )
+
+
+@app.post("/compile-from-session", response_model=CompileFromSessionResponse)
+async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFromSessionResponse:
+    """
+    Compile SOUL.md directly from the completed session, using final CORE values from the frontend.
+    This ensures the same seed + meta_params + answers are used as during the question phase.
+    """
+    session = get_session(req.session_id)
+    total = get_context_count()
+
+    if session.current_context_index < total:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Session incomplete: {session.current_context_index}/{total} questions answered",
+        )
+
+    agent_id = f"agent_{req.session_id[:8]}"
+    output_dir = AGENTS_DIR / agent_id
+
+    core_values = {
+        "cooperation_bias": max(0, min(100, req.cooperation_bias)),
+        "deception_tendency": max(0, min(100, req.deception_tendency)),
+        "strategic_horizon": max(0, min(100, req.strategic_horizon)),
+        "risk_appetite": max(0, min(100, req.risk_appetite)),
+    }
+
+    compile_input = CompileInput(
+        agent_id=agent_id,
+        seed_text=session.seed_text,
+        meta_params=session.meta_params,
+        answers=session.answers,
+        trait_log=session.trait_log,
+        core=core_values,
+    )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    soul_md = compile_soul(compile_input, output_dir, model=req.model)
+
+    core_data = {
+        "version": "1.0.0",
+        **core_values,
+        "point_buy": {"budget": 100, "spent": 0, "refund": 0, "notes": "Generated via React UI"},
+        "meta": {
+            "agent_id": agent_id,
+            "archetype": req.archetype_name,
+            **session.meta_params,
+        },
+    }
+    with open(output_dir / "CORE.json", "w", encoding="utf-8") as f:
+        json.dump(core_data, f, indent=2, ensure_ascii=False)
+
+    return CompileFromSessionResponse(
         session_id=req.session_id,
         agent_id=agent_id,
         soul_md=soul_md,
@@ -490,11 +567,17 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
         )
         save_session(session_id, session)
 
-        return GenerateGameResponse(
+        response = GenerateGameResponse(
             session_id=session_id,
             seed_text=seed_text,
             questions=questions,
         )
+        # Simple structured log for successful game generation (useful for Railway logs)
+        print(
+            f"[generate-game] ok session_id={session_id} "
+            f"questions={len(questions)} model={req.model}"
+        )
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

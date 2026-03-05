@@ -95,16 +95,24 @@ export const RevealView: React.FC<RevealViewProps> = ({
   const handleStartSimulation = async () => {
     setCompileStatus('loading');
     try {
-      const res = await fetch('/compile-from-params', {
+      const payload = {
+        cooperation_bias: Math.round(parameters.cooperationBias),
+        deception_tendency: Math.round(parameters.deceptionTendency),
+        strategic_horizon: Math.round(parameters.strategicHorizon),
+        risk_appetite: Math.round(parameters.riskAppetite),
+        archetype_name: archetype.name,
+      };
+
+      const hasSession = Boolean(_sessionId);
+      const url = hasSession ? '/compile-from-session' : '/compile-from-params';
+      const body = hasSession
+        ? JSON.stringify({ session_id: _sessionId, ...payload })
+        : JSON.stringify(payload);
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cooperation_bias: Math.round(parameters.cooperationBias),
-          deception_tendency: Math.round(parameters.deceptionTendency),
-          strategic_horizon: Math.round(parameters.strategicHorizon),
-          risk_appetite: Math.round(parameters.riskAppetite),
-          archetype_name: archetype.name,
-        }),
+        body,
       });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
