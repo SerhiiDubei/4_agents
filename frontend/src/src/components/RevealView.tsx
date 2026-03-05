@@ -86,6 +86,7 @@ export const RevealView: React.FC<RevealViewProps> = ({
   const [soulMd, setSoulMd] = useState('');
   const [agentId, setAgentId] = useState('');
   const [showSoul, setShowSoul] = useState(false);
+  const [compileError, setCompileError] = useState<string>('');
 
   useEffect(() => {
     const timer = setTimeout(() => setShowStats(true), 3500);
@@ -94,6 +95,7 @@ export const RevealView: React.FC<RevealViewProps> = ({
 
   const handleStartSimulation = async () => {
     setCompileStatus('loading');
+    setCompileError('');
     try {
       const payload = {
         cooperation_bias: Math.round(parameters.cooperationBias),
@@ -114,13 +116,42 @@ export const RevealView: React.FC<RevealViewProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body,
       });
-      if (!res.ok) throw new Error('Server error');
+      if (!res.ok) {
+        let message = 'ПОМИЛКА СЕРВЕРА. СПРОБУЙТЕ ЩЕ РАЗ.';
+        try {
+          const text = await res.text();
+          if (res.status === 404) {
+            message = 'Сесія втрачена. Почніть ініціалізацію заново.';
+          } else if (text) {
+            try {
+              const json = JSON.parse(text);
+              if (typeof (json as any).detail === 'string') {
+                message = (json as any).detail;
+              } else if (typeof (json as any).error === 'string') {
+                message = (json as any).error;
+              }
+            } catch {
+              if (text.trim().length > 0) {
+                message = text.trim();
+              }
+            }
+          }
+        } catch {
+          // ignore parse errors, keep default message
+        }
+        throw new Error(message);
+      }
       const data = await res.json();
       setSoulMd(data.soul_md);
       setAgentId(data.agent_id);
       setCompileStatus('done');
       setTimeout(() => setShowSoul(true), 400);
-    } catch {
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : 'ПОМИЛКА СЕРВЕРА. ПЕРЕВІРТЕ ПІДКЛЮЧЕННЯ.';
+      setCompileError(msg);
       setCompileStatus('error');
     }
   };
@@ -229,7 +260,7 @@ export const RevealView: React.FC<RevealViewProps> = ({
 
                 {compileStatus === 'error' && (
                   <div className="font-pixel text-game-red text-xs tracking-widest">
-                    ПОМИЛКА СЕРВЕРА. ПЕРЕВІРТЕ ПІДКЛЮЧЕННЯ.
+                    {compileError || 'ПОМИЛКА СЕРВЕРА. ПЕРЕВІРТЕ ПІДКЛЮЧЕННЯ.'}
                   </div>
                 )}
               </motion.div>

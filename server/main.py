@@ -14,6 +14,7 @@ For production use, replace with Redis or DB persistence.
 import json
 import os
 import uuid
+import logging
 from pathlib import Path
 from typing import Any, Optional, List, Dict
 
@@ -58,6 +59,8 @@ DIST_DIR = STATIC_DIR / "dist"
 
 app = FastAPI(title="Island Agent Init", version="1.0.0")
 
+logger = logging.getLogger("island")
+
 
 @app.on_event("startup")
 def _ensure_env_loaded():
@@ -98,6 +101,7 @@ _sessions: dict[str, dict[str, Any]] = {}
 def get_session(session_id: str) -> SessionState:
     data = _sessions.get(session_id)
     if not data:
+        logger.warning(f"[session] not found session_id={session_id}")
         raise HTTPException(status_code=404, detail="Session not found")
     return SessionState.from_dict(data)
 
@@ -371,6 +375,11 @@ async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFro
     }
     with open(output_dir / "CORE.json", "w", encoding="utf-8") as f:
         json.dump(core_data, f, indent=2, ensure_ascii=False)
+
+    logger.info(
+        "[compile-from-session] ok session_id=%s agent_id=%s "
+        "core=%s", req.session_id, agent_id, core_values
+    )
 
     return CompileFromSessionResponse(
         session_id=req.session_id,

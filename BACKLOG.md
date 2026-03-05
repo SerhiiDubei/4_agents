@@ -33,8 +33,8 @@ _EN: This file acts as our lightweight ClickUp / single source of truth for plan
 | T5  | Storyteller prompt pass: seed + 12 questions + SOUL     | Game Design | game      | P0       | todo        | S2     |       | тон, атмосфера, повторювані мотиви |
 | T6  | Design 4-player environment rules & phases              | Game Design | game      | P1       | todo        | S3     |       | лоббі, раунди, кооперація/зрада |
 | T7  | Architecture for 4 separate agents / tokens             | Tech        | tech/game | P2       | todo        | S3     |       | різні моделі/персони/ключі |
-| T8  | Observability in prod (logs, basic monitoring)          | Infra/DevOps| tech      | P2       | todo        | S2     |       | Railway, логи, healthchecks |
-| T9  | UX flow for “session lost / restart ritual”             | UX/UI       | game      | P2       | todo        | S2     |       | якщо сесія пропала під час compile |
+| T8  | Observability in prod (logs, basic monitoring)          | Infra/DevOps| tech      | P2       | done        | S2     |       | Railway, логи, healthchecks |
+| T9  | UX flow for “session lost / restart ritual”             | UX/UI       | game      | P2       | done        | S2     |       | якщо сесія пропала під час compile |
 | T10 | Meta-layer: storing & browsing best SOUL profiles       | Game Design | game      | P3       | todo        | S4     |       | “паспорт” персонажа, історії |
 
 _Legend:_  
