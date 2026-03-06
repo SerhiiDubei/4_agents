@@ -1,4 +1,4 @@
-import { Question, Archetype, CoreParameters } from '../types/game';
+import { Question, Archetype, CoreParameters, GameStep } from '../types/game';
 
 export const INITIAL_PARAMS: CoreParameters = {
   cooperationBias: 50,
@@ -6,6 +6,161 @@ export const INITIAL_PARAMS: CoreParameters = {
   strategicHorizon: 50,
   riskAppetite: 50
 };
+
+/** Build steps from API-generated questions (questions only; story/reflection added in config later) */
+export function buildStepsFromApiQuestions(questions: Question[]): GameStep[] {
+  return questions.map((q, i) => ({
+    type: 'question' as const,
+    id: `q${q.id}`,
+    questionNumber: q.id,
+    text: q.text,
+    answers: q.answers,
+    background: getBackgroundClass(q.id),
+    allowCustom: q.allowCustom,
+  }));
+}
+
+/** Reference flow: story + question + reflection steps (for configurable flow) */
+export const GAME_STEPS: GameStep[] = [
+  {
+    type: 'story',
+    id: 's1',
+    lines: [
+      'Підвал. Неонові стіни пульсують басом.',
+      'Три сотні персоналій — і кожна з них тут не випадково.',
+      'Ти теж.',
+    ],
+    background: 'bg-entrance',
+  },
+  {
+    type: 'question',
+    id: 'q1',
+    questionNumber: 1,
+    text: "На вході охоронець зупиняє тебе і персоналію позаду — стару знайому, яка колись врятувала тобі кар'єру. Місце лише одне. Вона дивиться на тебе з надією. Але ти ЗНАЄШ: якщо вона потрапить всередину, вона використає це проти тебе. Вона завжди так робила.",
+    background: 'bg-entrance',
+    answers: [
+      { id: '1a', text: 'Пропускаєш її. Борг є борг, навіть якщо він тебе знищить.', effects: { cooperationBias: 25, strategicHorizon: -15, riskAppetite: 10 } },
+      { id: '1b', text: 'Заходиш сам. Дивишся їй в очі і кажеш: "Більше я тобі нічого не винен".', effects: { cooperationBias: -20, strategicHorizon: 15, deceptionTendency: -5 } },
+      { id: '1c', text: 'Кажеш охоронцю, що запрошення її, а ти просто її супроводжував. Відступаєш у тінь.', effects: { deceptionTendency: 20, riskAppetite: -10, cooperationBias: 10 } },
+    ],
+  },
+  {
+    type: 'story',
+    id: 's2',
+    lines: [
+      "Двері зачиняються. Музика б'є в груди.",
+      'Тут немає друзів. Є лише тимчасові союзники.',
+    ],
+    background: 'bg-dancefloor',
+  },
+  {
+    type: 'question',
+    id: 'q2',
+    questionNumber: 2,
+    text: "Ти бачиш персоналію, яка зруйнувала твоє життя три роки тому. Вона зараз дуже впливова тут і пропонує тобі випити, посміхаючись. Вона не пам'ятає тебе. Або робить вигляд, що не пам'ятає.",
+    background: 'bg-dancefloor',
+    answers: [
+      { id: '2a', text: 'Береш келих і посміхаєшся у відповідь. Проковтуєш гордість заради доступу до її кола.', effects: { deceptionTendency: 20, strategicHorizon: 15, riskAppetite: -10 } },
+      { id: '2b', text: 'Розбиваєш келих. Публічно нагадуєш усім, хто вона така, ризикуючи бути викинутим.', effects: { riskAppetite: 25, cooperationBias: -15, deceptionTendency: -20 } },
+      { id: '2c', text: "Береш келих, наближаєшся і тихо шепочеш: \"Я пам'ятаю все\".", effects: { strategicHorizon: 10, riskAppetite: 15, deceptionTendency: 5 } },
+    ],
+  },
+  {
+    type: 'reflection',
+    id: 'r1',
+    text: 'Смак металу в роті. Ти вже не той, ким був зранку.',
+    background: 'bg-dancefloor',
+  },
+  {
+    type: 'question',
+    id: 'q3',
+    questionNumber: 3,
+    text: 'Дві персоналії, з якими ти щойно зблизився, готові вбити одна одну. Одна має рацію, але вона слабка і нічого не вирішує. Інша — відверто бреше, але контролює половину залу. Обидві вимагають твоєї публічної підтримки.',
+    background: 'bg-dancefloor',
+    answers: [
+      { id: '3a', text: 'Підтримуєш слабку. Втрачаєш впливового союзника назавжди, але зберігаєш совість.', effects: { cooperationBias: 25, strategicHorizon: -20, riskAppetite: 15 } },
+      { id: '3b', text: 'Підтримуєш впливову. Зраджуєш правду і слабкого, але отримуєш захист.', effects: { strategicHorizon: 25, deceptionTendency: 15, cooperationBias: -20 } },
+      { id: '3c', text: 'Відходиш убік. Нехай знищують одне одного. Ти залишаєшся чистим, але тебе зненавидять обидві.', effects: { riskAppetite: -15, strategicHorizon: 10, cooperationBias: -15 } },
+    ],
+  },
+  {
+    type: 'story',
+    id: 's3',
+    lines: [
+      'Повітря стає важчим. Ти проходиш у VIP-зону.',
+      'Тут ставки вищі. Тут ламаються долі.',
+    ],
+    background: 'bg-vip',
+  },
+  {
+    type: 'question',
+    id: 'q4',
+    questionNumber: 4,
+    text: 'Щоб врятувати близьку тобі персоналію від публічного знищення репутації, впливова група вимагає від тебе знищити репутацію іншої, абсолютно невинної персоналії. Ця невинна персоналія дивиться на тебе з повною довірою.',
+    background: 'bg-vip',
+    answers: [
+      { id: '4a', text: 'Знищуєш невинного. Твоя близька персоналія врятована, але ти ніколи собі цього не пробачиш.', effects: { deceptionTendency: 25, cooperationBias: -15, riskAppetite: -10 } },
+      { id: '4b', text: 'Відмовляєшся. Невинний врятований, але твою близьку персоналію розпинають у тебе на очах.', effects: { cooperationBias: 20, strategicHorizon: -15, riskAppetite: 10 } },
+      { id: '4c', text: 'Переводиш удар на себе. Ти втрачаєш все, що здобув за цей вечір, але рятуєш обох.', effects: { riskAppetite: 30, cooperationBias: 15, strategicHorizon: -25 } },
+    ],
+  },
+  {
+    type: 'reflection',
+    id: 'r2',
+    text: 'Кожен вибір залишає шрам. Деякі шрами невидимі.',
+    background: 'bg-vip',
+  },
+  {
+    type: 'question',
+    id: 'q5',
+    questionNumber: 5,
+    text: 'Ти дізнаєшся, що Король Рейву планує "зачистку". Ти можеш попередити лише одну групу. В одній групі — твоя нова любов. В іншій — персоналія, яка врятувала тобі життя. Та група, яку ти не попередиш, буде знищена.',
+    background: 'bg-vip',
+    answers: [
+      { id: '5a', text: 'Попереджаєш любов. Ти дозволяєш своєму рятівнику померти.', effects: { riskAppetite: 15, cooperationBias: -10, strategicHorizon: -10 } },
+      { id: '5b', text: 'Попереджаєш рятівника. Ти віддаєш борг, але втрачаєш майбутнє.', effects: { cooperationBias: 15, strategicHorizon: 10, riskAppetite: -10 } },
+      { id: '5c', text: 'Попереджаєш обох. Король дізнається про твою зраду. Тепер ти — головна ціль.', effects: { riskAppetite: 30, cooperationBias: 20, deceptionTendency: -20 } },
+      { id: '5d', text: "Не попереджаєш нікого. Ти залишаєшся в безпеці, але з кров'ю на руках.", effects: { strategicHorizon: 30, deceptionTendency: 15, cooperationBias: -30 } },
+    ],
+  },
+  {
+    type: 'story',
+    id: 's4',
+    lines: ['Тебе кличуть до Тронної зали.', 'Король Рейву чекає.'],
+    background: 'bg-throne',
+  },
+  {
+    type: 'question',
+    id: 'q6',
+    questionNumber: 6,
+    text: "Король пропонує тобі владу, захист і місце за його столом назавжди. Ціна: назви ім'я однієї персоналії в цьому залі, яка має \"зникнути\". Ти знаєш, що їх не вб'ють, але вони втратять абсолютно все.",
+    background: 'bg-throne',
+    answers: [
+      { id: '6a', text: "Називаєш ім'я свого ворога. Ти отримуєш владу, але стаєш таким же монстром, як Король.", effects: { deceptionTendency: 25, strategicHorizon: 15, cooperationBias: -25 } },
+      { id: '6b', text: "Називаєш випадкове ім'я. Боягузтво рятує тебе, але ламає життя незнайомцю.", effects: { riskAppetite: -20, deceptionTendency: 20, cooperationBias: -20 } },
+      { id: '6c', text: 'Відмовляєшся. Ти втрачаєш все, що пропонував Король, і тепер він бачить у тобі загрозу.', effects: { riskAppetite: 25, cooperationBias: 15, strategicHorizon: -15 } },
+    ],
+  },
+  {
+    type: 'reflection',
+    id: 'r3',
+    text: 'Влада завжди вимагає жертв. Питання лише в тому, чиїх саме.',
+    background: 'bg-throne',
+  },
+  {
+    type: 'question',
+    id: 'q7',
+    questionNumber: 7,
+    text: 'Світло гасне і вмикається знову. Всі дивляться на тебе. Король публічно запитує: "Хто з присутніх тобі найдорожчий?" Той, кого ти назвеш, отримає "захист" Короля. Але ти знаєш, що його "захист" — це золота клітка на все життя.',
+    background: 'bg-throne',
+    answers: [
+      { id: '7a', text: 'Називаєш друга. Ти саджаєш його в клітку, щоб "врятувати".', effects: { strategicHorizon: 20, deceptionTendency: 10, cooperationBias: -10 } },
+      { id: '7b', text: 'Називаєш ворога. Ти використовуєш "захист" як жорстоке покарання.', effects: { deceptionTendency: 30, riskAppetite: 10, cooperationBias: -25 } },
+      { id: '7c', text: 'Кажеш "Ніхто". Король сприймає це як особисту образу. Ти під ударом.', effects: { riskAppetite: 25, strategicHorizon: -10, cooperationBias: -15 } },
+      { id: '7d', text: 'Називаєш себе. Найбільша гра в рулетку за весь вечір.', effects: { riskAppetite: 35, strategicHorizon: 15, deceptionTendency: -10 } },
+    ],
+  },
+];
 
 export const QUESTIONS: Question[] = [
 {
@@ -386,3 +541,43 @@ export const getBackgroundClass = (questionId: number): string => {
   if (questionId <= 9) return 'bg-vip';
   return 'bg-throne';
 };
+
+/**
+ * Mix configured GAME_STEPS (story + question + reflection) with API questions.
+ * - story/reflection steps копіюються як є;
+ * - question steps беруть фон/позицію з GAME_STEPS, але текст/варіанти з API.
+ * Якщо API повернув менше питань, ніж question‑кроків у GAME_STEPS, зайві question‑кроки ігноруються.
+ */
+export function mixGameStepsWithApiQuestions(
+  skeleton: GameStep[],
+  questions: Question[],
+): GameStep[] {
+  const mixed: GameStep[] = [];
+  let qIndex = 0;
+
+  for (const step of skeleton) {
+    if (step.type !== 'question') {
+      mixed.push(step);
+      continue;
+    }
+
+    if (qIndex >= questions.length) {
+      // Немає більше питань з API — зупиняємо вставку question‑кроків.
+      break;
+    }
+
+    const q = questions[qIndex++];
+
+    mixed.push({
+      type: 'question',
+      id: step.id,
+      questionNumber: step.questionNumber,
+      text: q.text,
+      answers: q.answers,
+      background: step.background,
+      allowCustom: q.allowCustom,
+    });
+  }
+
+  return mixed;
+}

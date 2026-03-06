@@ -15,6 +15,7 @@ import json
 import os
 import uuid
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, List, Dict
 
@@ -85,6 +86,13 @@ def _ensure_env_loaded():
             except Exception:
                 pass
 
+    # Ensure agents root directory always exists
+    try:
+        AGENTS_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Non-fatal: if this fails, individual endpoints will raise on write
+        logger.exception("Failed to create AGENTS_DIR at startup")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -108,6 +116,88 @@ def get_session(session_id: str) -> SessionState:
 
 def save_session(session_id: str, session: SessionState) -> None:
     _sessions[session_id] = session.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Agent storage helpers
+# ---------------------------------------------------------------------------
+
+DEFAULT_USER_ID = "local"
+
+
+def _resolve_user_and_agent(
+    *,
+    session_id: Optional[str],
+    user_id: Optional[str],
+    agent_id: Optional[str],
+) -> tuple[str, str]:
+    """
+    Resolve concrete (user_id, agent_id) for an agent.
+
+    - user_id: defaults to DEFAULT_USER_ID when empty
+    - agent_id: explicit > session-based > random
+    """
+    resolved_user = (user_id or "").strip() or DEFAULT_USER_ID
+    if agent_id:
+        resolved_agent = agent_id
+    elif session_id:
+        resolved_agent = f"agent_{session_id[:8]}"
+    else:
+        resolved_agent = f"agent_{str(uuid.uuid4())[:8]}"
+    return resolved_user, resolved_agent
+
+
+def _agent_dir(user_id: str, agent_id: str) -> Path:
+    return AGENTS_DIR / user_id / agent_id
+
+
+def _load_agent_meta(path: Path) -> Optional[dict[str, Any]]:
+    if not path.is_file():
+        return None
+    try:
+        with path.open(encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        logger.exception("Failed to read agent meta from %s", path)
+        return None
+
+
+def _write_agent_meta(
+    *,
+    user_id: str,
+    agent_id: str,
+    session_id: Optional[str],
+    archetype_name: str,
+    core_data: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Create or update meta.json for an agent and return the meta dict.
+    """
+    out_dir = _agent_dir(user_id, agent_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = out_dir / "meta.json"
+
+    existing = _load_agent_meta(meta_path) or {}
+    now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    created_at = existing.get("created_at") or now
+
+    meta: dict[str, Any] = {
+        "agent_id": agent_id,
+        "user_id": user_id,
+        "session_id": session_id,
+        "archetype_name": archetype_name,
+        "created_at": created_at,
+        "updated_at": now,
+        "version": str(core_data.get("version", existing.get("version", "1.0.0"))),
+        "archived": bool(existing.get("archived", False)),
+        "tags": existing.get("tags") or [],
+        "notes": existing.get("notes"),
+    }
+
+    with meta_path.open("w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+
+    return meta
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +274,8 @@ class CompileFromSessionRequest(BaseModel):
     risk_appetite: int
     archetype_name: str = ""
     model: str = "openai/gpt-4o-mini"
+    user_id: Optional[str] = None
+    agent_id: Optional[str] = None
 
 
 class CompileFromSessionResponse(BaseModel):
@@ -192,6 +284,39 @@ class CompileFromSessionResponse(BaseModel):
     soul_md: str
     core: dict
     output_path: str
+
+
+class AgentMetaResponse(BaseModel):
+    agent_id: str
+    user_id: str
+    session_id: Optional[str] = None
+    archetype_name: str = ""
+    created_at: str
+    updated_at: str
+    version: str = "1.0.0"
+    archived: bool = False
+    tags: list[str] = []
+    notes: Optional[str] = None
+
+
+class AgentSummary(BaseModel):
+    agent_id: str
+    user_id: str
+    archetype_name: str
+    created_at: str
+    updated_at: str
+    archived: bool = False
+
+
+class AgentDetailResponse(BaseModel):
+    meta: AgentMetaResponse
+    core: dict
+    soul_md: str
+
+
+class AgentListResponse(BaseModel):
+    user_id: str
+    agents: list[AgentSummary]
 
 
 # ---------------------------------------------------------------------------
@@ -293,16 +418,14 @@ async def api_submit_answer(req: SubmitAnswerRequest) -> SubmitAnswerResponse:
 async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
     """Compile SOUL.md and CORE.json from the completed session."""
     session = get_session(req.session_id)
-    total = get_context_count()
 
-    if session.current_context_index < total:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Session incomplete: {session.current_context_index}/{total} questions answered",
-        )
-
-    agent_id = req.agent_id or f"agent_{req.session_id[:8]}"
-    output_dir = AGENTS_DIR / agent_id
+    # Legacy endpoint: use default user namespace
+    user_id, agent_id = _resolve_user_and_agent(
+        session_id=req.session_id,
+        user_id=None,
+        agent_id=req.agent_id,
+    )
+    output_dir = _agent_dir(user_id, agent_id)
 
     core_data = finalize_core(session, output_dir, agent_id)
 
@@ -316,6 +439,14 @@ async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
     )
 
     soul_md = compile_soul(compile_input, output_dir, model=req.model)
+
+    _write_agent_meta(
+        user_id=user_id,
+        agent_id=agent_id,
+        session_id=req.session_id,
+        archetype_name="",
+        core_data=core_data,
+    )
 
     return CompileSoulResponse(
         session_id=req.session_id,
@@ -333,16 +464,13 @@ async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFro
     This ensures the same seed + meta_params + answers are used as during the question phase.
     """
     session = get_session(req.session_id)
-    total = get_context_count()
 
-    if session.current_context_index < total:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Session incomplete: {session.current_context_index}/{total} questions answered",
-        )
-
-    agent_id = f"agent_{req.session_id[:8]}"
-    output_dir = AGENTS_DIR / agent_id
+    user_id, agent_id = _resolve_user_and_agent(
+        session_id=req.session_id,
+        user_id=req.user_id,
+        agent_id=req.agent_id,
+    )
+    output_dir = _agent_dir(user_id, agent_id)
 
     core_values = {
         "cooperation_bias": max(0, min(100, req.cooperation_bias)),
@@ -360,7 +488,6 @@ async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFro
         core=core_values,
     )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
     soul_md = compile_soul(compile_input, output_dir, model=req.model)
 
     core_data = {
@@ -369,6 +496,7 @@ async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFro
         "point_buy": {"budget": 100, "spent": 0, "refund": 0, "notes": "Generated via React UI"},
         "meta": {
             "agent_id": agent_id,
+            "user_id": user_id,
             "archetype": req.archetype_name,
             **session.meta_params,
         },
@@ -376,9 +504,20 @@ async def api_compile_from_session(req: CompileFromSessionRequest) -> CompileFro
     with open(output_dir / "CORE.json", "w", encoding="utf-8") as f:
         json.dump(core_data, f, indent=2, ensure_ascii=False)
 
+    _write_agent_meta(
+        user_id=user_id,
+        agent_id=agent_id,
+        session_id=req.session_id,
+        archetype_name=req.archetype_name,
+        core_data=core_data,
+    )
+
     logger.info(
-        "[compile-from-session] ok session_id=%s agent_id=%s "
-        "core=%s", req.session_id, agent_id, core_values
+        "[compile-from-session] ok user_id=%s session_id=%s agent_id=%s core=%s",
+        user_id,
+        req.session_id,
+        agent_id,
+        core_values,
     )
 
     return CompileFromSessionResponse(
@@ -602,6 +741,8 @@ class CompileFromParamsRequest(BaseModel):
     risk_appetite: int
     archetype_name: str = ""
     model: str = GROK_MODEL
+    user_id: Optional[str] = None
+    agent_id: Optional[str] = None
 
 
 class CompileFromParamsResponse(BaseModel):
@@ -619,8 +760,12 @@ async def api_compile_from_params(req: CompileFromParamsRequest) -> CompileFromP
     """
     from pipeline.seed_generator import random_meta_params, generate_seed
 
-    agent_id = f"agent_{str(uuid.uuid4())[:8]}"
-    output_dir = AGENTS_DIR / agent_id
+    user_id, agent_id = _resolve_user_and_agent(
+        session_id=None,
+        user_id=req.user_id,
+        agent_id=req.agent_id,
+    )
+    output_dir = _agent_dir(user_id, agent_id)
 
     seed_result = generate_seed(model=req.model)
 
@@ -641,7 +786,6 @@ async def api_compile_from_params(req: CompileFromParamsRequest) -> CompileFromP
         core=core_values,
     )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
     soul_md = compile_soul(compile_input, output_dir, model=req.model)
 
     core_data = {
@@ -650,13 +794,21 @@ async def api_compile_from_params(req: CompileFromParamsRequest) -> CompileFromP
         "point_buy": {"budget": 100, "spent": 0, "refund": 0, "notes": "Generated via React UI"},
         "meta": {
             "agent_id": agent_id,
+            "user_id": user_id,
             "archetype": req.archetype_name,
             **seed_result.meta_params.to_dict(),
         },
     }
-    output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "CORE.json", "w", encoding="utf-8") as f:
         json.dump(core_data, f, indent=2, ensure_ascii=False)
+
+    _write_agent_meta(
+        user_id=user_id,
+        agent_id=agent_id,
+        session_id=None,
+        archetype_name=req.archetype_name,
+        core_data=core_data,
+    )
 
     return CompileFromParamsResponse(
         agent_id=agent_id,
@@ -664,6 +816,164 @@ async def api_compile_from_params(req: CompileFromParamsRequest) -> CompileFromP
         core=core_data,
         output_path=str(output_dir),
     )
+
+
+@app.post("/agents/from-session", response_model=AgentDetailResponse)
+async def api_agents_from_session(req: CompileFromSessionRequest) -> AgentDetailResponse:
+    """
+    High-level endpoint: create or update an agent from a completed session.
+    Wraps /compile-from-session and returns structured agent detail.
+    """
+    result = await api_compile_from_session(req)
+
+    user_id, agent_id = _resolve_user_and_agent(
+        session_id=req.session_id,
+        user_id=req.user_id,
+        agent_id=req.agent_id or result.agent_id,
+    )
+    out_dir = _agent_dir(user_id, agent_id)
+
+    soul_path = out_dir / "SOUL.md"
+    try:
+        soul_text = soul_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        soul_text = result.soul_md
+
+    meta_raw = _load_agent_meta(out_dir / "meta.json") or {}
+    meta = AgentMetaResponse(
+        agent_id=meta_raw.get("agent_id", agent_id),
+        user_id=meta_raw.get("user_id", user_id),
+        session_id=meta_raw.get("session_id", req.session_id),
+        archetype_name=meta_raw.get("archetype_name", req.archetype_name),
+        created_at=meta_raw.get("created_at", datetime.utcnow().isoformat(timespec="seconds") + "Z"),
+        updated_at=meta_raw.get("updated_at", datetime.utcnow().isoformat(timespec="seconds") + "Z"),
+        version=meta_raw.get("version", str(result.core.get("version", "1.0.0"))),
+        archived=bool(meta_raw.get("archived", False)),
+        tags=list(meta_raw.get("tags") or []),
+        notes=meta_raw.get("notes"),
+    )
+
+    return AgentDetailResponse(meta=meta, core=result.core, soul_md=soul_text)
+
+
+@app.post("/agents/from-core", response_model=AgentDetailResponse)
+async def api_agents_from_core(req: CompileFromParamsRequest) -> AgentDetailResponse:
+    """
+    High-level endpoint: create an agent directly from CORE parameters.
+    Wraps /compile-from-params and returns structured agent detail.
+    """
+    result = await api_compile_from_params(req)
+
+    user_id, agent_id = _resolve_user_and_agent(
+        session_id=None,
+        user_id=req.user_id,
+        agent_id=req.agent_id or result.agent_id,
+    )
+    out_dir = _agent_dir(user_id, agent_id)
+
+    soul_path = out_dir / "SOUL.md"
+    try:
+        soul_text = soul_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        soul_text = result.soul_md
+
+    meta_raw = _load_agent_meta(out_dir / "meta.json") or {}
+    meta = AgentMetaResponse(
+        agent_id=meta_raw.get("agent_id", agent_id),
+        user_id=meta_raw.get("user_id", user_id),
+        session_id=meta_raw.get("session_id"),
+        archetype_name=meta_raw.get("archetype_name", req.archetype_name),
+        created_at=meta_raw.get("created_at", datetime.utcnow().isoformat(timespec="seconds") + "Z"),
+        updated_at=meta_raw.get("updated_at", datetime.utcnow().isoformat(timespec="seconds") + "Z"),
+        version=meta_raw.get("version", str(result.core.get("version", "1.0.0"))),
+        archived=bool(meta_raw.get("archived", False)),
+        tags=list(meta_raw.get("tags") or []),
+        notes=meta_raw.get("notes"),
+    )
+
+    return AgentDetailResponse(meta=meta, core=result.core, soul_md=soul_text)
+
+
+@app.get("/agents/{user_id}", response_model=AgentListResponse)
+async def api_list_agents(user_id: str) -> AgentListResponse:
+    """
+    List all agents for a given user_id based on meta.json files.
+    """
+    base = AGENTS_DIR / user_id
+    agents: list[AgentSummary] = []
+
+    if base.is_dir():
+        for child in base.iterdir():
+            if not child.is_dir():
+                continue
+            meta_raw = _load_agent_meta(child / "meta.json")
+            if not meta_raw:
+                continue
+            agents.append(
+                AgentSummary(
+                    agent_id=str(meta_raw.get("agent_id", child.name)),
+                    user_id=str(meta_raw.get("user_id", user_id)),
+                    archetype_name=str(meta_raw.get("archetype_name", "")),
+                    created_at=str(meta_raw.get("created_at", "")),
+                    updated_at=str(meta_raw.get("updated_at", "")),
+                    archived=bool(meta_raw.get("archived", False)),
+                )
+            )
+
+    return AgentListResponse(user_id=user_id, agents=agents)
+
+
+@app.get("/agents/{user_id}/{agent_id}", response_model=AgentDetailResponse)
+async def api_get_agent(user_id: str, agent_id: str) -> AgentDetailResponse:
+    """
+    Return full agent detail (meta + CORE + SOUL.md) for a given user/agent.
+    """
+    dir_path = _agent_dir(user_id, agent_id)
+    if not dir_path.is_dir():
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    meta_raw = _load_agent_meta(dir_path / "meta.json") or {}
+    core_path = dir_path / "CORE.json"
+    soul_path = dir_path / "SOUL.md"
+
+    try:
+        with core_path.open(encoding="utf-8") as f:
+            core_data = json.load(f)
+    except FileNotFoundError:
+        core_data = {}
+
+    try:
+        soul_text = soul_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        soul_text = ""
+
+    if not meta_raw:
+        now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        meta_raw = {
+            "agent_id": agent_id,
+            "user_id": user_id,
+            "created_at": now,
+            "updated_at": now,
+            "version": str(core_data.get("version", "1.0.0")),
+            "archived": False,
+            "tags": [],
+            "notes": None,
+        }
+
+    meta = AgentMetaResponse(
+        agent_id=str(meta_raw.get("agent_id", agent_id)),
+        user_id=str(meta_raw.get("user_id", user_id)),
+        session_id=meta_raw.get("session_id"),
+        archetype_name=str(meta_raw.get("archetype_name", "")),
+        created_at=str(meta_raw.get("created_at", "")),
+        updated_at=str(meta_raw.get("updated_at", "")),
+        version=str(meta_raw.get("version", "1.0.0")),
+        archived=bool(meta_raw.get("archived", False)),
+        tags=list(meta_raw.get("tags") or []),
+        notes=meta_raw.get("notes"),
+    )
+
+    return AgentDetailResponse(meta=meta, core=core_data, soul_md=soul_text)
 
 
 # ---------------------------------------------------------------------------

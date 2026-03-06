@@ -18,10 +18,37 @@ export interface Question {
   allowCustom?: boolean;
 }
 
+/** Step for configurable flow: story / question / reflection */
+export interface QuestionStep {
+  type: 'question';
+  id: string;
+  questionNumber: number;
+  text: string;
+  answers: Answer[];
+  background: string;
+  allowCustom?: boolean;
+}
+
+export interface StoryBeat {
+  type: 'story';
+  id: string;
+  lines: string[];
+  background: string;
+}
+
+export interface Reflection {
+  type: 'reflection';
+  id: string;
+  text: string;
+  background: string;
+}
+
+export type GameStep = QuestionStep | StoryBeat | Reflection;
+
 export interface Archetype {
   name: string;
   description: string;
   condition: (params: CoreParameters) => boolean;
 }
 
-export type GamePhase = 'intro' | 'questions' | 'reveal';
+export type GamePhase = 'intro' | 'questions' | 'steps' | 'reveal';

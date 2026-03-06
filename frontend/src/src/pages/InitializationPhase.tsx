@@ -1,13 +1,17 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { GamePhase, CoreParameters, Answer, Archetype, Question } from '../types/game';
+import { GamePhase, CoreParameters, Answer, Archetype, Question, GameStep } from '../types/game';
 import {
   INITIAL_PARAMS,
   ARCHETYPES,
   getBackgroundClass,
+  GAME_STEPS,
+  mixGameStepsWithApiQuestions,
 } from '../data/questions';
 import { IntroView } from '../components/IntroView';
 import { QuestionView } from '../components/QuestionView';
+import { StoryBeatView } from '../components/StoryBeatView';
+import { ReflectionView } from '../components/ReflectionView';
 import { RevealView } from '../components/RevealView';
 import { CRTOverlay } from '../components/CRTOverlay';
 
@@ -15,7 +19,8 @@ type LoadingState = 'idle' | 'loading' | 'ready' | 'error';
 
 export const InitializationPhase: React.FC = () => {
   const [phase, setPhase] = useState<GamePhase>('intro');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [steps, setSteps] = useState<GameStep[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [parameters, setParameters] = useState<CoreParameters>(INITIAL_PARAMS);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
@@ -24,11 +29,12 @@ export const InitializationPhase: React.FC = () => {
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const currentStep = steps[currentStepIndex];
+  const questionStepsCount = useMemo(() => steps.filter((s) => s.type === 'question').length, [steps]);
 
   const backgroundClass =
-    phase === 'questions' && currentQuestion
-      ? getBackgroundClass(currentQuestion.id)
+    phase === 'steps' && currentStep && 'background' in currentStep
+      ? currentStep.background
       : 'bg-game-black';
 
   const handleStart = async () => {
@@ -54,8 +60,10 @@ export const InitializationPhase: React.FC = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       setSessionId(data.session_id);
       setQuestions(data.questions);
+      setSteps(mixGameStepsWithApiQuestions(GAME_STEPS, data.questions));
+      setCurrentStepIndex(0);
       setLoadingState('ready');
-      setPhase('questions');
+      setPhase('steps');
     } catch (e: unknown) {
       if (timerRef.current) clearInterval(timerRef.current);
       const msg = e instanceof Error ? e.message : String(e);
@@ -65,6 +73,12 @@ export const InitializationPhase: React.FC = () => {
   };
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const advanceStep = () => {
+    const next = currentStepIndex + 1;
+    if (next >= steps.length) setPhase('reveal');
+    else setCurrentStepIndex(next);
+  };
 
   const handleAnswer = (answer: Answer) => {
     const newParams = { ...parameters };
@@ -77,11 +91,7 @@ export const InitializationPhase: React.FC = () => {
       newParams[paramKey] = Math.max(0, Math.min(100, currentValue + value * multiplier));
     });
     setParameters(newParams);
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-    } else {
-      setPhase('reveal');
-    }
+    advanceStep();
   };
 
   const determineArchetype = useMemo((): Archetype => {
@@ -135,14 +145,26 @@ export const InitializationPhase: React.FC = () => {
           </motion.div>
         )}
 
-        {phase === 'questions' && currentQuestion && (
-          <motion.div
-            key={`q-${currentQuestionIndex}`}
-            className="absolute inset-0">
-            <QuestionView
-              question={currentQuestion}
-              totalQuestions={questions.length}
-              onAnswer={handleAnswer} />
+        {phase === 'steps' && currentStep && (
+          <motion.div key={`step-${currentStepIndex}-${currentStep.id}`} className="absolute inset-0">
+            {currentStep.type === 'story' && (
+              <StoryBeatView beat={currentStep} onContinue={advanceStep} />
+            )}
+            {currentStep.type === 'reflection' && (
+              <ReflectionView reflection={currentStep} onContinue={advanceStep} />
+            )}
+            {currentStep.type === 'question' && (
+              <QuestionView
+                question={{
+                  id: currentStep.questionNumber,
+                  text: currentStep.text,
+                  answers: currentStep.answers,
+                  allowCustom: currentStep.allowCustom,
+                }}
+                totalQuestions={questionStepsCount}
+                onAnswer={handleAnswer}
+              />
+            )}
           </motion.div>
         )}
 

@@ -364,6 +364,8 @@ if not api_key or not run_online:
     skip_test("seed: generates paragraph", reason)
     skip_test("seed: output is 80-140 words", reason)
     skip_test("question: generates valid JSON with question + options", reason)
+    skip_test("api: /generate-game returns session and questions", reason)
+    skip_test("api: /agents/from-session creates agent and saves files", reason)
 else:
     @test("seed: LLM generates a non-empty paragraph")
     def _():
@@ -398,6 +400,65 @@ else:
         for opt in q.options:
             assert opt["label"], "option label missing"
             assert opt["delta_key"], "option delta_key missing"
+
+
+    @test("api: /generate-game returns session and questions")
+    def _():
+        """Smoke test: FastAPI /generate-game endpoint works end-to-end."""
+        from fastapi.testclient import TestClient
+        import server.main as server_main
+
+        client = TestClient(server_main.app)
+
+        resp = client.post("/generate-game", json={"model": server_main.GROK_MODEL})
+        assert resp.status_code == 200, f"/generate-game returned {resp.status_code}"
+        data = resp.json()
+        assert data.get("session_id"), "Missing session_id in /generate-game response"
+        assert isinstance(data.get("questions"), list), "questions is not a list"
+        assert len(data["questions"]) >= 1, "questions list is empty"
+
+
+    @test("api: /agents/from-session creates agent and saves files")
+    def _():
+        """Smoke test: create agent from session and verify files on disk."""
+        from fastapi.testclient import TestClient
+        import server.main as server_main
+
+        client = TestClient(server_main.app)
+
+        # 1) Generate game to get a session_id
+        resp = client.post("/generate-game", json={"model": server_main.GROK_MODEL})
+        assert resp.status_code == 200, f"/generate-game returned {resp.status_code}"
+        data = resp.json()
+        session_id = data.get("session_id")
+        assert session_id, "Missing session_id from /generate-game"
+
+        # 2) Call /agents/from-session with simple core values
+        payload = {
+            "session_id": session_id,
+            "cooperation_bias": 60,
+            "deception_tendency": 30,
+            "strategic_horizon": 70,
+            "risk_appetite": 40,
+            "archetype_name": "SmokeTest Archetype",
+            "model": server_main.GROK_MODEL,
+            "user_id": "local",
+        }
+        resp2 = client.post("/agents/from-session", json=payload)
+        assert resp2.status_code == 200, f"/agents/from-session returned {resp2.status_code}"
+        result = resp2.json()
+
+        meta = result.get("meta") or {}
+        agent_id = meta.get("agent_id")
+        assert agent_id, "meta.agent_id missing in /agents/from-session response"
+        assert meta.get("user_id") == "local", "meta.user_id should be 'local'"
+
+        # 3) Verify files exist on disk
+        agent_dir = server_main.AGENTS_DIR / "local" / agent_id
+        assert agent_dir.is_dir(), f"Agent directory not found: {agent_dir}"
+        assert (agent_dir / "CORE.json").is_file(), "CORE.json not found for agent"
+        assert (agent_dir / "SOUL.md").is_file(), "SOUL.md not found for agent"
+        assert (agent_dir / "meta.json").is_file(), "meta.json not found for agent"
 
 
 # ---------------------------------------------------------------------------
