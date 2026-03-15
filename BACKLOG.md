@@ -67,7 +67,7 @@ _Next focus: S2 — UI + Storyteller (T4, T5)._
 | ID  | Title                                | When    | Notes |
 |-----|--------------------------------------|---------|-------|
 | D1  | Railway deploy with working frontend | 2026-Q1 | Початковий прод деплой |
-| D2  | JSON parsing hardening for questions | 2026-Q1 | Фікс кривого JSON з LLM |
+| D2  | JSON parsing hardening for questions | 2026-Q1 | Фікс кривого JSON з LLM; unary plus з пробілом/переносом (`+ 10`, `+\n10`) |
 | S1  | T1+T2+T3 (OpenRouter, compile-from-session, tests, logging) | 2026-Q1 | Технічна стабільність |
 | D3  | T8+T9 Observability + session-lost UX | 2026-Q1 | Логи в проді, UX при втраті сесії |
 

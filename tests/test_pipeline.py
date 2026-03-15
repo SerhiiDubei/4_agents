@@ -347,6 +347,39 @@ def _():
     parsed3 = _parse_questions_json(src3)
     assert len(parsed3) == 1 and parsed3[0]["id"] == 3
 
+    # Unary plus in number (invalid in JSON; LLM sometimes outputs "+5")
+    src4 = (
+        '[{"id": "1b", "text": "Q?", "answers": ['
+        '{"id": "a", "text": "A", "effects": {"riskAppetite": ' + '+' + '5}}]}]'
+    )
+    parsed4 = _parse_questions_json(src4)
+    assert isinstance(parsed4, list) and len(parsed4) == 1
+    assert parsed4[0]["answers"][0]["effects"]["riskAppetite"] == 5
+
+    # Effects as string with leading plus
+    src5 = (
+        '[{"id": "1c", "text": "Q?", "answers": ['
+        '{"id": "a", "text": "A", "effects": {"cooperationBias": "+10"}}]}]'
+    )
+    parsed5 = _parse_questions_json(src5)
+    assert isinstance(parsed5, list) and len(parsed5) == 1
+    eff5 = parsed5[0]["answers"][0]["effects"]
+    assert eff5["cooperationBias"] == "+10"
+
+    # Unary plus with space or newline before number (LLM sometimes outputs "+ 10" or "+\n10")
+    src6 = (
+        '[{"id": "1d", "text": "Q?", "answers": ['
+        '{"id": "a", "text": "A", "effects": {"cooperationBias": + 10, "deceptionTendency": -5}}]}]'
+    )
+    parsed6 = _parse_questions_json(src6)
+    assert isinstance(parsed6, list) and len(parsed6) == 1
+    eff6 = parsed6[0]["answers"][0]["effects"]
+    assert eff6["cooperationBias"] == 10 and eff6["deceptionTendency"] == -5
+
+    src7 = '[{"id": "1e", "text": "Q?", "answers": [{"id": "a", "text": "A", "effects": {"riskAppetite": +\n15}}]}]'
+    parsed7 = _parse_questions_json(src7)
+    assert parsed7[0]["answers"][0]["effects"]["riskAppetite"] == 15
+
 
 # ---------------------------------------------------------------------------
 # ONLINE TESTS (real API)

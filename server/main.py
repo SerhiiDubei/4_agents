@@ -568,14 +568,52 @@ class GenerateGameResponse(BaseModel):
     questions: List[GameQuestion]
 
 
+_NUMERIC_EFFECT_KEYS = {
+    "cooperationBias",
+    "deceptionTendency",
+    "strategicHorizon",
+    "riskAppetite",
+}
+
+
+def _coerce_effects(effects_raw: Dict[str, Any]) -> Dict[str, int]:
+    """
+    Normalize effects from LLM JSON into a dict of ints.
+    Handles numbers, strings like \"+10\" / \" 5 \" and falls back to 0 on errors.
+    """
+    coerced: Dict[str, int] = {}
+    for key in _NUMERIC_EFFECT_KEYS:
+        value = effects_raw.get(key, 0)
+        num: float
+        if isinstance(value, (int, float)):
+            num = float(value)
+        elif isinstance(value, str):
+            s = value.strip()
+            if s.startswith("+"):
+                s = s[1:]
+            try:
+                num = float(s)
+            except ValueError:
+                num = 0.0
+        else:
+            num = 0.0
+        # Clamp to a reasonable range to avoid extreme outliers from the model
+        clamped = max(-100.0, min(100.0, num))
+        coerced[key] = int(round(clamped))
+    return coerced
+
+
 def _load_question_prompt_spec() -> str:
     path = SCHEMAS_DIR / "question_generator_prompt.md"
     with open(path, encoding="utf-8") as f:
         return f.read()
 
 
-def _parse_questions_json(raw: str) -> List[Dict]:
-    """Extract and parse JSON array from LLM response, tolerating markdown fences and minor JSON quirks."""
+def _sanitize_llm_json(raw: str) -> str:
+    """
+    Extract the JSON array from the LLM response and normalize common quirks
+    so that json.loads can consume it safely.
+    """
     text = raw.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -595,10 +633,18 @@ def _parse_questions_json(raw: str) -> List[Dict]:
     if start == -1 or end == -1:
         raise ValueError(f"No JSON array found in LLM output: {text[:200]}")
     json_str = text[start : end + 1]
-    # Fix common LLM JSON mistakes: trailing commas before ] or }
+    # Fix common LLM JSON mistakes: trailing commas before ] or }; unary + in numbers
     import re
     json_str = re.sub(r",\s*]", "]", json_str)
     json_str = re.sub(r",\s*}", "}", json_str)
+    # Map `: +10` / `: + 10` / `: +\n10` to valid JSON numbers (allow whitespace between + and number)
+    json_str = re.sub(r"(:\s*)\+\s*(\d+(?:\.\d+)?)", r"\1\2", json_str)
+    return json_str
+
+
+def _parse_questions_json(raw: str) -> List[Dict]:
+    """Extract and parse JSON array from LLM response, tolerating markdown fences and minor JSON quirks."""
+    json_str = _sanitize_llm_json(raw)
     try:
         return json.loads(json_str)
     except json.JSONDecodeError as e:
@@ -685,27 +731,36 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
             api_key,
         )
 
-        # 4. Parse
+        # 4. Parse and normalize effects
         questions_data = _parse_questions_json(raw_questions)
 
         questions: List[GameQuestion] = []
         for q in questions_data:
-            answers = []
+            answers: List[GameAnswer] = []
             for a in q.get("answers", []):
-                effects_raw = a.get("effects", {})
+                effects_raw = a.get("effects", {}) or {}
+                effects_coerced = _coerce_effects(effects_raw)
                 effects = AnswerEffects(
-                    cooperationBias=int(effects_raw.get("cooperationBias", 0)),
-                    deceptionTendency=int(effects_raw.get("deceptionTendency", 0)),
-                    strategicHorizon=int(effects_raw.get("strategicHorizon", 0)),
-                    riskAppetite=int(effects_raw.get("riskAppetite", 0)),
+                    cooperationBias=effects_coerced["cooperationBias"],
+                    deceptionTendency=effects_coerced["deceptionTendency"],
+                    strategicHorizon=effects_coerced["strategicHorizon"],
+                    riskAppetite=effects_coerced["riskAppetite"],
                 )
-                answers.append(GameAnswer(id=str(a["id"]), text=str(a["text"]), effects=effects))
-            questions.append(GameQuestion(
-                id=int(q["id"]),
-                text=str(q["text"]),
-                allowCustom=bool(q.get("allowCustom", False)),
-                answers=answers,
-            ))
+                answers.append(
+                    GameAnswer(
+                        id=str(a["id"]),
+                        text=str(a["text"]),
+                        effects=effects,
+                    )
+                )
+            questions.append(
+                GameQuestion(
+                    id=int(q["id"]),
+                    text=str(q["text"]),
+                    allowCustom=bool(q.get("allowCustom", False)),
+                    answers=answers,
+                )
+            )
 
         # 5. Store session
         session_id = str(uuid.uuid4())
@@ -727,7 +782,14 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
         )
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        detail = str(e) or "Internal server error"
+        status_code = 500
+        if isinstance(e, ValueError) and detail.startswith("Invalid JSON from LLM"):
+            # LLM returned malformed JSON for questions — log full detail but respond with a friendly message.
+            print(f"[generate-game] JSON parse error from LLM: {detail}")
+            detail = "Модель повернула некоректні дані. Спробуйте ще раз або змініть налаштування."
+            status_code = 502
+        raise HTTPException(status_code=status_code, detail=detail)
 
 
 # ---------------------------------------------------------------------------
