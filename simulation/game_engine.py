@@ -229,6 +229,7 @@ def run_simulation(
     reveal_requests: Optional[Dict[int, Dict[str, str]]] = None,
     on_progress=None,  # optional callback(event: str) for live logging
     verbose: bool = False,  # if True, print per-call timing to stderr
+    story_params_override=None,  # optional StoryParams for custom setup (e.g. Mars)
 ) -> GameResult:
     """
     Run the full Island simulation.
@@ -241,7 +242,21 @@ def run_simulation(
     Returns GameResult with full history.
     """
     import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    import os as _os
+    _root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_root))
+    # Ensure OpenRouter key is available for all per-agent LLM calls (dialog, reasoning, reflection)
+    _env_file = _root / ".env"
+    if _env_file.exists():
+        _txt = _env_file.read_text(encoding="utf-8-sig")
+        for _line in _txt.splitlines():
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                _k, _v = _k.strip(), _v.strip().strip('"\'')
+                if _k == "OPENROUTER_API_KEY" and _v:
+                    _os.environ["OPENROUTER_API_KEY"] = _v
+                    break
 
     from pipeline.decision_engine import CoreParams, AgentContext, choose_action
     from pipeline.state_machine import update_states, save_states, RoundOutcome
@@ -259,12 +274,15 @@ def run_simulation(
     cumulative_scores: Dict[str, float] = {a.agent_id: 0.0 for a in agents}
     action_log: Dict[int, Dict[str, Dict[str, float]]] = {}
 
-    # Storytell — one story for the whole game
+    # Storytell — one story for the whole game (or custom override)
     story_params = None
     try:
         from storytell import generate_story, get_round_event, get_participants_for_event, generate_situation, generate_consequences
-        story_seed = hash(sim_id) % (2**31) if sim_id else 42
-        story_params = generate_story(story_seed)
+        if story_params_override is not None:
+            story_params = story_params_override
+        else:
+            story_seed = hash(sim_id) % (2**31) if sim_id else 42
+            story_params = generate_story(story_seed)
         result.story_params = {
             "year": story_params.year,
             "place": story_params.place,

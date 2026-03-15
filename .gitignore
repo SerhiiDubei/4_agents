@@ -1,6 +1,8 @@
 # Environment
 .env
 *.env.local
+openrouter_keys*.txt
+keys_openrouter*.txt
 
 # Python
 __pycache__/

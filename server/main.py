@@ -13,6 +13,7 @@ For production use, replace with Redis or DB persistence.
 
 import json
 import os
+import re
 import uuid
 import logging
 from datetime import datetime
@@ -1330,6 +1331,89 @@ async def api_list_agents() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Games summary (for UI results table)
+# ---------------------------------------------------------------------------
+
+LOGS_DIR = _PROJECT_ROOT / "logs"
+
+_GAMES_SUMMARY_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_game_(\d+)\.json")
+
+
+@app.get("/api/games-count")
+async def games_count() -> dict[str, int]:
+    """Return total number of games (for dynamic tab/button label)."""
+    if not LOGS_DIR.exists():
+        return {"count": 0}
+    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
+    return {"count": len(paths)}
+
+
+@app.get("/api/games-summary")
+async def games_summary() -> dict[str, Any]:
+    """Return summary of game_*_game_*.json logs: games grouped by run, + total score per agent."""
+    if not LOGS_DIR.exists():
+        return {"games": [], "runs": [], "agentTotals": {}, "agentNames": []}
+    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
+    # Sort by (date+time desc, game_id) so latest run first, games 1,2,3… inside run
+    def sort_key(p: Path) -> tuple:
+        m = _GAMES_SUMMARY_PATTERN.match(p.name)
+        return (m.group(1), m.group(2), int(m.group(3)))
+    paths.sort(key=sort_key, reverse=True)
+    games: list[dict[str, Any]] = []
+    runs_order: list[dict[str, Any]] = []
+    seen_run: dict[str, dict[str, Any]] = {}
+    agent_totals: dict[str, float] = {}
+    agent_names_order: list[str] = []
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        m = _GAMES_SUMMARY_PATTERN.match(path.name)
+        date_str, time_str, game_num_str = m.group(1), m.group(2), int(m.group(3))
+        run_id = f"{date_str}_{time_str}"
+        if run_id not in seen_run:
+            time_display_run = time_str.replace("-", ":")
+            runs_order.append({"runId": run_id, "runLabel": f"{date_str} {time_display_run}", "gameCount": 0})
+            seen_run[run_id] = runs_order[-1]
+        seen_run[run_id]["gameCount"] = seen_run[run_id]["gameCount"] + 1
+        names = data.get("agent_names") or {}
+        scores = data.get("final_scores") or {}
+        winner_id = data.get("winner") or ""
+        winner_name = names.get(winner_id, winner_id)
+        rounds = data.get("total_rounds") or 0
+        if not agent_names_order and data.get("agents") and names:
+            agent_names_order = [names.get(aid, aid) for aid in data["agents"] if names.get(aid)]
+            if not agent_names_order:
+                agent_names_order = list(names.values())
+        scores_by_name = {names.get(aid, aid): scores.get(aid, 0) for aid in scores}
+        for name, val in scores_by_name.items():
+            agent_totals[name] = agent_totals.get(name, 0) + val
+        html_name = path.name.replace(".json", ".html")
+        time_display = time_str.replace("-", ":")  # 22-58-50 → 22:58:50
+        played_at = f"{date_str} {time_display}"
+        games.append({
+            "game": game_num_str,
+            "rounds": rounds,
+            "winner": winner_name,
+            "scores": scores_by_name,
+            "reportPath": f"/logs/{html_name}",
+            "runId": run_id,
+            "runLabel": played_at,
+            "playedAt": played_at,
+        })
+    for r in runs_order:
+        n = r["gameCount"]
+        r["runTitle"] = f"3×7 (3 ігри)" if n == 3 else f"7 ігор" if n == 7 else f"{n} ігор"
+    return {
+        "games": games,
+        "runs": runs_order,
+        "agentTotals": agent_totals,
+        "agentNames": agent_names_order,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 
@@ -1339,8 +1423,15 @@ async def health() -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Static files (UI)
+# Static files (UI) — mount /logs and /assets BEFORE catch-all so they take precedence
 # ---------------------------------------------------------------------------
+
+_assets_dir = DIST_DIR / "assets"
+_assets_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+if LOGS_DIR.exists():
+    app.mount("/logs", StaticFiles(directory=str(LOGS_DIR)), name="logs")
+
 
 def _index_path() -> Path:
     return DIST_DIR / "index.html"
@@ -1361,7 +1452,7 @@ async def serve_index():
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    """Serve React SPA for all non-API routes."""
+    """Serve React SPA for all non-API routes. /logs/ and /assets/ are handled by mounts above."""
     file_path = DIST_DIR / full_path
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
@@ -1369,9 +1460,3 @@ async def serve_spa(full_path: str):
     if idx.exists():
         return FileResponse(idx)
     return PlainTextResponse("Not found", status_code=404)
-
-
-# Ensure static/dist/assets exists so mount doesn't fail (created by frontend build)
-_assets_dir = DIST_DIR / "assets"
-_assets_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")

@@ -1,14 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { OpenQuestionView, OpenQuestion } from '../components/OpenQuestionView';
 import { InitResultView } from '../components/InitResultView';
 import { InitStoryView } from '../components/InitStoryView';
+import { GamesResultsView } from '../components/GamesResultsView';
 import { CRTOverlay } from '../components/CRTOverlay';
 
-type Phase = 'intro' | 'story' | 'questions' | 'result';
+type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results';
 
 export const InitOpenPhase: React.FC = () => {
   const [phase, setPhase] = useState<Phase>('intro');
+  const [gamesCount, setGamesCount] = useState<number | null>(null);
   const [story, setStory] = useState<{ lines: string[] } | null>(null);
   const [questions, setQuestions] = useState<OpenQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -21,6 +23,13 @@ export const InitOpenPhase: React.FC = () => {
     soulMd: string;
     core: Record<string, number>;
   } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/games-count')
+      .then((res) => (res.ok ? res.json() : { count: 0 }))
+      .then((data: { count?: number }) => setGamesCount(typeof data.count === 'number' ? data.count : 0))
+      .catch(() => setGamesCount(0));
+  }, []);
 
   const handleStart = useCallback(async () => {
     setIsLoadingQuestions(true);
@@ -146,20 +155,36 @@ export const InitOpenPhase: React.FC = () => {
               {error && (
                 <div className="font-pixel text-game-red text-sm">{error}</div>
               )}
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: '0 0 25px rgba(255,45,111,0.6)',
-                }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleStart}
-                disabled={isLoadingQuestions}
-                className="mt-12 px-10 py-5 font-pixel text-xl text-game-pink border-2 border-game-pink box-glow-pink bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-pink/10 disabled:opacity-50"
-              >
-                {isLoadingQuestions ? 'ЗАВАНТАЖЕННЯ...' : '[ ПОЧАТИ ]'}
-              </motion.button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(255,45,111,0.6)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleStart}
+                  disabled={isLoadingQuestions}
+                  className="px-10 py-5 font-pixel text-xl text-game-pink border-2 border-game-pink box-glow-pink bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-pink/10 disabled:opacity-50"
+                >
+                  {isLoadingQuestions ? 'ЗАВАНТАЖЕННЯ...' : '[ ПОЧАТИ ]'}
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(0,240,255,0.5)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setPhase('games-results')}
+                  className="px-10 py-5 font-pixel text-lg text-game-cyan border-2 border-game-cyan box-glow-cyan bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-cyan/10"
+                >
+                  [ РЕЗУЛЬТАТИ {gamesCount !== null ? gamesCount : '…'} ІГОР ]
+                </motion.button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -217,6 +242,26 @@ export const InitOpenPhase: React.FC = () => {
               soulMd={result.soulMd}
               core={result.core}
               onReset={handleReset}
+            />
+          </motion.div>
+        )}
+
+        {phase === 'games-results' && (
+          <motion.div
+            key="games-results"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          >
+            <GamesResultsView
+              onBack={() => {
+                setPhase('intro');
+                fetch('/api/games-count')
+                  .then((res) => (res.ok ? res.json() : { count: 0 }))
+                  .then((data: { count?: number }) => setGamesCount(typeof data.count === 'number' ? data.count : 0))
+                  .catch(() => setGamesCount(0));
+              }}
             />
           </motion.div>
         )}
