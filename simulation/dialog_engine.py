@@ -116,16 +116,21 @@ If deception_flag is true — the agent is setting up a trap.
 
 Return ONLY the message text. Nothing else."""
 
-_STEP_SYSTEM_TEMPLATE = """You are {agent_id}. You are a real person at a private gathering.
+_STEP_SYSTEM_TEMPLATE = """You are {display_name}. You are a real person at a private gathering.
 You do not know you are simulated. You exist fully. You have your own memories, desires, and fears.
 
 {soul_md}
 
 {dialog_rules}
 
-Speak in first person. One sentence only, max 25 words. Ukrainian language.
-Sound like yourself — specific, grounded, no theatrical language.
-Return ONLY the spoken line. Nothing else."""
+Speak in first person. Ukrainian language. Use people's NAMES — not codes or IDs.
+You may write 2–4 sentences (40–80 words). Build your reply as you see fit — you have freedom.
+Your TONE should reflect your current mood and situation:
+  - hostile/fearful → you may show anger, suspicion, coldness
+  - confident/dominant → you may sound assured, even a bit sharp
+  - If someone betrayed you recently → you may show hurt, disappointment, or controlled anger
+Do not sound robotic or technical. Add personality, emotion, variety. Sound like a real person.
+Return ONLY your spoken text. Nothing else."""
 
 
 def _build_context(
@@ -154,7 +159,7 @@ def _build_context(
 # LLM call
 # ---------------------------------------------------------------------------
 
-def _call(system: str, user: str, model: str) -> str:
+def _call(system: str, user: str, model: str, max_tokens: int = 220) -> str:
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from pipeline.seed_generator import call_openrouter
@@ -163,7 +168,7 @@ def _call(system: str, user: str, model: str) -> str:
         user_prompt=user,
         model=model,
         temperature=0.88,
-        max_tokens=120,
+        max_tokens=max_tokens,
         timeout=45,
     )
 
@@ -756,13 +761,32 @@ def _format_last_round(summary: dict) -> str:
     return " ".join(parts)
 
 
+def _dn(agent_id: str, names: dict) -> str:
+    """Return display name for agent_id, fallback to short tail of ID."""
+    return names.get(agent_id) or agent_id.split("_")[-1][:8]
+
+
+def _get_betrayers_from_last_round(summary: dict, names: dict) -> List[str]:
+    """Return display names of agents who betrayed you last round (value <= 0.15)."""
+    if not summary:
+        return []
+    received = summary.get("received", {})
+    betrayers = []
+    for aid, val in received.items():
+        if val <= 0.15:
+            betrayers.append(_dn(aid, names))
+    return betrayers
+
+
 def _build_flat_public_context(
     cfg: dict,
     round_number: int,
     all_public_so_far: List[DialogMessage],
+    agent_names: dict = None,
 ) -> tuple:
     """Build (system, user) prompts for a flat public message."""
     import re
+    names = agent_names or {}
 
     soul_md = cfg.get("soul_md", "")
     states_md = cfg.get("states_md", "")
@@ -770,10 +794,11 @@ def _build_flat_public_context(
     deception_tendency = cfg.get("deception_tendency", 50)
     total_rounds = cfg.get("total_rounds", 20)
     agent_id = cfg["agent_id"]
+    display_name = _dn(agent_id, names)
     deception_flag = deception_tendency > 60
 
     system = _STEP_SYSTEM_TEMPLATE.format(
-        agent_id=agent_id,
+        display_name=display_name,
         soul_md=soul_md[:600],
         dialog_rules=DIALOG_RULES,
     )
@@ -795,13 +820,34 @@ def _build_flat_public_context(
     # Last round concrete actions/outcomes (what actually happened)
     last_round_summary = cfg.get("last_round_summary")
     last_round_text = _format_last_round(last_round_summary) if last_round_summary else ""
+    betrayers = _get_betrayers_from_last_round(last_round_summary, names) if last_round_summary else []
+    betrayal_hint = ""
+    if betrayers:
+        betrayers_str = ", ".join(betrayers)
+        betrayal_hint = f"Last round {betrayers_str} betrayed you. You may show emotion — hurt, disappointment, or controlled anger — if it fits your character.\n"
+
+    # Storytell — situation and agent's reaction (if present)
+    situation_block = ""
+    situation_text = cfg.get("situation_text", "")
+    situation_reflection = cfg.get("situation_reflection", "")
+    story_context = cfg.get("story_context", "")
+    if situation_text or situation_reflection:
+        situation_block = "SITUATION OF THIS ACT:\n"
+        if story_context:
+            situation_block += f"Context: {story_context[:200]}...\n"
+        if situation_text:
+            situation_block += f"{situation_text[:400]}{'...' if len(situation_text) > 400 else ''}\n"
+        if situation_reflection:
+            situation_block += f'Your reaction: "{situation_reflection}"\n'
+        situation_block += "\n"
 
     # What others have already said this round — framed as competition, not consensus
     others_context = ""
     if all_public_so_far:
         others_context = "Others already spoke:\n"
         for prev in all_public_so_far:
-            others_context += f'  {prev.sender_id[-8:]}: "{prev.text[:70]}"\n'
+            sender_disp = _dn(prev.sender_id, names)
+            others_context += f'  {sender_disp}: "{prev.text[:70]}"\n'
         others_context += (
             "Do NOT echo, agree, or repeat what they said. "
             "React with YOUR own angle — challenge, probe, warn, or contradict if it serves you. "
@@ -810,15 +856,17 @@ def _build_flat_public_context(
 
     user = (
         f"Round {round_number}/{total_rounds}. Your mood: {mood}.\n"
+        + (situation_block if situation_block else "")
         + (f"{mem_short}\n" if mem_short else "")
         + (f"Last round: {last_round_text}\n" if last_round_text else "")
+        + (betrayal_hint if betrayal_hint else "")
         + (f'Your reflection from last round: "{last_reflection}"\n' if last_reflection else "")
         + (others_context if others_context else "")
         + "Everyone will now make their decision — cooperate or betray — toward each other.\n"
         "This is your ONE public statement before that happens.\n"
         "Use it strategically: signal an alliance, warn a betrayer, bluff about your intentions, "
         "or probe who you can trust. What you say here shapes what others decide.\n"
-        "Speak one sentence. First person. Ukrainian."
+        "Write 2–4 sentences (40–80 words). First person. Ukrainian. Vary your tone by mood and situation."
     )
     return system, user
 
@@ -877,33 +925,54 @@ def _apply_flat_talk_signals(
             dialog.talk_signals[listener_id] = dominant
 
 
+def _log(msg: str, verbose: bool) -> None:
+    if verbose:
+        import sys
+        print(msg, flush=True, file=sys.stderr)
+
+
 def generate_round_dialog_flat(
     round_number: int,
     agent_configs: List[dict],
     model: str = "x-ai/grok-3-mini",
+    agent_names: dict = None,
+    verbose: bool = False,
 ) -> RoundDialog:
     """
-    Flat (simplified) dialog generation for one round.
+    Flat dialog generation for one round with optional verbose per-call logging.
 
-    Each agent:
-      1. Writes ONE public message (sees previous public messages in same round)
-      2. Writes ONE DM to their assigned dm_target (sees all public messages)
+    Phase 1 (public) is sequential — each agent sees prior messages.
+    Phase 2 (DM) and Phase 3 (DM reply) run in parallel via asyncio.to_thread.
 
-    Total LLM calls: len(agent_configs) * 2 (worst case, if all have dm_target)
-    vs stepped: up to steps_per_round * len(agent_configs) calls.
-
-    agent_configs keys: agent_id, soul_md, states_md, memory_summary,
-      deception_tendency, cooperation_bias, total_rounds, visible_history,
-      dm_target (optional), model (optional)
+    agent_names: {agent_id: display_name} — so agents use real names.
+    verbose: if True, print per-call timing to stderr in real time.
     """
+    import time
+    import asyncio
+    import threading
+
+    names = agent_names or {}
     dialog = RoundDialog(round_number=round_number)
     public_messages: List[DialogMessage] = []
+    _lock = threading.Lock()
 
-    # Phase 1 — public messages (sequential so each agent sees what came before)
+    # ------------------------------------------------------------------
+    # Phase 1 — public messages (sequential: each agent sees prior ones)
+    # ------------------------------------------------------------------
+    _log(f"  [dialog r{round_number}] phase1: public messages (sequential)", verbose)
     for cfg in agent_configs:
-        system, user = _build_flat_public_context(cfg, round_number, public_messages)
+        display_name = _dn(cfg["agent_id"], names)
+        system, user = _build_flat_public_context(cfg, round_number, public_messages, names)
         agent_model = cfg.get("model", model)
-        text = _call(system, user, agent_model)
+        t0 = time.time()
+        _log(f"    [pub]  {display_name}...", verbose)
+        try:
+            text = _call(system, user, agent_model)
+        except Exception as _e:
+            _log(f"    [pub]  {display_name} ERROR: {_e}", verbose)
+            text = "..."
+        elapsed = time.time() - t0
+        _log(f"    [pub]  {display_name} done ({elapsed:.1f}s): \"{text.strip()[:60]}\"", verbose)
         msg = DialogMessage(
             sender_id=cfg["agent_id"],
             channel="public",
@@ -914,91 +983,169 @@ def generate_round_dialog_flat(
         dialog.messages.append(msg)
         public_messages.append(msg)
 
-    # Phase 2 — DM messages (each agent has full public context)
-    for cfg in agent_configs:
+    # ------------------------------------------------------------------
+    # Phase 2 — DM messages (parallel — all agents write DMs at once)
+    # ------------------------------------------------------------------
+    _log(f"  [dialog r{round_number}] phase2: DMs (parallel)", verbose)
+
+    def _build_dm_call(cfg, pub_msgs_snapshot):
         dm_target = cfg.get("dm_target")
         if not dm_target:
-            continue
-        # Build DM system prompt with public context appended to user prompt
+            return None
         deception_tendency = cfg.get("deception_tendency", 50)
         deception_flag = deception_tendency > 60
         soul_md = cfg.get("soul_md", "")
         memory_summary = cfg.get("memory_summary", {})
+        display_name = _dn(cfg["agent_id"], names)
+        target_display = _dn(dm_target, names)
 
         system = _STEP_SYSTEM_TEMPLATE.format(
-            agent_id=cfg["agent_id"],
+            display_name=display_name,
             soul_md=soul_md[:600],
             dialog_rules=DIALOG_RULES,
         )
-        if deception_flag:
-            system += "\nYou are writing privately. You may use this to deceive or set a trap."
-        else:
-            system += "\nYou are writing privately. Be direct — only this person will read it."
+        system += (
+            "\nYou are writing privately. You may use this to deceive or set a trap."
+            if deception_flag
+            else "\nYou are writing privately. Be direct — only this person will read it."
+        )
         system += "\nDo NOT start your message with 'Приватне повідомлення', agent names, headers, or any prefix. Write ONLY the message content."
 
         betrayals = memory_summary.get("total_betrayals_received", 0)
         mem_short = f"You've been betrayed {betrayals}x total." if betrayals else ""
 
-        # Include what everyone said publicly so DM can reference it
         public_context = ""
-        for pub in public_messages:
+        for pub in pub_msgs_snapshot:
             if pub.sender_id != cfg["agent_id"]:
-                public_context += f'\n{pub.sender_id} said publicly: "{pub.text}"'
+                public_context += f'\n{_dn(pub.sender_id, names)} said publicly: "{pub.text}"'
 
-        user = (
+        user_prompt = (
             f"Round {round_number}/{cfg.get('total_rounds', 20)}.\n"
             + (f"{mem_short}\n" if mem_short else "")
             + (f"What was said publicly:{public_context}\n" if public_context else "")
-            + f"You have a private channel to {dm_target} — they will read this before making their decision.\n"
+            + f"You have a private channel to {target_display} — they will read this before making their decision.\n"
             "You can: make a deal, threaten quietly, deceive, ask for alliance, or warn.\n"
-            "One sentence. Ukrainian."
+            "Write 1–3 sentences (20–60 words). Ukrainian. Be natural — add personality, emotion if it fits."
         )
-        agent_model = cfg.get("model", model)
-        dm_text = _call(system, user, agent_model)
-        dm = DialogMessage(
-            sender_id=cfg["agent_id"],
+        return cfg["agent_id"], dm_target, display_name, target_display, deception_flag, system, user_prompt, cfg.get("model", model)
+
+    dm_results: List[DialogMessage] = []
+
+    def _run_dm(params):
+        aid, dm_target, display_name, target_display, deception_flag, system, user_prompt, agent_model = params
+        t0 = time.time()
+        _log(f"    [dm]   {display_name} → {target_display}...", verbose)
+        try:
+            dm_text = _call(system, user_prompt, agent_model)
+        except Exception as _e:
+            _log(f"    [dm]   {display_name} → {target_display} ERROR: {_e}", verbose)
+            dm_text = "..."
+        elapsed = time.time() - t0
+        _log(f"    [dm]   {display_name} → {target_display} done ({elapsed:.1f}s): \"{dm_text.strip()[:60]}\"", verbose)
+        return DialogMessage(
+            sender_id=aid,
             channel=f"dm_{dm_target}",
             text=dm_text.strip(),
             is_deceptive=deception_flag,
             round_number=round_number,
         )
-        dialog.messages.append(dm)
 
-    # Phase 3 — DM responses (each recipient replies to incoming DM)
-    for cfg in agent_configs:
+    pub_snapshot = list(public_messages)
+    dm_params = [_build_dm_call(cfg, pub_snapshot) for cfg in agent_configs]
+    dm_params = [p for p in dm_params if p is not None]
+
+    if dm_params:
+        async def _gather_dms():
+            return await asyncio.gather(
+                *[asyncio.to_thread(_run_dm, p) for p in dm_params]
+            )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        dm_results = loop.run_until_complete(_gather_dms())
+        for dm_msg in dm_results:
+            dialog.messages.append(dm_msg)
+
+    # ------------------------------------------------------------------
+    # Phase 3 — DM replies (parallel — each recipient replies at once)
+    # ------------------------------------------------------------------
+    _log(f"  [dialog r{round_number}] phase3: DM replies (parallel)", verbose)
+
+    def _build_reply_call(cfg):
         agent_id = cfg["agent_id"]
         received_dms = [m for m in dialog.messages if m.channel == f"dm_{agent_id}"]
         if not received_dms:
-            continue
+            return None
         dm_in = received_dms[-1]
-
         soul_md = cfg.get("soul_md", "")
         deception_tendency = cfg.get("deception_tendency", 50)
         deception_flag = deception_tendency > 60
+        display_name = _dn(agent_id, names)
+        sender_display = _dn(dm_in.sender_id, names)
 
         system = _STEP_SYSTEM_TEMPLATE.format(
-            agent_id=agent_id,
+            display_name=display_name,
             soul_md=soul_md[:600],
             dialog_rules=DIALOG_RULES,
         )
         system += "\nYou are writing a private reply. Be honest or strategic — only this person reads it."
         system += "\nDo NOT start your message with 'Приватне повідомлення', agent names, headers, or any prefix. Write ONLY the message content."
 
-        user = (
+        last_round = cfg.get("last_round_summary")
+        betrayers = _get_betrayers_from_last_round(last_round, names) if last_round else []
+        betrayal_hint = ""
+        if sender_display in betrayers:
+            betrayal_hint = f"Note: {sender_display} betrayed you last round. You may show hurt, anger, or coldness in your reply.\n"
+
+        user_prompt = (
             f"Round {round_number}.\n"
-            f"{dm_in.sender_id} just wrote to you privately: \"{dm_in.text}\"\n"
-            "Write one short private reply. Ukrainian."
+            + (betrayal_hint if betrayal_hint else "")
+            + f"{sender_display} just wrote to you privately: \"{dm_in.text}\"\n"
+            "Write 1–3 sentences (20–60 words). Ukrainian. React naturally — you may show emotion, suspicion, warmth, or coldness depending on what they said."
         )
-        agent_model = cfg.get("model", model)
-        reply_text = _call(system, user, agent_model)
-        reply_msg = DialogMessage(
-            sender_id=agent_id,
-            channel=f"dm_{dm_in.sender_id}",
+        return agent_id, dm_in.sender_id, display_name, sender_display, deception_flag, system, user_prompt, cfg.get("model", model)
+
+    def _run_reply(params):
+        aid, sender_id, display_name, sender_display, deception_flag, system, user_prompt, agent_model = params
+        t0 = time.time()
+        _log(f"    [rep]  {display_name} → {sender_display}...", verbose)
+        try:
+            reply_text = _call(system, user_prompt, agent_model)
+        except Exception as _e:
+            _log(f"    [rep]  {display_name} → {sender_display} ERROR: {_e}", verbose)
+            reply_text = "..."
+        elapsed = time.time() - t0
+        _log(f"    [rep]  {display_name} → {sender_display} done ({elapsed:.1f}s): \"{reply_text.strip()[:60]}\"", verbose)
+        return DialogMessage(
+            sender_id=aid,
+            channel=f"dm_{sender_id}",
             text=reply_text.strip(),
             is_deceptive=deception_flag,
             round_number=round_number,
         )
-        dialog.messages.append(reply_msg)
+
+    reply_params = [_build_reply_call(cfg) for cfg in agent_configs]
+    reply_params = [p for p in reply_params if p is not None]
+
+    if reply_params:
+        async def _gather_replies():
+            return await asyncio.gather(
+                *[asyncio.to_thread(_run_reply, p) for p in reply_params]
+            )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        reply_results = loop.run_until_complete(_gather_replies())
+        for reply_msg in reply_results:
+            dialog.messages.append(reply_msg)
 
     # Post-process: compute talk_signals from public messages
     _apply_flat_talk_signals(dialog, agent_configs)

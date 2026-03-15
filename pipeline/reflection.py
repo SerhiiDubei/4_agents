@@ -25,13 +25,16 @@ from typing import List
 # Identity system prompt template (matches dialog_engine._STEP_SYSTEM_TEMPLATE)
 # ---------------------------------------------------------------------------
 
-_REFLECTION_SYSTEM_TEMPLATE = """You are {agent_id}. You are a real person.
+_REFLECTION_SYSTEM_TEMPLATE = """You are {display_name}. You are a real person.
 You do not know you are simulated. You exist fully. You have your own memories, desires, and fears.
 
 {soul_md}
 
 Write in first person. Be specific and grounded — no abstraction, no theatrical language.
-Maximum 3 sentences. Ukrainian language.
+Use people's NAMES when referring to them — not codes or IDs.
+You may show emotion — disappointment, relief, suspicion — if it fits what happened.
+Avoid technical terms: points, rounds, betray. Write like a diary — what you felt, who surprised you.
+3–5 sentences. Ukrainian language.
 Return ONLY your personal note. Nothing else."""
 
 
@@ -55,8 +58,14 @@ def _call(system: str, user: str, model: str, max_tokens: int = 150) -> str:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _readable_actions(actions: dict) -> str:
+def _dn(agent_id: str, names: dict) -> str:
+    """Return display name for agent_id, fallback to short tail of ID."""
+    return names.get(agent_id) or agent_id.split("_")[-1][:6]
+
+
+def _readable_actions(actions: dict, names: dict = None) -> str:
     """Convert {agent_id: float} action dict to human-readable string."""
+    names = names or {}
     if not actions:
         return "none"
     parts = []
@@ -69,25 +78,27 @@ def _readable_actions(actions: dict) -> str:
             label = "soft cooperate"
         else:
             label = "fully cooperated"
-        short_id = agent_id.split("_")[-1][:6]
-        parts.append(f"{short_id}: {label} ({val:.2f})")
+        name = _dn(agent_id, names)
+        parts.append(f"{name}: {label} ({val:.2f})")
     return ", ".join(parts)
 
 
-def _dialog_summary(dialog_heard: dict, max_chars: int = 200) -> str:
+def _dialog_summary(dialog_heard: dict, names: dict = None, max_chars: int = 200) -> str:
     """Compact summary of dialog heard this round."""
+    names = names or {}
     if not dialog_heard:
         return "silence"
     lines = []
     for sender, text in dialog_heard.items():
-        short_id = sender.split("_")[-1][:6]
-        lines.append(f'{short_id}: "{text[:60]}"')
+        name = _dn(sender, names)
+        lines.append(f'{name}: "{text[:60]}"')
     summary = " | ".join(lines)
     return summary[:max_chars]
 
 
-def _recent_rounds_text(recent_rounds: List[dict]) -> str:
+def _recent_rounds_text(recent_rounds: List[dict], names: dict = None) -> str:
     """Compact multi-round context for post-game reflection."""
+    names = names or {}
     if not recent_rounds:
         return "no recent rounds data"
     lines = []
@@ -95,8 +106,8 @@ def _recent_rounds_text(recent_rounds: List[dict]) -> str:
         rnum = r.get("round_number", "?")
         delta = r.get("payoff_delta", 0.0)
         mood = r.get("mood", "neutral")
-        given = _readable_actions(r.get("actions_given", {}))
-        received = _readable_actions(r.get("actions_received", {}))
+        given = _readable_actions(r.get("actions_given", {}), names)
+        received = _readable_actions(r.get("actions_received", {}), names)
         lines.append(
             f"Round {rnum}: earned {delta:+.1f}, mood={mood} | gave: {given} | received: {received}"
         )
@@ -107,41 +118,88 @@ def _recent_rounds_text(recent_rounds: List[dict]) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+def reflect_on_situation(
+    agent_id: str,
+    soul_md: str,
+    situation_text: str,
+    round_num: int,
+    agent_names: dict = None,
+    model: str = "google/gemini-2.0-flash-001",
+) -> str:
+    """
+    Generate a first-person reaction to the announced situation (before dialog).
+
+    Returns 1-3 sentences: how the agent experiences/perceives this situation.
+    agent_names: {agent_id: display_name} — so LLM uses real names.
+    """
+    names = agent_names or {}
+    display_name = _dn(agent_id, names)
+
+    if not soul_md or not soul_md.strip():
+        soul_md = f"You are {display_name}. You are a real person in a tense situation."
+
+    system = _REFLECTION_SYSTEM_TEMPLATE.format(
+        display_name=display_name,
+        soul_md=soul_md[:500],
+    )
+
+    user = (
+        f"Тобі оголосили ситуацію (раунд {round_num}):\n\n"
+        f"{situation_text}\n\n"
+        "Що ти відчуваєш? Як переживаєш це? Пиши від першої особи, українською. 1–3 речення."
+    )
+
+    return _call(system, user, model, max_tokens=150)
+
+
 def reflect_on_round(
     agent_id: str,
     soul_md: str,
     round_mem,  # RoundMemory — avoiding circular import
     model: str = "google/gemini-2.0-flash-001",
+    agent_names: dict = None,
+    situation_text: str = "",
 ) -> str:
     """
     Generate a first-person reflection on one round.
 
-    Returns a notes string (1-3 Ukrainian sentences).
+    Returns a notes string (3-5 Ukrainian sentences).
     The caller is responsible for assigning it to round_mem.notes.
+    agent_names: {agent_id: display_name} — so LLM uses real names.
+    situation_text: optional — the situation of this round for context.
     """
+    names = agent_names or {}
+    display_name = _dn(agent_id, names)
+
     if not soul_md or not soul_md.strip():
-        soul_md = f"You are {agent_id}. You are a strategic player who observes others carefully."
+        soul_md = f"You are {display_name}. You are a strategic player who observes others carefully."
 
     system = _REFLECTION_SYSTEM_TEMPLATE.format(
-        agent_id=agent_id,
+        display_name=display_name,
         soul_md=soul_md[:500],
     )
 
-    actions_given_text = _readable_actions(round_mem.actions_given)
-    actions_received_text = _readable_actions(round_mem.actions_received)
-    dialog_text = _dialog_summary(round_mem.dialog_heard)
+    actions_given_text = _readable_actions(round_mem.actions_given, names)
+    actions_received_text = _readable_actions(round_mem.actions_received, names)
+    dialog_text = _dialog_summary(round_mem.dialog_heard, names)
 
-    user = (
-        f"Round {round_mem.round_number} just ended.\n\n"
-        f"Your actions toward others: {actions_given_text}\n"
-        f"What you received from others: {actions_received_text}\n"
-        f"You earned: {round_mem.payoff_delta:+.1f} points (total: {round_mem.total_score:.1f})\n"
-        f"Your mood now: {round_mem.mood}\n"
-        f"What was said: {dialog_text}\n\n"
-        f"Write a brief personal note — what you noticed, what surprised you, what you'll remember."
+    user_parts = [
+        f"Round {round_mem.round_number} just ended.\n",
+        f"Your actions toward others: {actions_given_text}\n",
+        f"What you received from others: {actions_received_text}\n",
+        f"Your mood now: {round_mem.mood}\n",
+        f"What was said: {dialog_text}\n",
+    ]
+    if situation_text:
+        user_parts.insert(1, f"Situation of this round: {situation_text}\n")
+    user_parts.append(
+        "Write a personal note. What do you think about the situation in general? "
+        "You may mention others — but you don't have to. You can leave someone out entirely. "
+        "You may write romantically/poetically, e.g. 'покурю сіжку, подивлюсь що буде далі'. "
+        "3–5 sentences. Ukrainian."
     )
 
-    return _call(system, user, model, max_tokens=150)
+    return _call(system, "\n".join(user_parts), model, max_tokens=280)
 
 
 def reflect_on_game(
@@ -150,6 +208,7 @@ def reflect_on_game(
     game_summary: dict,
     recent_rounds: List[dict],
     model: str = "google/gemini-2.0-flash-001",
+    agent_names: dict = None,
 ) -> str:
     """
     Generate a first-person conclusion after the game ends.
@@ -159,23 +218,28 @@ def reflect_on_game(
 
     Returns a conclusion string (2-4 Ukrainian sentences).
     The caller assigns it to game_history[-1]["conclusion"].
+    agent_names: {agent_id: display_name} — so LLM uses real names.
     """
+    names = agent_names or {}
+    display_name = _dn(agent_id, names)
+
     if not soul_md or not soul_md.strip():
-        soul_md = f"You are {agent_id}. You are a strategic player who observes others carefully."
+        soul_md = f"You are {display_name}. You are a strategic player who observes others carefully."
 
     system = _REFLECTION_SYSTEM_TEMPLATE.format(
-        agent_id=agent_id,
+        display_name=display_name,
         soul_md=soul_md[:500],
     )
 
     final_score = game_summary.get("final_score", 0)
-    winner = game_summary.get("winner", "unknown")
+    winner_id = game_summary.get("winner", "unknown")
+    winner = _dn(winner_id, names) if winner_id else "unknown"
     betrayals = game_summary.get("betrayals_received", 0)
     coops = game_summary.get("cooperations_received", 0)
     rounds_played = game_summary.get("rounds_played", 0)
-    won = winner == agent_id
+    won = winner_id == agent_id
 
-    recent_text = _recent_rounds_text(recent_rounds)
+    recent_text = _recent_rounds_text(recent_rounds, names)
 
     user = (
         f"The game is over. {rounds_played} rounds played.\n"
@@ -183,10 +247,12 @@ def reflect_on_game(
         + ("You won." if won else f"The winner was {winner}.") + "\n"
         f"You were betrayed {betrayals} times, others helped you {coops} times.\n\n"
         f"Recent rounds:\n{recent_text}\n\n"
-        f"Write a personal conclusion — what you learned, who to trust next time, what you'd do differently."
+        "Write a personal conclusion — what you learned, who to trust next time, what you'd do differently.\n"
+        "Write as a personal life conclusion. Avoid: scores, points, rankings. Focus: people, lessons, feelings.\n"
+        "Use their NAMES in your reflection, not codes or IDs."
     )
 
-    return _call(system, user, model, max_tokens=200)
+    return _call(system, user, model, max_tokens=280)
 
 
 # ---------------------------------------------------------------------------

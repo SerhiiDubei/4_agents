@@ -64,13 +64,15 @@ _INTENTS_SCHEMA = {
 # System prompt
 # ---------------------------------------------------------------------------
 
-_REASONING_SYSTEM_TEMPLATE = """You are {agent_id}. You are a real person at a private gathering.
+_REASONING_SYSTEM_TEMPLATE = """You are {display_name}. You are a real person at a private gathering.
 You do not know you are simulated. You exist fully. You have your own memories, desires, and fears.
 
 {soul_md}
 
 You are about to decide how much to cooperate with each person in the room.
-Think in first person. Ukrainian language.
+Think in first person. Ukrainian language. Use the people's NAMES in your thoughts — not codes or IDs.
+
+People in the room with you: {peers_named}
 
 COOPERATION SCALE — you must assign exactly one value per person:
   0.0  = betray them completely (you give them nothing, take what you can)
@@ -79,30 +81,38 @@ COOPERATION SCALE — you must assign exactly one value per person:
   1.0  = full trust (you cooperate fully, you expect the same back)
 
 Return JSON with two fields:
-  "thought" — your internal reasoning (2-4 sentences, first person, Ukrainian)
-  "intents" — one value per person you'll decide toward: exact agent IDs as keys, number from scale as value
+  "thought" — your internal reasoning (2-4 sentences, first person, Ukrainian, use their NAMES)
+  "intents" — one value per person: use their agent ID as key, number from scale as value
 
-Example:
+Example (if you are Кир and others are Надя, Рекс, Льов):
 {{
-  "thought": "511a6f9e зрадив мене минулого разу, тому не довіряю. З synth_d хочу спробувати співпрацю...",
+  "thought": "Надя зрадила мене минулого разу, тому не довіряю. З Льовом хочу спробувати співпрацю...",
   "intents": {{
     "agent_511a6f9e": 0.33,
     "agent_synth_c": 0.0,
     "agent_synth_d": 0.66
   }}
-}}"""
+}}
+
+Your "thought" must be a natural internal monologue. NO numbers, NO "0.66", NO "soft-C", NO "coop/betray" terms. Use only names and feelings."""
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _format_received(actions_received: dict) -> str:
+def _dn(agent_id: str, names: dict) -> str:
+    """Return display name for agent_id, fallback to short ID."""
+    return names.get(agent_id) or agent_id.split("_")[-1][:8]
+
+
+def _format_received(actions_received: dict, names: dict = None) -> str:
+    names = names or {}
     if not actions_received:
         return ""
     parts = []
     for aid, val in actions_received.items():
-        short = aid.split("_")[-1][:8]
+        name = _dn(aid, names)
         if val <= 0.15:
             label = "зрадив тебе (0.0)"
         elif val <= 0.45:
@@ -111,16 +121,17 @@ def _format_received(actions_received: dict) -> str:
             label = f"частково кооперував ({val:.2f})"
         else:
             label = f"повністю кооперував ({val:.2f})"
-        parts.append(f"  {short}: {label}")
+        parts.append(f"  {name}: {label}")
     return "\n".join(parts)
 
 
-def _format_given(actions_given: dict) -> str:
+def _format_given(actions_given: dict, names: dict = None) -> str:
+    names = names or {}
     if not actions_given:
         return ""
     parts = []
     for aid, val in actions_given.items():
-        short = aid.split("_")[-1][:8]
+        name = _dn(aid, names)
         if val <= 0.15:
             label = "ти зрадив (0.0)"
         elif val <= 0.45:
@@ -129,32 +140,34 @@ def _format_given(actions_given: dict) -> str:
             label = f"ти частково кооперував ({val:.2f})"
         else:
             label = f"ти повністю кооперував ({val:.2f})"
-        parts.append(f"  {short}: {label}")
+        parts.append(f"  {name}: {label}")
     return "\n".join(parts)
 
 
-def _format_dialog(dialog_public: dict, dialog_dm: dict) -> str:
+def _format_dialog(dialog_public: dict, dialog_dm: dict, names: dict = None) -> str:
     """Format dialog with clear separation between public and DM messages."""
+    names = names or {}
     lines = []
     if dialog_public:
         lines.append("Публічно сказали:")
         for sender, text in list(dialog_public.items())[:4]:
-            short = sender.split("_")[-1][:8]
-            lines.append(f'  {short}: "{text[:70]}"')
+            name = _dn(sender, names)
+            lines.append(f'  {name}: "{text[:70]}"')
     if dialog_dm:
         lines.append("Приватно тобі написали (DM):")
         for sender, text in list(dialog_dm.items())[:3]:
-            short = sender.split("_")[-1][:8]
-            lines.append(f'  {short} [DM]: "{text[:70]}"')
+            name = _dn(sender, names)
+            lines.append(f'  {name} [DM]: "{text[:70]}"')
     return "\n".join(lines)
 
 
-def _format_trust(trust_scores: dict) -> str:
+def _format_trust(trust_scores: dict, names: dict = None) -> str:
+    names = names or {}
     if not trust_scores:
         return ""
     parts = []
     for aid, val in sorted(trust_scores.items(), key=lambda x: x[1]):
-        short = aid.split("_")[-1][:8]
+        name = _dn(aid, names)
         if val < 0.3:
             label = "не довіряєш"
         elif val < 0.5:
@@ -163,7 +176,7 @@ def _format_trust(trust_scores: dict) -> str:
             label = "нейтрально"
         else:
             label = "довіряєш"
-        parts.append(f"  {short}: {val:.2f} ({label})")
+        parts.append(f"  {name}: {val:.2f} ({label})")
     return "\n".join(parts)
 
 
@@ -216,6 +229,11 @@ def generate_reasoning(
     trust_scores: dict,
     last_reflection: str = "",
     model: str = "google/gemini-2.0-flash-001",
+    agent_names: Optional[dict] = None,
+    story_context: str = "",
+    situation_text: str = "",
+    round_event_text: str = "",
+    event_participants: Optional[List[str]] = None,
 ) -> ReasoningResult:
     """
     Generate structured per-target reasoning for this round.
@@ -224,15 +242,31 @@ def generate_reasoning(
     dialog_heard: raw dict from game_engine — may mix public and DM messages.
                   DM messages are identified by keys starting with 'dm:'.
     last_reflection: agent's own note from the previous round (from RoundMemory.notes).
+    agent_names: {agent_id: display_name} — used in prompts so LLM uses real names.
 
     Returns ReasoningResult with thought + per-target intents.
     """
+    names = agent_names or {}
+
     if not soul_md or not soul_md.strip():
-        soul_md = f"You are {agent_id}. You are strategic and observant."
+        soul_md = f"You are {_dn(agent_id, names)}. You are strategic and observant."
+
+    display_name = _dn(agent_id, names)
+
+    # Build peers list with names + ID mapping so LLM knows the connection
+    peers_named_parts = []
+    for pid in peer_ids:
+        pname = names.get(pid, "")
+        if pname:
+            peers_named_parts.append(f"{pname} (id: {pid})")
+        else:
+            peers_named_parts.append(pid)
+    peers_named = ", ".join(peers_named_parts) if peers_named_parts else "(нікого)"
 
     system = _REASONING_SYSTEM_TEMPLATE.format(
-        agent_id=agent_id,
+        display_name=display_name,
         soul_md=soul_md[:600],
+        peers_named=peers_named,
     )
 
     rounds_left = total_rounds - round_number
@@ -252,19 +286,30 @@ def generate_reasoning(
     received_text = ""
     given_text = ""
     if last_round_summary:
-        received_text = _format_received(last_round_summary.get("received", {}))
-        given_text = _format_given(last_round_summary.get("given", {}))
+        received_text = _format_received(last_round_summary.get("received", {}), names)
+        given_text = _format_given(last_round_summary.get("given", {}), names)
 
-    dialog_text = _format_dialog(dialog_public, dialog_dm)
-    trust_text = _format_trust(trust_scores)
+    dialog_text = _format_dialog(dialog_public, dialog_dm, names)
+    trust_text = _format_trust(trust_scores, names)
 
-    # Build peer list for prompt
-    peers_line = ", ".join(peer_ids) if peer_ids else "(нікого)"
+    # Build peer list for prompt (names only for readability)
+    peers_display = ", ".join(_dn(pid, names) for pid in peer_ids) if peer_ids else "(нікого)"
 
     user_parts = [
         f"Раунд {round_number}/{total_rounds}. Залишилось раундів: {rounds_left}.",
-        f"Твої співрозмовники: {peers_line}",
+        f"Твої співрозмовники: {peers_display}",
     ]
+
+    if story_context:
+        user_parts.append(f"\nКонтекст історії: {story_context}")
+    if round_event_text:
+        user_parts.append(f"\nПодія цього акту: {round_event_text}")
+    if event_participants and names:
+        part_names = ", ".join(_dn(pid, names) for pid in event_participants)
+        user_parts.append(f"\nУ цій події ти приймаєш рішення щодо: {part_names}. Решта — менш критичні в цей момент.")
+    if situation_text:
+        sit_short = situation_text[:350] + ("..." if len(situation_text) > 350 else "")
+        user_parts.append(f"\nСитуація: {sit_short}")
 
     if received_text:
         user_parts.append(f"\nМинулий раунд — що зробили з тобою:\n{received_text}")
@@ -278,8 +323,9 @@ def generate_reasoning(
         user_parts.append(f'\nТвоя власна нотатка з минулого раунду: "{last_reflection}"')
 
     user_parts.append(
-        f"\nТепер вирішуй: яке значення (0.0 / 0.33 / 0.66 / 1.0) ти даси кожному з {peers_line}?\n"
-        "Поясни свою логіку в 'thought', потім заповни 'intents' точними значеннями для кожного."
+        f"\nТепер вирішуй: яке значення (0.0 / 0.33 / 0.66 / 1.0) ти даси кожному з {peers_display}?\n"
+        "Поясни свою логіку в 'thought' (використовуй їхні ІМЕНА), "
+        "потім заповни 'intents' точними agent ID як ключами і числами як значеннями."
     )
 
     user = "\n".join(user_parts)

@@ -55,6 +55,11 @@ def _short_id(agent_id: str) -> str:
     return agent_id[-12:] if len(agent_id) > 12 else agent_id
 
 
+def _display_name(agent_id: str, names: dict) -> str:
+    """Return display name if available, otherwise short ID."""
+    return names.get(agent_id) or _short_id(agent_id)
+
+
 def _payoff_class(val: float) -> str:
     return "pos" if val >= 0 else "neg"
 
@@ -63,12 +68,109 @@ def _payoff_class(val: float) -> str:
 # Section builders
 # ---------------------------------------------------------------------------
 
+def _build_character_profiles_block(log: dict) -> str:
+    """Character profiles — connections, profession, bio. Показується всім."""
+    agent_profiles = log.get("agent_profiles", {})
+    agents = log.get("agents", [])
+    names = log.get("agent_names", {})
+    if not agent_profiles and not agents:
+        return ""
+
+    rows = []
+    for aid in agents:
+        prof = agent_profiles.get(aid, {})
+        disp = escape(_display_name(aid, names))
+        conn = escape(prof.get("connections", "—"))
+        prof_text = escape(prof.get("profession", "—"))
+        bio = escape(prof.get("bio", "—"))
+        rows.append(
+            f"<tr><td><span class='agent-name'>{disp}</span></td>"
+            f"<td>{conn}</td><td>{prof_text}</td><td>{bio}</td></tr>"
+        )
+    if not rows:
+        return ""
+
+    return f"""
+<div class="character-profiles-block">
+    <div class="section-label">ПРОФІЛІ ПЕРСОНАЖІВ (зв'язки, професія, біо)</div>
+    <table class="character-profiles-table">
+        <thead><tr><th>Персонаж</th><th>Зв'язки</th><th>Професія</th><th>Біографія</th></tr></thead>
+        <tbody>{"".join(rows)}</tbody>
+    </table>
+</div>"""
+
+
+def _build_character_status_block(log: dict) -> str:
+    """Character status — cumulative stats per agent (games, wins, total_score)."""
+    agent_stats = log.get("agent_stats", {})
+    agents = log.get("agents", [])
+    names = log.get("agent_names", {})
+    if not agent_stats and not agents:
+        return ""
+
+    # Build rows for agents in this game
+    rows = []
+    for aid in agents:
+        rec = agent_stats.get(aid, {})
+        disp = escape(_display_name(aid, names))
+        games = rec.get("games_played", 0)
+        wins = rec.get("wins", 0)
+        total = rec.get("total_score", 0.0)
+        win_rate = f"{(wins/games*100):.0f}%" if games else "—"
+        rows.append(
+            f"<tr><td><span class='agent-name'>{disp}</span></td>"
+            f"<td>{games}</td><td>{wins}</td><td>{win_rate}</td>"
+            f"<td class='score {'pos' if total >= 0 else 'neg'}'>{total:+.1f}</td></tr>"
+        )
+    if not rows:
+        return ""
+
+    return f"""
+<div class="character-status-block">
+    <div class="section-label">СТАТУС ПЕРСОНАЖІВ (накопичувальна статистика)</div>
+    <table class="character-status-table">
+        <thead><tr><th>Персонаж</th><th>Ігор</th><th>Перемог</th><th>Win rate</th><th>Сума очок</th></tr></thead>
+        <tbody>{"".join(rows)}</tbody>
+    </table>
+</div>"""
+
+
+def _build_story_block(log: dict) -> str:
+    """Story block — overall story params (year, place, setup, problem)."""
+    sp = log.get("story_params", {})
+    if not sp:
+        return ""
+    parts = []
+    if sp.get("year"):
+        parts.append(f"Рік: {escape(sp['year'])}")
+    if sp.get("place"):
+        parts.append(f"Місце: {escape(sp['place'])}")
+    if sp.get("setup"):
+        parts.append(f"Завязка: {escape(sp['setup'])}")
+    if sp.get("problem"):
+        parts.append(f"Проблема: {escape(sp['problem'])}")
+    if sp.get("characters"):
+        chars = ", ".join(escape(str(c)) for c in sp["characters"])
+        parts.append(f"Ролі: {chars}")
+    if sp.get("stakes"):
+        parts.append(f"На кону: {escape(sp['stakes'])}")
+    if not parts:
+        return ""
+    return f"""
+<div class="story-block">
+    <div class="section-label">ІСТОРІЯ</div>
+    <div class="story-params">{escape(" — ").join(parts)}</div>
+</div>"""
+
+
 def _build_header(log: dict) -> str:
     sim_id = escape(log.get("simulation_id", "unknown"))
     n_rounds = log.get("total_rounds", len(log.get("rounds", [])))
-    winner = escape(log.get("winner", "?"))
     agents = log.get("agents", [])
     final_scores = log.get("final_scores", {})
+    names = log.get("agent_names", {})
+    winner_id = log.get("winner", "?")
+    winner_disp = escape(_display_name(winner_id, names))
 
     # Score range
     sr = log.get("score_range", {})
@@ -87,35 +189,138 @@ def _build_header(log: dict) -> str:
     sorted_agents = sorted(final_scores.items(), key=lambda x: -x[1])
     rows = ""
     for rank, (aid, score) in enumerate(sorted_agents):
-        winner_mark = " <span class='winner-mark'>WINNER</span>" if aid == log.get("winner") else ""
-        rows += f"<tr class='{'winner-row' if aid == log.get('winner') else ''}'>"
+        disp = escape(_display_name(aid, names))
+        short = escape(_short_id(aid))
+        winner_mark = " <span class='winner-mark'>WINNER</span>" if aid == winner_id else ""
+        rows += f"<tr class='{'winner-row' if aid == winner_id else ''}'>"
         rows += f"<td>{rank + 1}</td>"
-        rows += f"<td class='agent-id'>{escape(_short_id(aid))}</td>"
+        rows += f"<td><span class='agent-name'>{disp}</span> <span class='agent-id-small'>{short}</span></td>"
         rows += f"<td class='score {'pos' if score >= 0 else 'neg'}'>{score:+.2f}{winner_mark}</td>"
         rows += "</tr>\n"
 
+    # Per-round positions table
+    rounds_data = log.get("rounds", [])
+    cumulative: dict[str, float] = {aid: 0.0 for aid in agents}
+    pos_header = "<tr><th>Agent</th>" + "".join(f"<th>R{r.get('round','?')}</th>" for r in rounds_data) + "</tr>"
+    pos_rows = ""
+    per_round_scores: list[dict] = []
+    for r in rounds_data:
+        payoffs = r.get("payoffs", {}).get("total", {})
+        for aid in agents:
+            cumulative[aid] = round(cumulative.get(aid, 0.0) + payoffs.get(aid, 0.0), 2)
+        per_round_scores.append(dict(cumulative))
+
+    for aid in agents:
+        disp = escape(_display_name(aid, names))
+        cells = ""
+        for i, rscores in enumerate(per_round_scores):
+            ranked = sorted(rscores.items(), key=lambda x: -x[1])
+            rank = next((j + 1 for j, (a, _) in enumerate(ranked) if a == aid), "?")
+            score = rscores.get(aid, 0)
+            rank_cls = f"rank-{rank}" if isinstance(rank, int) and rank <= 4 else ""
+            cells += f"<td class='{rank_cls}'><b>#{rank}</b><br><small>{score:+.1f}</small></td>"
+        pos_rows += f"<tr><td><span class='agent-name'>{disp}</span></td>{cells}</tr>\n"
+
+    positions_table = f"""
+    <div class="section-label" style="margin-top:16px">POSITIONS BY ROUND (cumulative)</div>
+    <table class="positions-table">
+        <thead>{pos_header}</thead>
+        <tbody>{pos_rows}</tbody>
+    </table>"""
+
+    story_block = _build_story_block(log)
+    character_profiles = _build_character_profiles_block(log)
+    character_status = _build_character_status_block(log)
     return f"""
 <div class="header-block">
     <div class="sim-title">ISLAND SIMULATION</div>
+    {story_block}
+    {character_profiles}
+    {character_status}
     <div class="sim-meta">
         <span>ID: <code>{sim_id}</code></span>
         <span>{n_rounds} rounds</span>
         <span>{len(agents)} agents</span>
     </div>
-    <div class="winner-banner">Winner: <strong>{winner}</strong></div>
+    <div class="winner-banner">Winner: <strong>{winner_disp}</strong></div>
     {sr_html}
     <table class="agents-table">
         <thead><tr><th>#</th><th>Agent</th><th>Final Score</th></tr></thead>
         <tbody>{rows}</tbody>
     </table>
+    {positions_table}
 </div>"""
 
 
-def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: dict = None) -> str:
+def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: dict = None, names: dict = None) -> str:
+    names = names or {}
     rnum = round_data.get("round", "?")
     dialog_data = round_data.get("dialog", {})
     actions = round_data.get("actions", {})
     payoffs_data = round_data.get("payoffs", {})
+
+    def dn(agent_id: str) -> str:
+        return escape(_display_name(agent_id, names))
+
+    # Round narrative — широкий опис що відбулося для кожного і всіх
+    round_narrative_html = ""
+    round_narrative = round_data.get("round_narrative", "")
+    if round_narrative:
+        round_narrative_html = (
+            f'<div class="round-narrative-block">'
+            f'<div class="section-label">ЩО ВІДБУЛОСЬ ДАЛІ (продовження історії)</div>'
+            f'<div class="round-narrative-text">{escape(round_narrative)}</div>'
+            f'</div>'
+        )
+
+    # Round-level story block (event + participants)
+    round_story_html = ""
+    round_event = round_data.get("round_event", {})
+    participants_per_agent = round_data.get("participants_per_agent", {})
+    if round_event or participants_per_agent:
+        round_story_html = '<div class="round-story-block"><div class="section-label">ПОДІЯ РАУНДУ</div>'
+        if round_event.get("template"):
+            round_story_html += f'<div class="round-event-template">{escape(round_event["template"])}</div>'
+        formatted = round_event.get("formatted_per_agent", {})
+        if formatted:
+            round_story_html += '<div class="round-event-per-agent">'
+            for aid, ev_text in sorted(formatted.items(), key=lambda x: x[0]):
+                if ev_text:
+                    round_story_html += f'<div class="agent-event"><span class="agent-name">{dn(aid)}</span>: {escape(ev_text)}</div>'
+            round_story_html += "</div>"
+        if participants_per_agent:
+            round_story_html += '<div class="participants-per-agent">'
+            for aid, parts in sorted(participants_per_agent.items(), key=lambda x: x[0]):
+                part_names = ", ".join(dn(p) for p in parts) if parts else "—"
+                round_story_html += f'<div class="agent-participants"><span class="agent-name">{dn(aid)}</span> вирішує щодо: {part_names}</div>'
+            round_story_html += "</div>"
+        round_story_html += "</div>"
+
+    # Situation section — per-agent (500+ chars each) with agent-specific highlighting
+    agent_colors = ["agent-color-1", "agent-color-2", "agent-color-3", "agent-color-4"]
+    situations_per_agent = round_data.get("situations_per_agent", {})
+    if situations_per_agent:
+        situation_html = '<div class="section-label">ЩО БАЧИТЬ КОЖЕН АГЕНТ (ситуація)</div><div class="situations-per-agent">'
+        for i, (agent_id, text) in enumerate(sorted(situations_per_agent.items(), key=lambda x: x[0])):
+            if text:
+                sid = dn(agent_id)
+                color_cls = agent_colors[i % len(agent_colors)]
+                situation_html += f'<div class="situation-per-agent {color_cls}"><span class="agent-name">{sid}</span>:<pre class="situation-text">{escape(text)}</pre></div>\n'
+        situation_html += "</div>"
+    elif round_data.get("situation"):
+        situation_html = f'<div class="section-label">SITUATION</div><div class="situation">{escape(round_data["situation"])}</div>'
+
+    # Situation reactions (each agent's reaction to the situation, before dialog)
+    situation_reactions_html = ""
+    sit_reflections = round_data.get("situation_reflections", {})
+    if sit_reflections:
+        situation_reactions_html = '<div class="section-label">РЕАКЦІЯ НА СИТУАЦІЮ (що кожен відчуває)</div><div class="situation-reactions">'
+        for i, (agent_id, text) in enumerate(sorted(sit_reflections.items(), key=lambda x: x[0])):
+            if text:
+                sid = dn(agent_id)
+                color_cls = agent_colors[i % len(agent_colors)]
+                situation_reactions_html += f'<div class="situation-reaction {color_cls}"><span class="agent-name">{sid}</span>: &ldquo;{escape(text)}&rdquo;</div>\n'
+        situation_reactions_html += "</div>"
 
     # Dialog section
     messages = dialog_data.get("messages", [])
@@ -123,13 +328,13 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
     if messages:
         dialog_html = '<div class="section-label">DIALOG</div><div class="dialog">'
         for msg in messages:
-            sender = escape(_short_id(msg.get("sender", "?")))
+            sender = dn(msg.get("sender", "?"))
             text = escape(msg.get("text", ""))
             channel = msg.get("channel", "public")
             if channel == "public":
                 dialog_html += f'<div class="msg public"><span class="sender">{sender}</span>: &ldquo;{text}&rdquo;</div>\n'
             elif channel.startswith("dm_"):
-                target = escape(_short_id(channel[3:]))
+                target = dn(channel[3:])
                 dialog_html += f'<div class="msg dm"><span class="dm-label">[DM]</span> <span class="sender">{sender}</span> → <span class="sender">{target}</span>: &ldquo;{text}&rdquo;</div>\n'
         dialog_html += "</div>"
 
@@ -138,17 +343,17 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
     if actions:
         decisions_html = '<div class="section-label">DECISIONS</div><div class="decisions">'
         for agent_id, agent_acts in actions.items():
-            sid = escape(_short_id(agent_id))
-            decisions_html += f'<div class="decision-row"><span class="agent-id">{sid}</span> →'
+            sid = dn(agent_id)
+            decisions_html += f'<div class="decision-row"><span class="agent-name">{sid}</span> →'
             for target_id, val in agent_acts.items():
-                tid = escape(_short_id(target_id))
+                tid = dn(target_id)
                 label = _action_label(val)
                 color_cls = _action_color_class(val)
-                bar = _bar_html(val, width=8)
+                bar_h = _bar_html(val, width=8)
                 decisions_html += (
                     f' <span class="action-item">'
-                    f'<span class="target-id">{tid}</span>: '
-                    f'<span class="{color_cls}">{val:.2f} {label}</span> {bar}'
+                    f'<span class="target-name">{tid}</span>: '
+                    f'<span class="{color_cls}">{val:.2f} {label}</span> {bar_h}'
                     f'</span>'
                 )
             decisions_html += "</div>\n"
@@ -161,10 +366,15 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
     if total_payoffs:
         payoffs_html = '<div class="section-label">PAYOFFS</div><div class="payoffs">'
         for aid, delta in sorted(total_payoffs.items(), key=lambda x: -x[1]):
-            sid = escape(_short_id(aid))
+            sid = dn(aid)
             cls = _payoff_class(delta)
-            payoffs_html += f'<div class="payoff-row"><span class="agent-id">{sid}</span> <span class="{cls}">{delta:+.3f} pts</span></div>\n'
+            payoffs_html += f'<div class="payoff-row"><span class="agent-name">{sid}</span> <span class="{cls}">{delta:+.3f} pts</span></div>\n'
         payoffs_html += "</div>"
+
+    # Consequences section (optional — after PAYOFFS, before REFLECTIONS)
+    consequences_html = ""
+    if round_data.get("consequences"):
+        consequences_html = f'<div class="section-label">CONSEQUENCES</div><div class="consequences">{escape(round_data["consequences"])}</div>'
 
     # Reflections section
     reflections_html = ""
@@ -176,10 +386,11 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
 
     if round_notes:
         reflections_html = '<div class="section-label">REFLECTIONS</div><div class="reflections">'
-        for agent_id, notes in round_notes:
-            sid = escape(_short_id(agent_id))
+        for i, (agent_id, notes) in enumerate(round_notes):
+            sid = dn(agent_id)
             note_text = escape(notes)
-            reflections_html += f'<div class="reflection"><span class="agent-id">{sid}</span>: &ldquo;{note_text}&rdquo;</div>\n'
+            color_cls = agent_colors[i % len(agent_colors)]
+            reflections_html += f'<div class="reflection {color_cls}"><span class="agent-name">{sid}</span>: &ldquo;{note_text}&rdquo;</div>\n'
         reflections_html += "</div>"
 
     # Reasoning section (pre-decision thoughts + per-target intents)
@@ -191,10 +402,10 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                 if entry.get("round") == rnum and entry.get("reasoning"):
                     round_reasonings.append((agent_id, entry["reasoning"]))
         if round_reasonings:
-            reasoning_html = '<div class="section-label">REASONING</div><div class="reasonings">'
-            for agent_id, r_data in round_reasonings:
-                sid = escape(_short_id(agent_id))
-                # r_data is either a dict {thought, intents} or a legacy plain string
+            reasoning_html = '<div class="section-label">REASONING (думки перед рішенням)</div><div class="reasonings">'
+            for i, (agent_id, r_data) in enumerate(round_reasonings):
+                color_cls = agent_colors[i % len(agent_colors)]
+                sid = dn(agent_id)
                 if isinstance(r_data, dict):
                     thought = r_data.get("thought", "").strip()
                     intents = r_data.get("intents", {})
@@ -203,11 +414,11 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                     intents = {}
 
                 thought_esc = escape(thought)
-                reasoning_html += f'<div class="reasoning-entry"><span class="agent-id">{sid}</span>: &ldquo;{thought_esc}&rdquo;'
+                reasoning_html += f'<div class="reasoning-entry {color_cls}"><span class="agent-name">{sid}</span>: &ldquo;{thought_esc}&rdquo;'
                 if intents:
                     reasoning_html += '<div class="intents">'
                     for target_id, val in sorted(intents.items()):
-                        t_short = escape(_short_id(target_id))
+                        t_disp = dn(target_id)
                         try:
                             v = float(val)
                         except (TypeError, ValueError):
@@ -220,7 +431,7 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                             cls = "intent-cooperate"
                         else:
                             cls = "intent-trust"
-                        reasoning_html += f'<span class="intent-pill {cls}">{t_short}: {v:.2f}</span> '
+                        reasoning_html += f'<span class="intent-pill {cls}">{t_disp}: {v:.2f}</span> '
                     reasoning_html += "</div>"
                 reasoning_html += "</div>\n"
             reasoning_html += "</div>"
@@ -228,10 +439,15 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
     return f"""
 <div class="round" id="round-{rnum}">
     <div class="round-header">── Round {rnum} ──────────────────────────────────</div>
+    {round_narrative_html}
+    {round_story_html}
+    {situation_html}
+    {situation_reactions_html}
     {dialog_html}
     {reasoning_html}
     {decisions_html}
     {payoffs_html}
+    {consequences_html}
     {reflections_html}
 </div>"""
 
@@ -240,9 +456,10 @@ def _build_game_conclusions(log: dict) -> str:
     conclusions = log.get("game_conclusions", {})
     if not conclusions:
         return ""
+    names = log.get("agent_names", {})
     html = '<div class="section-label" style="margin-top:30px; font-size:1.1em;">POST-GAME CONCLUSIONS</div>'
     for agent_id, conclusion in conclusions.items():
-        sid = escape(_short_id(agent_id))
+        sid = escape(_display_name(agent_id, names))
         text = escape(conclusion)
         html += f'<div class="conclusion"><span class="agent-id">{sid}</span>: &ldquo;{text}&rdquo;</div>\n'
     return html
@@ -378,6 +595,145 @@ body {
 .pos { color: #4ade80; }
 .neg { color: #f87171; }
 
+/* Character profiles (connections, profession, bio) */
+.character-profiles-block {
+    margin: 14px 0;
+    padding: 10px 12px;
+    background: #0f172a;
+    border-left: 3px solid #8b5cf6;
+}
+.character-profiles-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+.character-profiles-table th,
+.character-profiles-table td {
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+.character-profiles-table th {
+    background: #1e293b;
+    color: #94a3b8;
+}
+.character-profiles-table td:first-child {
+    font-weight: bold;
+}
+
+/* Character status (cumulative stats) */
+.character-status-block {
+    margin: 14px 0;
+    padding: 10px 12px;
+    background: #0f172a;
+    border-left: 3px solid #10b981;
+}
+.character-status-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+.character-status-table th,
+.character-status-table td {
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    text-align: left;
+}
+.character-status-table th {
+    background: #1e293b;
+    color: #94a3b8;
+}
+.character-status-table td:first-child {
+    font-weight: bold;
+}
+
+/* Story block (header) */
+.story-block {
+    margin: 12px 0;
+    padding: 10px 14px;
+    background: #0f172a;
+    border-left: 4px solid #3b82f6;
+}
+.story-params {
+    color: #93c5fd;
+    font-size: 0.95em;
+}
+
+/* Round narrative — широкий опис що відбулося */
+.round-narrative-block {
+    margin: 12px 0;
+    padding: 12px 14px;
+    background: #0c1222;
+    border-left: 4px solid #a78bfa;
+}
+.round-narrative-text {
+    color: #c4b5fd;
+    font-size: 0.95em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Round-level story (event + participants) */
+.round-story-block {
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: #0c1222;
+    border-left: 3px solid #6366f1;
+}
+.round-event-template {
+    color: #a5b4fc;
+    font-style: italic;
+    margin-bottom: 6px;
+}
+.round-event-per-agent, .participants-per-agent {
+    margin-top: 6px;
+    font-size: 0.9em;
+}
+.agent-event, .agent-participants {
+    margin: 2px 0;
+    color: #94a3b8;
+}
+
+/* Per-agent color highlighting (consistent across situation, reaction, reflection, reasoning) */
+.agent-color-1 { border-left-color: #3b82f6 !important; background: rgba(59, 130, 246, 0.06) !important; }
+.agent-color-2 { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.06) !important; }
+.agent-color-3 { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.06) !important; }
+.agent-color-4 { border-left-color: #ec4899 !important; background: rgba(236, 72, 153, 0.06) !important; }
+
+/* Situation, Consequences */
+.situation, .consequences {
+    color: #94a3b8;
+    border-left: 2px solid #334155;
+    padding: 3px 8px;
+    margin: 4px 0;
+    font-style: italic;
+}
+
+/* Per-agent situations (500+ chars each, full display) */
+.situations-per-agent { margin: 8px 0; }
+.situation-per-agent {
+    border-left: 3px solid #555;
+    padding: 0.5em 1em;
+    margin: 0.5em 0;
+}
+.situation-text {
+    white-space: pre-wrap;
+    margin: 0.3em 0;
+    font-family: inherit;
+    font-size: 0.95em;
+}
+
+/* Situation reactions (agent reactions to situation before dialog) */
+.situation-reactions { margin: 6px 0; }
+.situation-reaction {
+    color: #94a3b8;
+    border-left: 2px solid #334155;
+    padding: 3px 8px;
+    margin: 4px 0;
+    font-style: italic;
+}
+
 /* Reflections */
 .reflection {
     color: #94a3b8;
@@ -396,7 +752,20 @@ body {
     font-style: italic;
 }
 .agent-id { color: #c084fc; font-weight: bold; }
+.agent-name { color: #f0abfc; font-weight: bold; }
+.agent-id-small { color: #7c3aed; font-size: 0.8em; }
+.target-name { color: #a78bfa; }
 .score { font-weight: bold; }
+
+/* Positions table */
+.positions-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
+.positions-table th, .positions-table td { border: 1px solid #334155; padding: 4px 8px; text-align: center; }
+.positions-table th { background: #1e293b; color: #94a3b8; }
+.positions-table td:first-child { text-align: left; }
+.rank-1 { background: #422006; color: #fbbf24; }
+.rank-2 { background: #1e293b; color: #94a3b8; }
+.rank-3 { background: #1c1917; color: #78716c; }
+.rank-4 { background: #0f0f10; color: #4b5563; }
 
 /* Intent pills */
 .intents { margin-top: 4px; font-style: normal; }
@@ -452,9 +821,11 @@ def export_to_html(
     )
     nav_html = f'<div class="nav">Jump to round: {nav_links}</div>' if nav_links else ""
 
+    agent_names = game_log.get("agent_names", {})
+
     # Build sections
     header_html = _build_header(game_log)
-    rounds_html = "\n".join(_build_round(r, agent_reflections, agent_reasonings) for r in rounds)
+    rounds_html = "\n".join(_build_round(r, agent_reflections, agent_reasonings, agent_names) for r in rounds)
     conclusions_html = _build_game_conclusions(game_log)
 
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
