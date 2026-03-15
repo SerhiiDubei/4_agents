@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 
 # ---------------------------------------------------------------------------
@@ -29,7 +29,8 @@ from typing import Dict, List, Optional
 @dataclass
 class ReasoningResult:
     thought: str
-    intents: Dict[str, float] = field(default_factory=dict)
+    # Legacy: agent_id -> float (cooperation). Extended: agent_id -> {dim_id: float}
+    intents: Dict[str, Union[float, Dict[str, float]]] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {"thought": self.thought, "intents": self.intents}
@@ -43,17 +44,14 @@ class ReasoningResult:
 # JSON schema for structured output
 # ---------------------------------------------------------------------------
 
+# Schema allows intents to be agent_id -> number (cooperation) or agent_id -> {cooperation, support}
 _INTENTS_SCHEMA = {
     "type": "object",
     "properties": {
         "thought": {"type": "string"},
         "intents": {
             "type": "object",
-            "additionalProperties": {
-                "type": "number",
-                "minimum": 0.0,
-                "maximum": 1.0,
-            },
+            "additionalProperties": True,
         },
     },
     "required": ["thought", "intents"],
@@ -82,7 +80,7 @@ COOPERATION SCALE — you must assign exactly one value per person:
 
 Return JSON with two fields:
   "thought" — your internal reasoning (2-4 sentences, first person, Ukrainian, use their NAMES)
-  "intents" — one value per person: use their agent ID as key, number from scale as value
+  "intents" — one value per person: use their agent ID as key. Value is a number (0/0.33/0.66/1) for cooperation, or an object {{ "cooperation": number, "support": number }} for both axes.
 
 Example (if you are Кир and others are Надя, Рекс, Льов):
 {{
@@ -93,6 +91,7 @@ Example (if you are Кир and others are Надя, Рекс, Льов):
     "agent_synth_d": 0.66
   }}
 }}
+Support scale (optional): 0 = passive, 1 = full support. If you omit support, it is inferred from your profile.
 
 Your "thought" must be a natural internal monologue. NO numbers, NO "0.66", NO "soft-C", NO "coop/betray" terms. Use only names and feelings."""
 
@@ -199,14 +198,30 @@ def _call_structured(system: str, user: str, model: str) -> ReasoningResult:
         parsed = json.loads(raw)
         thought = str(parsed.get("thought", "")).strip()
         raw_intents = parsed.get("intents", {})
-        # Snap to valid ACTIONS: 0.0, 0.33, 0.66, 1.0
         _ACTIONS = [0.0, 0.33, 0.66, 1.0]
-        intents = {}
+
+        def snap_val(v) -> float:
+            try:
+                f = float(v)
+                return min(_ACTIONS, key=lambda a: abs(a - f))
+            except (TypeError, ValueError):
+                return 0.5
+
+        intents: Dict[str, Union[float, Dict[str, float]]] = {}
         for agent_id, val in raw_intents.items():
             try:
-                f = float(val)
-                snapped = min(_ACTIONS, key=lambda a: abs(a - f))
-                intents[agent_id] = snapped
+                if isinstance(val, (int, float)):
+                    intents[agent_id] = snap_val(val)
+                elif isinstance(val, dict):
+                    dim_vals = {}
+                    for dim_id, dval in val.items():
+                        dim_vals[dim_id] = snap_val(dval)
+                    if dim_vals:
+                        intents[agent_id] = dim_vals
+                    else:
+                        intents[agent_id] = 0.5
+                else:
+                    pass
             except (TypeError, ValueError):
                 pass
         return ReasoningResult(thought=thought, intents=intents)

@@ -464,6 +464,15 @@ def _wrap(text: str, width: int, indent: str) -> list:
     return lines or [indent]
 
 
+def _coop_value(val) -> float:
+    """Extract cooperation from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 def print_decisions(round_result, agent_ids, names: dict = None):
     names = names or {}
     actions = round_result.actions
@@ -471,14 +480,16 @@ def print_decisions(round_result, agent_ids, names: dict = None):
     for src_id in agent_ids:
         src_acts = actions.get(src_id, {})
         for tgt_id, val in sorted(src_acts.items()):
-            label = action_label(val)
+            coop = _coop_value(val)
+            label = action_label(coop)
             src_disp = _n(src_id, names)
             tgt_disp = _n(tgt_id, names)
-            print(
-                f"  {YELLOW}{src_disp:8s}{RESET} → {YELLOW}{tgt_disp:8s}{RESET}  "
-                f"{val:.2f}  {label}",
-                flush=True,
-            )
+            line = f"  {YELLOW}{src_disp:8s}{RESET} → {YELLOW}{tgt_disp:8s}{RESET}  {coop:.2f}  {label}"
+            if isinstance(val, dict) and len(val) > 1:
+                extra = "  ".join(f"{k}:{v:.2f}" for k, v in sorted(val.items()) if k != "cooperation")
+                if extra:
+                    line += f"  {DIM}({extra}){RESET}"
+            print(line, flush=True)
 
 
 def print_payoffs(round_result, agent_ids, names: dict = None):
@@ -529,15 +540,16 @@ def print_reasoning(round_result, agent_ids, names: dict = None):
                 intent_parts = []
                 for target, val in sorted(intents.items()):
                     t_disp = _n(target, names)
-                    if val <= 0.1:
+                    v = _coop_value(val)
+                    if v <= 0.1:
                         col = RED
-                    elif val <= 0.4:
+                    elif v <= 0.4:
                         col = YELLOW
-                    elif val <= 0.75:
+                    elif v <= 0.75:
                         col = CYAN
                     else:
                         col = GREEN
-                    intent_parts.append(f"{t_disp}:{col}{val:.2f}{RESET}")
+                    intent_parts.append(f"{t_disp}:{col}{v:.2f}{RESET}")
                 print(f"    {DIM}→ intents:{RESET} {', '.join(intent_parts)}", flush=True)
         else:
             print(f"  {DIM}{disp:10s}  (no reasoning){RESET}", flush=True)

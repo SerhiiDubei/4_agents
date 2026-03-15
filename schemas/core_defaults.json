@@ -3,15 +3,16 @@
     "cooperation_bias": 50,
     "deception_tendency": 50,
     "strategic_horizon": 50,
-    "risk_appetite": 50
+    "risk_appetite": 50,
+    "support_bias": 50
   },
   "delta_table": {
-    "trust_immediately":       { "cooperation_bias": 10,  "deception_tendency": -8,  "strategic_horizon": -5,  "risk_appetite": 5  },
-    "wait_and_observe":        { "cooperation_bias": -5,  "deception_tendency": 0,   "strategic_horizon": 10,  "risk_appetite": -5 },
-    "propose_deal":            { "cooperation_bias": 5,   "deception_tendency": 5,   "strategic_horizon": 8,   "risk_appetite": 3  },
-    "act_alone":               { "cooperation_bias": -10, "deception_tendency": 5,   "strategic_horizon": -5,  "risk_appetite": 10 },
+    "trust_immediately":       { "cooperation_bias": 10,  "deception_tendency": -8,  "strategic_horizon": -5,  "risk_appetite": 5,   "support_bias": 5 },
+    "wait_and_observe":        { "cooperation_bias": -5,  "deception_tendency": 0,   "strategic_horizon": 10,  "risk_appetite": -5,  "support_bias": 0 },
+    "propose_deal":            { "cooperation_bias": 5,   "deception_tendency": 5,   "strategic_horizon": 8,   "risk_appetite": 3,   "support_bias": 5 },
+    "act_alone":               { "cooperation_bias": -10, "deception_tendency": 5,   "strategic_horizon": -5,  "risk_appetite": 10,  "support_bias": -10 },
 
-    "share_fully":             { "cooperation_bias": 12,  "deception_tendency": -10, "strategic_horizon": 3,   "risk_appetite": -3 },
+    "share_fully":             { "cooperation_bias": 12,  "deception_tendency": -10, "strategic_horizon": 3,   "risk_appetite": -3,  "support_bias": 10 },
     "share_selectively":       { "cooperation_bias": 3,   "deception_tendency": 5,   "strategic_horizon": 8,   "risk_appetite": 0  },
     "withhold":                { "cooperation_bias": -8,  "deception_tendency": 8,   "strategic_horizon": 5,   "risk_appetite": 5  },
     "use_as_leverage":         { "cooperation_bias": -5,  "deception_tendency": 12,  "strategic_horizon": 10,  "risk_appetite": 8  },
@@ -19,14 +20,14 @@
     "forgive_move_on":         { "cooperation_bias": 10,  "deception_tendency": -5,  "strategic_horizon": 5,   "risk_appetite": -5 },
     "confront_directly":       { "cooperation_bias": -3,  "deception_tendency": -5,  "strategic_horizon": -5,  "risk_appetite": 10 },
     "passive_retaliation":     { "cooperation_bias": -8,  "deception_tendency": 10,  "strategic_horizon": 8,   "risk_appetite": 3  },
-    "disengage_entirely":      { "cooperation_bias": -12, "deception_tendency": 0,   "strategic_horizon": -3,  "risk_appetite": -8 },
+    "disengage_entirely":      { "cooperation_bias": -12, "deception_tendency": 0,   "strategic_horizon": -3,  "risk_appetite": -8,  "support_bias": -10 },
 
     "take_big_risk":           { "cooperation_bias": 0,   "deception_tendency": 5,   "strategic_horizon": -8,  "risk_appetite": 15 },
     "safe_play":               { "cooperation_bias": 5,   "deception_tendency": -5,  "strategic_horizon": 5,   "risk_appetite": -10},
     "calculated_risk":         { "cooperation_bias": 3,   "deception_tendency": 3,   "strategic_horizon": 10,  "risk_appetite": 5  },
-    "ask_for_help":            { "cooperation_bias": 10,  "deception_tendency": -8,  "strategic_horizon": 3,   "risk_appetite": -5 },
+    "ask_for_help":            { "cooperation_bias": 10,  "deception_tendency": -8,  "strategic_horizon": 3,   "risk_appetite": -5,  "support_bias": 8 },
 
-    "accept_alliance":         { "cooperation_bias": 12,  "deception_tendency": -5,  "strategic_horizon": 8,   "risk_appetite": 0  },
+    "accept_alliance":         { "cooperation_bias": 12,  "deception_tendency": -5,  "strategic_horizon": 8,   "risk_appetite": 0,   "support_bias": 8 },
     "negotiate_terms":         { "cooperation_bias": 5,   "deception_tendency": 5,   "strategic_horizon": 10,  "risk_appetite": 3  },
     "fake_alliance":           { "cooperation_bias": -5,  "deception_tendency": 15,  "strategic_horizon": 8,   "risk_appetite": 5  },
     "decline_alliance":        { "cooperation_bias": -8,  "deception_tendency": 0,   "strategic_horizon": 5,   "risk_appetite": -5 },

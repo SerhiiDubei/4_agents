@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import math
 import random
+from typing import Any, Dict, Union
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -213,10 +214,20 @@ def tick_cooldowns(states: Dict[str, AgentState]) -> Dict[str, AgentState]:
 # Round outcome — what happened to/around an agent this round
 # ---------------------------------------------------------------------------
 
+def _cooperation_value(val: Any) -> float:
+    """Extract cooperation action from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 @dataclass
 class RoundOutcome:
     """What an agent experienced in a round."""
-    received_actions: Dict[str, float] = field(default_factory=dict)
+    # Legacy: Dict[other_id, float]. New: Dict[other_id, Dict[dim_id, float]]
+    received_actions: Union[Dict[str, float], Dict[str, Dict[str, float]]] = field(default_factory=dict)
     revealed_betrayal: bool = False
     was_exposed: bool = False
     payoff_delta: float = 0.0
@@ -256,16 +267,17 @@ def update_states(
     Returns a new AgentState (immutable update pattern).
     Resets talk_cooldown and dialog-phase fields for the new round.
     """
-    # --- Trust updates ---
+    # --- Trust updates (use cooperation dimension for trust) ---
     new_trust = dict(state.trust)
     for other_id, action_val in outcome.received_actions.items():
+        coop = _cooperation_value(action_val)
         signal = outcome.dialog_signals.get(other_id, "neutral")
         current = new_trust.get(other_id, 0.5)
-        new_trust[other_id] = _trust_update(current, action_val, signal)
+        new_trust[other_id] = _trust_update(current, coop, signal)
 
     # --- Tension ---
     avg_received = (
-        sum(outcome.received_actions.values()) / len(outcome.received_actions)
+        sum(_cooperation_value(v) for v in outcome.received_actions.values()) / len(outcome.received_actions)
         if outcome.received_actions else 0.5
     )
     betrayal_shock = 0.25 if outcome.revealed_betrayal else 0.0

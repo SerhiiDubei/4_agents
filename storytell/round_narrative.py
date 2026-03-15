@@ -46,7 +46,14 @@ def generate_round_narrative(
     names = agent_names or {}
     profiles = agent_profiles or {}
 
-    # Збираємо рішення: X зрадив/підтримав Y
+    def _coop(val):
+        if isinstance(val, (int, float)):
+            return float(val)
+        if isinstance(val, dict):
+            return float(val.get("cooperation", 0.5))
+        return 0.5
+
+    # Збираємо рішення: X зрадив/підтримав Y (use cooperation dimension)
     decisions = []
     for agent_id, targets in actions.items():
         aname = _dn(agent_id, names)
@@ -54,7 +61,7 @@ def generate_round_narrative(
             if agent_id == target_id:
                 continue
             tname = _dn(target_id, names)
-            label = _action_label_uk(float(val))
+            label = _action_label_uk(_coop(val))
             decisions.append(f"{aname} {label} {tname}")
     dec_str = "; ".join(decisions) if decisions else "—"
 

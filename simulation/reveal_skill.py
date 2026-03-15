@@ -21,7 +21,16 @@ Strategic use cases:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+
+def _cooperation_value(val: Any) -> float:
+    """Extract cooperation action from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +54,8 @@ class RevealRecord:
         lines = [f"{self.revealer_id} privately investigated {self.target_id} (round {self.round_number}):"]
         for rnd, actions in sorted(self.exposed_history.items()):
             for target, val in actions.items():
-                lines.append(f"  Round {rnd} → {target}: {val:.2f}")
+                coop = _cooperation_value(val)
+                lines.append(f"  Round {rnd} → {target}: {coop:.2f}")
         if self.trust_delta_applied != 0.0:
             lines.append(f"  Trust delta applied: {self.trust_delta_applied:+.2f}")
         return "\n".join(lines)
@@ -74,7 +84,7 @@ class RevealTracker:
         revealer_id: str,
         target_id: str,
         round_number: int,
-        action_log: Dict[int, Dict[str, Dict[str, float]]],
+        action_log: Dict[int, Dict[str, Dict[str, Any]]],
         all_agent_ids: List[str],
     ) -> Optional[RevealRecord]:
         """
@@ -95,14 +105,14 @@ class RevealTracker:
             if target_id in round_actions:
                 exposed[rnd] = dict(round_actions[target_id])
 
-        # Calculate trust delta based on observed betrayals toward revealer
+        # Calculate trust delta based on observed cooperation toward revealer
         betrayals_toward_revealer = sum(
             1 for rnd_actions in exposed.values()
-            if rnd_actions.get(revealer_id, 0.5) < 0.4
+            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) < 0.4
         )
         cooperations_toward_revealer = sum(
             1 for rnd_actions in exposed.values()
-            if rnd_actions.get(revealer_id, 0.5) >= 0.66
+            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) >= 0.66
         )
         rounds_observed = len(exposed)
 
@@ -164,13 +174,14 @@ class RevealTracker:
 def visible_actions(
     observer_id: str,
     round_number: int,
-    all_actions: Dict[str, Dict[str, float]],
+    all_actions: Dict[str, Dict[str, Any]],
     reveal_tracker: RevealTracker,
     visibility_mode: str = "mixed",
-) -> Dict[str, Dict[str, float]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Determine what actions are visible to a specific observer.
 
+    all_actions: legacy {agent: {target: float}} or new {agent: {target: {dim: float}}}.
     visibility_mode:
       "full"   — everyone sees everything (testing only)
       "none"   — no one sees anything
@@ -182,13 +193,13 @@ def visible_actions(
     if visibility_mode == "full":
         return all_actions
 
-    visible: Dict[str, Dict[str, float]] = {}
+    visible: Dict[str, Dict[str, Any]] = {}
 
     for agent_id, agent_actions in all_actions.items():
         if agent_id == observer_id:
             continue
 
-        visible_agent: Dict[str, float] = {}
+        visible_agent: Dict[str, Any] = {}
 
         if visibility_mode == "mixed":
             # Can only see actions directed toward you

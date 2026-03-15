@@ -24,6 +24,15 @@ from datetime import datetime
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _cooperation_value(val) -> float:
+    """Extract cooperation from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 def _action_label(val: float) -> str:
     if val <= 0.15:
         return "betray"
@@ -309,6 +318,8 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
         situation_html += "</div>"
     elif round_data.get("situation"):
         situation_html = f'<div class="section-label">SITUATION</div><div class="situation">{escape(round_data["situation"])}</div>'
+    else:
+        situation_html = ""
 
     # Situation reactions (each agent's reaction to the situation, before dialog)
     situation_reactions_html = ""
@@ -338,7 +349,7 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                 dialog_html += f'<div class="msg dm"><span class="dm-label">[DM]</span> <span class="sender">{sender}</span> → <span class="sender">{target}</span>: &ldquo;{text}&rdquo;</div>\n'
         dialog_html += "</div>"
 
-    # Decisions section
+    # Decisions section (supports multi-dim: cooperation + support)
     decisions_html = ""
     if actions:
         decisions_html = '<div class="section-label">DECISIONS</div><div class="decisions">'
@@ -347,15 +358,20 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
             decisions_html += f'<div class="decision-row"><span class="agent-name">{sid}</span> →'
             for target_id, val in agent_acts.items():
                 tid = dn(target_id)
-                label = _action_label(val)
-                color_cls = _action_color_class(val)
-                bar_h = _bar_html(val, width=8)
+                coop = _cooperation_value(val)
+                label = _action_label(coop)
+                color_cls = _action_color_class(coop)
+                bar_h = _bar_html(coop, width=8)
                 decisions_html += (
                     f' <span class="action-item">'
                     f'<span class="target-name">{tid}</span>: '
-                    f'<span class="{color_cls}">{val:.2f} {label}</span> {bar_h}'
-                    f'</span>'
+                    f'<span class="{color_cls}">{coop:.2f} {label}</span> {bar_h}'
                 )
+                if isinstance(val, dict) and len(val) > 1:
+                    extra = " | ".join(f"{k}: {v:.2f}" for k, v in sorted(val.items()) if k != "cooperation")
+                    if extra:
+                        decisions_html += f' <span class="dim-extra">({extra})</span>'
+                decisions_html += "</span>"
             decisions_html += "</div>\n"
         decisions_html += "</div>"
 

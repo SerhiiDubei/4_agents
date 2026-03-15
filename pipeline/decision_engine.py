@@ -21,11 +21,17 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
+
+from simulation.interaction_dimensions import (
+    ACTION_LEVELS,
+    get_dimension,
+    get_dimension_ids,
+)
 
 
 # ---------------------------------------------------------------------------
-# Action space
+# Action space (same levels for all dimensions)
 # ---------------------------------------------------------------------------
 
 ACTIONS = [0.00, 0.33, 0.66, 1.00]
@@ -48,15 +54,26 @@ class CoreParams:
     deception_tendency: float    # 0-100
     strategic_horizon: float     # 0-100
     risk_appetite: float         # 0-100
+    # Full core dict for extensible dimensions (support_bias, etc.)
+    _core_dict: dict = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_dict(cls, d: dict) -> "CoreParams":
+        core_dict = dict(d) if d else {}
         return cls(
             cooperation_bias=float(d.get("cooperation_bias", 50)),
             deception_tendency=float(d.get("deception_tendency", 50)),
             strategic_horizon=float(d.get("strategic_horizon", 50)),
             risk_appetite=float(d.get("risk_appetite", 50)),
+            _core_dict=core_dict,
         )
+
+    def get_bias(self, dim_id: str) -> float:
+        """Return core bias for a dimension (0-100). Uses registry core_bias key."""
+        dim = get_dimension(dim_id)
+        if not dim:
+            return 50.0
+        return float(self._core_dict.get(dim.core_bias, 50))
 
     def discount_factor(self) -> float:
         """strategicHorizon → γ in [0.1, 0.99]"""
@@ -200,6 +217,42 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
     return scores
 
 
+def _action_scores_support(core: CoreParams, context: AgentContext) -> List[float]:
+    """Scores for support dimension: bias toward support vs passivity (no deception)."""
+    sb = core.get_bias("support") / 100.0  # 0-1
+    avg_trust = (
+        sum(context.trust_scores.values()) / len(context.trust_scores)
+        if context.trust_scores else 0.5
+    )
+    scores = []
+    for action in ACTIONS:
+        support_score = sb * action
+        trust_boost = avg_trust * action * 0.3
+        scores.append(support_score + trust_boost)
+    return scores
+
+
+def _action_scores_for_dim(
+    core: CoreParams, context: AgentContext, dim_id: str
+) -> List[float]:
+    """Dispatch to dimension-specific score function."""
+    if dim_id == "cooperation":
+        return _action_scores(core, context)
+    if dim_id == "support":
+        return _action_scores_support(core, context)
+    # Generic fallback: bias only
+    bias = core.get_bias(dim_id) / 100.0
+    return [bias * a for a in ACTIONS]
+
+
+def _labels_for_dim(dim_id: str) -> Dict[float, str]:
+    """Return action value -> label for a dimension."""
+    dim = get_dimension(dim_id)
+    if dim:
+        return dim.labels
+    return ACTION_LABELS
+
+
 # ---------------------------------------------------------------------------
 # Softmax
 # ---------------------------------------------------------------------------
@@ -230,9 +283,10 @@ def choose_action(
     core: CoreParams,
     context: Optional[AgentContext] = None,
     seed: Optional[int] = None,
+    dim_id: str = "cooperation",
 ) -> ActionResult:
     """
-    Choose an action for an agent given its CORE profile and runtime context.
+    Choose an action for one dimension (e.g. cooperation or support).
 
     Returns ActionResult with chosen action, label, and full probability distribution.
     """
@@ -242,7 +296,8 @@ def choose_action(
     if context is None:
         context = AgentContext()
 
-    scores = _action_scores(core, context)
+    labels = _labels_for_dim(dim_id)
+    scores = _action_scores_for_dim(core, context, dim_id)
     temperature = core.temperature()
     probs = _softmax(scores, temperature)
 
@@ -250,10 +305,27 @@ def choose_action(
 
     return ActionResult(
         action=action,
-        label=ACTION_LABELS[action],
+        label=labels.get(action, str(action)),
         probabilities=[round(p, 4) for p in probs],
         scores=[round(s, 4) for s in scores],
     )
+
+
+def choose_actions(
+    core: CoreParams,
+    context: Optional[AgentContext] = None,
+    seed: Optional[int] = None,
+) -> Dict[str, float]:
+    """
+    Choose one action per dimension for a single (agent, target). Returns {dim_id: action}.
+    """
+    if context is None:
+        context = AgentContext()
+    result: Dict[str, float] = {}
+    for d_id in get_dimension_ids():
+        res = choose_action(core, context, seed=seed, dim_id=d_id)
+        result[d_id] = res.action
+    return result
 
 
 def action_distribution(

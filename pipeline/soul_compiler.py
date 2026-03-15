@@ -368,6 +368,7 @@ Generate personality JSON:"""
     core.setdefault("deception_tendency", 50)
     core.setdefault("strategic_horizon", 50)
     core.setdefault("risk_appetite", 50)
+    core.setdefault("support_bias", 50)
     # Add model field
     core["model"] = "x-ai/grok-3-mini"
 

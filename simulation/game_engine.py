@@ -117,11 +117,17 @@ class RoundResult:
     participants_per_agent: Dict[str, List[str]] = field(default_factory=dict)  # agent_id -> [participant_ids]
     round_narrative: str = ""  # широкий опис: що відбулося для кожного і всіх разом
 
+    def _round_action_val(self, val):
+        """Round action value for JSON; supports legacy float or multi-dim dict."""
+        if isinstance(val, dict):
+            return {k: round(v, 2) for k, v in val.items()}
+        return round(val, 2)
+
     def to_dict(self) -> dict:
         d = {
             "round": self.round_number,
             "actions": {
-                agent: {other: round(val, 2) for other, val in acts.items()}
+                agent: {other: self._round_action_val(val) for other, val in acts.items()}
                 for agent, acts in self.actions.items()
             },
             "payoffs": self.payoffs.summary() if self.payoffs else {},
@@ -258,8 +264,9 @@ def run_simulation(
                     _os.environ["OPENROUTER_API_KEY"] = _v
                     break
 
-    from pipeline.decision_engine import CoreParams, AgentContext, choose_action
+    from pipeline.decision_engine import CoreParams, AgentContext, choose_action, choose_actions
     from pipeline.state_machine import update_states, save_states, RoundOutcome
+    from simulation.interaction_dimensions import get_action_for_dim, get_dimension_ids
     from pipeline.memory import RoundMemory, save_memory
     from simulation.payoff_matrix import calculate_round_payoffs
     from simulation.reveal_skill import RevealTracker, visible_actions
@@ -272,7 +279,7 @@ def run_simulation(
     result = GameResult(simulation_id=sim_id, agent_ids=agent_ids, agent_names=agent_names)
     reveal_tracker = RevealTracker.initialize(agent_ids)
     cumulative_scores: Dict[str, float] = {a.agent_id: 0.0 for a in agents}
-    action_log: Dict[int, Dict[str, Dict[str, float]]] = {}
+    action_log: Dict[int, Dict[str, Dict[str, Dict[str, float]]]] = {}
 
     # Storytell — one story for the whole game (or custom override)
     story_params = None
@@ -586,7 +593,7 @@ def run_simulation(
             on_progress(f"round:{round_num}:{total_rounds}:reasoning_done")
 
         # --- Decision phase ---
-        round_actions: Dict[str, Dict[str, float]] = {}
+        round_actions: Dict[str, Dict[str, Dict[str, float]]] = {}
 
         for agent in agents:
             core_params = CoreParams.from_dict(agent.core)
@@ -596,24 +603,20 @@ def run_simulation(
             if agent.states and hasattr(agent.states, "trust"):
                 trust = {k: v for k, v in agent.states.trust.items()}
 
-            # Build observed actions from last round (what's visible)
+            # Build observed actions from last round (cooperation only for context)
             observed = {}
             if round_num > 1:
-                vis = visible_actions(
-                    observer_id=agent.agent_id,
-                    round_number=round_num - 1,
-                    all_actions=action_log.get(round_num - 1, {}),
-                    reveal_tracker=reveal_tracker,
-                    visibility_mode="mixed",
-                )
-                # Flatten: what did each agent do toward ME last round
-                for other_id, other_actions in vis.items():
-                    if agent.agent_id in other_actions:
-                        observed[other_id] = other_actions[agent.agent_id]
+                prev_actions = action_log.get(round_num - 1, {})
+                for other in agents:
+                    if other.agent_id == agent.agent_id:
+                        continue
+                    obs_val = get_action_for_dim(
+                        prev_actions, other.agent_id, agent.agent_id, "cooperation"
+                    )
+                    observed[other.agent_id] = obs_val
 
-            # Choose action toward each other agent
-            # Priority: LLM per-target intent → CORE math fallback
-            agent_actions = {}
+            # Choose action toward each other agent (per dimension)
+            agent_actions: Dict[str, Dict[str, float]] = {}
             last_payoff = (
                 agent.memory.last_round().payoff_delta
                 if agent.memory and agent.memory.last_round() else 0.0
@@ -625,28 +628,45 @@ def run_simulation(
                 if other.agent_id == agent.agent_id:
                     continue
 
+                per_target_context = AgentContext(
+                    round_number=round_num,
+                    total_rounds=total_rounds,
+                    trust_scores={other.agent_id: trust.get(other.agent_id, 0.5)},
+                    observed_actions={other.agent_id: observed.get(other.agent_id, 0.5)} if observed else {},
+                    current_score=cumulative_scores[agent.agent_id],
+                    betrayals_received=(
+                        agent.memory.betrayals_by(other.agent_id) if agent.memory else 0
+                    ),
+                    cooperations_received=(
+                        agent.memory.cooperations_by(other.agent_id) if agent.memory else 0
+                    ),
+                    last_round_payoff=last_payoff,
+                )
+
                 llm_intent = llm_intents.get(other.agent_id)
+                dim_actions: Dict[str, float] = {}
+
                 if llm_intent is not None:
-                    # LLM explicitly decided — use directly (already snapped to valid ACTIONS)
-                    agent_actions[other.agent_id] = float(llm_intent)
+                    # LLM gave one value (legacy) -> cooperation; other dims from CORE
+                    if isinstance(llm_intent, (int, float)):
+                        dim_actions["cooperation"] = float(llm_intent)
+                        for dim_id in get_dimension_ids():
+                            if dim_id != "cooperation":
+                                res = choose_action(core_params, per_target_context, dim_id=dim_id)
+                                dim_actions[dim_id] = res.action
+                    else:
+                        # LLM gave dict per dim
+                        for dim_id in get_dimension_ids():
+                            dim_actions[dim_id] = float(
+                                llm_intent.get(dim_id)
+                                if isinstance(llm_intent.get(dim_id), (int, float))
+                                else choose_action(core_params, per_target_context, dim_id=dim_id).action
+                            )
                 else:
-                    # Fallback: CORE math softmax
-                    per_target_context = AgentContext(
-                        round_number=round_num,
-                        total_rounds=total_rounds,
-                        trust_scores={other.agent_id: trust.get(other.agent_id, 0.5)},
-                        observed_actions={other.agent_id: observed.get(other.agent_id, 0.5)} if observed else {},
-                        current_score=cumulative_scores[agent.agent_id],
-                        betrayals_received=(
-                            agent.memory.betrayals_by(other.agent_id) if agent.memory else 0
-                        ),
-                        cooperations_received=(
-                            agent.memory.cooperations_by(other.agent_id) if agent.memory else 0
-                        ),
-                        last_round_payoff=last_payoff,
-                    )
-                    action_result = choose_action(core_params, per_target_context)
-                    agent_actions[other.agent_id] = action_result.action
+                    # Fallback: CORE math for all dimensions
+                    dim_actions = choose_actions(core_params, per_target_context)
+
+                agent_actions[other.agent_id] = dim_actions
 
             round_actions[agent.agent_id] = agent_actions
 
@@ -758,7 +778,7 @@ def run_simulation(
 
             outcome = RoundOutcome(
                 received_actions={
-                    other.agent_id: round_actions.get(other.agent_id, {}).get(agent.agent_id, 0.5)
+                    other.agent_id: dict(round_actions.get(other.agent_id, {}).get(agent.agent_id, {"cooperation": 0.5}))
                     for other in agents if other.agent_id != agent.agent_id
                 },
                 revealed_betrayal=False,

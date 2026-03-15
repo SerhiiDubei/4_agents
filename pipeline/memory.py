@@ -19,7 +19,20 @@ import json
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+
+# ---------------------------------------------------------------------------
+# Helpers for multi-dimension actions (legacy: float, new: dict dim_id -> float)
+# ---------------------------------------------------------------------------
+
+def _cooperation_value(val: Any) -> float:
+    """Extract cooperation action from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -32,10 +45,9 @@ class RoundMemory:
     round_number: int
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    # Actions this agent chose toward each other (agent_id → action)
-    actions_given: Dict[str, float] = field(default_factory=dict)
-    # Actions others chose toward this agent (agent_id → action)
-    actions_received: Dict[str, float] = field(default_factory=dict)
+    # Legacy: agent_id -> float. New: agent_id -> {dim_id: float}
+    actions_given: Union[Dict[str, float], Dict[str, Dict[str, float]]] = field(default_factory=dict)
+    actions_received: Union[Dict[str, float], Dict[str, Dict[str, float]]] = field(default_factory=dict)
     # Dialog messages heard this round (agent_id → message text)
     dialog_heard: Dict[str, str] = field(default_factory=dict)
     # Promises made by others (agent_id → promise text)
@@ -83,11 +95,11 @@ class AgentMemory:
         self.rounds.append(round_mem)
         self.total_score = round_mem.total_score
 
-        # Update trust history per agent
+        # Update trust history per agent (use cooperation dimension)
         for agent_id, action in round_mem.actions_received.items():
             if agent_id not in self.trust_history:
                 self.trust_history[agent_id] = []
-            self.trust_history[agent_id].append(round(action, 3))
+            self.trust_history[agent_id].append(round(_cooperation_value(action), 3))
 
         if round_mem.reveal_used:
             self.reveals_used += 1
@@ -109,12 +121,12 @@ class AgentMemory:
         total_betrayals = sum(
             1 for r in self.rounds
             for agent_id, action in r.actions_received.items()
-            if action <= 0.33
+            if _cooperation_value(action) <= 0.33
         )
         total_cooperations = sum(
             1 for r in self.rounds
             for agent_id, action in r.actions_received.items()
-            if action >= 0.66
+            if _cooperation_value(action) >= 0.66
         )
         final_mood = self.rounds[-1].mood if self.rounds else "neutral"
 
@@ -137,17 +149,17 @@ class AgentMemory:
             # Keep total_score as career score (don't reset)
 
     def betrayals_by(self, agent_id: str) -> int:
-        """Count how many times agent_id defected (action ≤ 0.33) against this agent."""
+        """Count how many times agent_id defected (cooperation ≤ 0.33) against this agent."""
         return sum(
             1 for r in self.rounds
-            if r.actions_received.get(agent_id, 0.5) <= 0.33
+            if _cooperation_value(r.actions_received.get(agent_id, 0.5)) <= 0.33
         )
 
     def cooperations_by(self, agent_id: str) -> int:
-        """Count how many times agent_id cooperated (action ≥ 0.66) with this agent."""
+        """Count how many times agent_id cooperated (cooperation ≥ 0.66) with this agent."""
         return sum(
             1 for r in self.rounds
-            if r.actions_received.get(agent_id, 0.5) >= 0.66
+            if _cooperation_value(r.actions_received.get(agent_id, 0.5)) >= 0.66
         )
 
     def summary(self) -> dict:
