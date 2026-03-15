@@ -160,8 +160,16 @@ def call_openrouter(
     temperature: float = 0.85,
     max_tokens: int = 300,
     timeout: int = 120,
+    json_schema: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
+    """
+    Call OpenRouter API and return the text content.
+
+    json_schema: optional JSON Schema dict for structured output.
+      When provided, response_format is set to json_schema mode and the
+      raw JSON string is returned (caller must parse it).
+    """
     if api_key:
         api_key = api_key.replace("\ufeff", "").strip().strip("\r\n\t ")
     if not api_key:
@@ -191,6 +199,16 @@ def call_openrouter(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+
+    if json_schema is not None:
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "structured_response",
+                "strict": True,
+                "schema": json_schema,
+            },
+        }
 
     response = httpx.post(
         "https://openrouter.ai/api/v1/chat/completions",

@@ -977,6 +977,125 @@ async def api_get_agent(user_id: str, agent_id: str) -> AgentDetailResponse:
 
 
 # ---------------------------------------------------------------------------
+# Simulation endpoints
+# ---------------------------------------------------------------------------
+
+class StartSimulationRequest(BaseModel):
+    agent_ids: List[str]
+    total_rounds: int = 10
+    use_dialog: bool = False   # False by default — faster, no LLM cost
+    model: str = GROK_MODEL
+    reveal_requests: Optional[Dict[str, str]] = None  # {round_str: {revealer: target}}
+
+
+class StartSimulationResponse(BaseModel):
+    simulation_id: str
+    agent_ids: List[str]
+    winner: str
+    final_scores: Dict[str, Any]
+    rounds_played: int
+    result: Dict[str, Any]
+
+
+@app.post("/start-simulation", response_model=StartSimulationResponse)
+async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationResponse:
+    """
+    Run the full Island simulation for a set of initialized agents.
+    Agent directories must exist under /agents/<id>/ with CORE.json and SOUL.md.
+    """
+    import asyncio
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from simulation.game_engine import load_agents_from_disk, run_simulation
+    from pipeline.state_machine import save_states
+    from pipeline.memory import save_memory
+
+    # Parse reveal_requests: {round_str: {revealer: target}} → {int: {str: str}}
+    reveal_requests = None
+    if req.reveal_requests:
+        reveal_requests = {int(k): v for k, v in req.reveal_requests.items()}
+
+    def _run():
+        agents = load_agents_from_disk(req.agent_ids, AGENTS_DIR)
+        result = run_simulation(
+            agents=agents,
+            total_rounds=req.total_rounds,
+            model=req.model,
+            use_dialog=req.use_dialog,
+            reveal_requests=reveal_requests,
+        )
+        # Persist updated states and memories
+        for agent in agents:
+            agent_dir = AGENTS_DIR / agent.agent_id
+            save_states(agent.states, agent_dir)
+            save_memory(agent.memory, agent_dir)
+        return result
+
+    result = await asyncio.to_thread(_run)
+    result_dict = result.to_dict()
+
+    return StartSimulationResponse(
+        simulation_id=result.simulation_id,
+        agent_ids=result.agent_ids,
+        winner=result.winner or "",
+        final_scores=result.final_scores,
+        rounds_played=len(result.rounds),
+        result=result_dict,
+    )
+
+
+class SimulationStateResponse(BaseModel):
+    agent_ids: List[str]
+    states: Dict[str, Any]
+    memories: Dict[str, Any]
+    scores: Dict[str, float]
+
+
+@app.get("/simulation/{agent_id}/state")
+async def api_agent_state(agent_id: str) -> Dict[str, Any]:
+    """Get current STATES.md and MEMORY summary for one agent."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from pipeline.state_machine import load_states
+    from pipeline.memory import load_memory
+
+    agent_dir = AGENTS_DIR / agent_id
+    if not agent_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+
+    states = load_states(agent_dir)
+    memory = load_memory(agent_dir)
+
+    return {
+        "agent_id": agent_id,
+        "states": states.to_dict(),
+        "memory_summary": memory.summary(),
+        "rounds_played": len(memory.rounds),
+        "total_score": memory.total_score,
+    }
+
+
+@app.get("/agents")
+async def api_list_agents() -> Dict[str, Any]:
+    """List all initialized agents."""
+    agents = []
+    if AGENTS_DIR.exists():
+        for agent_dir in sorted(AGENTS_DIR.iterdir()):
+            if agent_dir.is_dir():
+                core_path = agent_dir / "CORE.json"
+                soul_path = agent_dir / "SOUL.md"
+                agents.append({
+                    "agent_id": agent_dir.name,
+                    "has_core": core_path.exists(),
+                    "has_soul": soul_path.exists(),
+                    "has_states": (agent_dir / "STATES.md").exists(),
+                    "has_memory": (agent_dir / "MEMORY.json").exists(),
+                })
+    return {"agents": agents, "count": len(agents)}
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 
