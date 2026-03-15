@@ -48,7 +48,8 @@ from pipeline.question_engine import (
     process_answer,
     finalize_core,
 )
-from pipeline.soul_compiler import CompileInput, compile_soul
+from pipeline.soul_compiler import CompileInput, compile_soul, compile_from_brief
+from pipeline.question_engine import load_contexts
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -266,6 +267,23 @@ class CompileSoulResponse(BaseModel):
     output_path: str
 
 
+class InitQuestionsResponse(BaseModel):
+    story: dict[str, Any]  # {year, place, setup, problem, stakes, lines}
+    questions: list[dict[str, Any]]  # [{id, label, text}, ...]
+
+
+class InitCreateCharacterRequest(BaseModel):
+    answers: list[str]  # 7 free-text answers
+    user_id: Optional[str] = None
+
+
+class InitCreateCharacterResponse(BaseModel):
+    agent_id: str
+    soul_md: str
+    core: dict[str, Any]
+    output_path: str
+
+
 class CompileFromSessionRequest(BaseModel):
     session_id: str
     cooperation_bias: int
@@ -453,6 +471,160 @@ async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
         agent_id=agent_id,
         soul_md=soul_md,
         core=core_data,
+        output_path=str(output_dir),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Open init flow: 7 questions, free-text only, compile_from_brief
+# ---------------------------------------------------------------------------
+
+# Ukrainian translations for question contexts (scenario_hint)
+_INIT_QUESTIONS_UK = [
+    "Ресурси обмежені — їжа, інструменти, притулок. Не всі можуть отримати рівну частку. Тобі доведеться вирішити, як діяти.",
+    "Хтось із присутніх рано підходить до тебе і пропонує поділитися інформацією. Ти їх ще не знаєш. Не знаєш, чи це щиро.",
+    "Хтось дав тобі обіцянку і не виконав її. Це коштувало тобі чогось реального. Вони навіть не визнали цього.",
+    "Ти дізнався щось важливе, чого інші не знають. Ця інформація може суттєво змінити баланс у групі.",
+    "Справи йдуть погано. Ти в невигідному становищі, ситуація затягується. Інші спостерігають, як ти реагуєш.",
+    "Хтось пропонує формальний союз — ви тримаєтесь разом заради взаємної вигоди. Це спокусливо, але означає залежність від іншого.",
+    "У тебе є доказ, що хтось обманював групу. Ти можеш діяти — або ні. Ніхто інший про це не знає.",
+]
+
+_INIT_QUESTIONS_LABELS_UK = [
+    "Ресурси",
+    "Перший контакт",
+    "Зрада",
+    "Приховане знання",
+    "Під тиском",
+    "Пропозиція союзу",
+    "Момент правди",
+]
+
+
+def _build_init_story() -> dict[str, Any]:
+    """Generate full story context for init — рік, місце, завязка, проблема, narrative lines."""
+    import random
+    try:
+        from storytell import generate_story
+        seed = random.randint(0, 2**31 - 1)
+        sp = generate_story(seed)
+        setup_line = (sp.setup[0].upper() + sp.setup[1:] + ".") if sp.setup else ""
+        problem_line = (sp.problem[0].upper() + sp.problem[1:] + ".") if sp.problem else ""
+        lines = [
+            f"{sp.year}. {sp.place}.",
+            "",
+            setup_line,
+            problem_line,
+            f"Ролі: {', '.join(sp.characters)}." if sp.characters else "",
+            f"На кону: {sp.stakes}." if sp.stakes else "На кону — виживання і довіра.",
+            "",
+            "Ти — один із них. Твої рішення формують тебе.",
+            "Сім ситуацій. Сім виборів. Відповідай вільно — без готових варіантів.",
+        ]
+        lines = [l for l in lines if l.strip()]
+        return {
+            "year": sp.year,
+            "place": sp.place,
+            "setup": sp.setup,
+            "problem": sp.problem,
+            "stakes": sp.stakes or "виживання",
+            "characters": sp.characters,
+            "lines": lines,
+        }
+    except Exception:
+        return {
+            "year": "сучасність",
+            "place": "закритий простір",
+            "setup": "Ви опинилися разом з іншими. Ресурси обмежені.",
+            "problem": "Довіра під питанням. Кожен вибір має наслідки.",
+            "stakes": "виживання",
+            "characters": [],
+            "lines": [
+                "Сучасність. Закритий простір.",
+                "Ви опинилися разом з іншими. Ресурси обмежені. Довіра під питанням.",
+                "Кожен вибір має наслідки. Ти — один із них.",
+                "",
+                "Сім ситуацій. Сім виборів. Відповідай вільно — без готових варіантів.",
+            ],
+        }
+
+
+@app.post("/init-questions", response_model=InitQuestionsResponse)
+async def api_init_questions() -> InitQuestionsResponse:
+    """Return full story + 7 open questions for the init flow."""
+    story = _build_init_story()
+    contexts = load_contexts()
+    questions = []
+    for i, ctx in enumerate(contexts):
+        text = _INIT_QUESTIONS_UK[i] if i < len(_INIT_QUESTIONS_UK) else ctx.scenario_hint
+        label = _INIT_QUESTIONS_LABELS_UK[i] if i < len(_INIT_QUESTIONS_LABELS_UK) else ctx.label
+        questions.append({"id": i + 1, "label": label, "text": text})
+    return InitQuestionsResponse(story=story, questions=questions)
+
+
+@app.post("/init-create-character", response_model=InitCreateCharacterResponse)
+async def api_init_create_character(req: InitCreateCharacterRequest) -> InitCreateCharacterResponse:
+    """Create a new character from 7 free-text answers using compile_from_brief."""
+    if len(req.answers) != 7:
+        raise HTTPException(
+            status_code=422,
+            detail="Exactly 7 answers required",
+        )
+
+    agent_id = f"agent_{uuid.uuid4().hex[:12]}"
+    # Save to agents/{agent_id}/ for roster/game compatibility (no user_id in path)
+    output_dir = AGENTS_DIR / agent_id
+
+    try:
+        from pipeline.seed_generator import generate_seed
+
+        seed_result = generate_seed(model="openai/gpt-4o-mini")
+        result = compile_from_brief(
+            agent_id=agent_id,
+            brief=req.answers,
+            seed_text=seed_result.seed_text,
+            meta_params=seed_result.meta_params.to_dict(),
+            output_dir=output_dir,
+            model="openai/gpt-4o-mini",
+        )
+    except Exception as e:
+        logger.exception("init-create-character failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Extract name from SOUL first line
+    name = "Новий персонаж"
+    if result.get("soul_md"):
+        first_line = result["soul_md"].split("\n")[0].strip()
+        if first_line and len(first_line) < 50:
+            name = first_line.replace("You ", "").replace("Ти ", "").strip()[:40] or name
+
+    # Add name to CORE.json
+    core_path = output_dir / "CORE.json"
+    if core_path.exists():
+        core_data = json.loads(core_path.read_text(encoding="utf-8"))
+        core_data["name"] = name
+        core_path.write_text(json.dumps(core_data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Add to roster.json
+    roster_path = AGENTS_DIR / "roster.json"
+    roster = {"version": "1.0", "description": "Реєстр персонажів.", "agents": [], "default_count": 4, "min_participants": 2, "max_participants": 8}
+    if roster_path.exists():
+        roster = json.loads(roster_path.read_text(encoding="utf-8"))
+    new_agent = {
+        "id": agent_id,
+        "name": name,
+        "type": "real",
+        "source": f"agents/{agent_id}",
+        "profile": {"connections": "", "profession": "", "bio": ""},
+    }
+    roster.setdefault("agents", [])
+    roster["agents"].append(new_agent)
+    roster_path.write_text(json.dumps(roster, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    return InitCreateCharacterResponse(
+        agent_id=agent_id,
+        soul_md=result.get("soul_md", ""),
+        core=result.get("core", {}),
         output_path=str(output_dir),
     )
 
@@ -1036,6 +1208,125 @@ async def api_get_agent(user_id: str, agent_id: str) -> AgentDetailResponse:
     )
 
     return AgentDetailResponse(meta=meta, core=core_data, soul_md=soul_text)
+
+
+# ---------------------------------------------------------------------------
+# Simulation endpoints
+# ---------------------------------------------------------------------------
+
+class StartSimulationRequest(BaseModel):
+    agent_ids: List[str]
+    total_rounds: int = 10
+    use_dialog: bool = False   # False by default — faster, no LLM cost
+    model: str = GROK_MODEL
+    reveal_requests: Optional[Dict[str, str]] = None  # {round_str: {revealer: target}}
+
+
+class StartSimulationResponse(BaseModel):
+    simulation_id: str
+    agent_ids: List[str]
+    winner: str
+    final_scores: Dict[str, Any]
+    rounds_played: int
+    result: Dict[str, Any]
+
+
+@app.post("/start-simulation", response_model=StartSimulationResponse)
+async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationResponse:
+    """
+    Run the full Island simulation for a set of initialized agents.
+    Agent directories must exist under /agents/<id>/ with CORE.json and SOUL.md.
+    """
+    import asyncio
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from simulation.game_engine import load_agents_from_disk, run_simulation
+    from pipeline.state_machine import save_states
+    from pipeline.memory import save_memory
+
+    # Parse reveal_requests: {round_str: {revealer: target}} → {int: {str: str}}
+    reveal_requests = None
+    if req.reveal_requests:
+        reveal_requests = {int(k): v for k, v in req.reveal_requests.items()}
+
+    def _run():
+        agents = load_agents_from_disk(req.agent_ids, AGENTS_DIR)
+        result = run_simulation(
+            agents=agents,
+            total_rounds=req.total_rounds,
+            model=req.model,
+            use_dialog=req.use_dialog,
+            reveal_requests=reveal_requests,
+        )
+        # Persist updated states and memories
+        for agent in agents:
+            agent_dir = AGENTS_DIR / agent.agent_id
+            save_states(agent.states, agent_dir)
+            save_memory(agent.memory, agent_dir)
+        return result
+
+    result = await asyncio.to_thread(_run)
+    result_dict = result.to_dict()
+
+    return StartSimulationResponse(
+        simulation_id=result.simulation_id,
+        agent_ids=result.agent_ids,
+        winner=result.winner or "",
+        final_scores=result.final_scores,
+        rounds_played=len(result.rounds),
+        result=result_dict,
+    )
+
+
+class SimulationStateResponse(BaseModel):
+    agent_ids: List[str]
+    states: Dict[str, Any]
+    memories: Dict[str, Any]
+    scores: Dict[str, float]
+
+
+@app.get("/simulation/{agent_id}/state")
+async def api_agent_state(agent_id: str) -> Dict[str, Any]:
+    """Get current STATES.md and MEMORY summary for one agent."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from pipeline.state_machine import load_states
+    from pipeline.memory import load_memory
+
+    agent_dir = AGENTS_DIR / agent_id
+    if not agent_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+
+    states = load_states(agent_dir)
+    memory = load_memory(agent_dir)
+
+    return {
+        "agent_id": agent_id,
+        "states": states.to_dict(),
+        "memory_summary": memory.summary(),
+        "rounds_played": len(memory.rounds),
+        "total_score": memory.total_score,
+    }
+
+
+@app.get("/agents")
+async def api_list_agents() -> Dict[str, Any]:
+    """List all initialized agents."""
+    agents = []
+    if AGENTS_DIR.exists():
+        for agent_dir in sorted(AGENTS_DIR.iterdir()):
+            if agent_dir.is_dir():
+                core_path = agent_dir / "CORE.json"
+                soul_path = agent_dir / "SOUL.md"
+                agents.append({
+                    "agent_id": agent_dir.name,
+                    "has_core": core_path.exists(),
+                    "has_soul": soul_path.exists(),
+                    "has_states": (agent_dir / "STATES.md").exists(),
+                    "has_memory": (agent_dir / "MEMORY.json").exists(),
+                })
+    return {"agents": agents, "count": len(agents)}
 
 
 # ---------------------------------------------------------------------------

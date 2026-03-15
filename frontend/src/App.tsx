@@ -1,6 +1,6 @@
 import React from 'react';
-import { InitializationPhase } from './src/pages/InitializationPhase';
+import { InitOpenPhase } from './src/pages/InitOpenPhase';
 function App() {
-  return <InitializationPhase />;
+  return <InitOpenPhase />;
 }
 export { App };

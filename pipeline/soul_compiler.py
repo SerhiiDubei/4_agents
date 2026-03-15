@@ -273,6 +273,136 @@ def compile_soul(
 
 
 # ---------------------------------------------------------------------------
+# Two-phase initialization — compile SOUL directly from a brief
+# ---------------------------------------------------------------------------
+
+def compile_from_brief(
+    agent_id: str,
+    brief: list[str],
+    seed_text: str,
+    meta_params: dict,
+    output_dir: Optional[Path] = None,
+    model: str = "x-ai/grok-3-mini",
+) -> dict:
+    """
+    Two-phase initialization: compile SOUL.md and CORE.json from a raw brief.
+
+    Instead of converting each answer to CORE deltas immediately, all raw answers
+    are passed to the LLM at once so it can form a coherent personality.
+
+    Returns {"soul_md": str, "core": dict}
+    """
+    from pipeline.seed_generator import call_openrouter
+
+    brief_text = "\n".join(f"- {entry}" for entry in brief if entry.strip())
+
+    meta_text = (
+        f"Drive: {meta_params.get('drive', '?')}, "
+        f"Temperament: {meta_params.get('temperament', '?')}, "
+        f"Blind spot: {meta_params.get('blind_spot', '?')}, "
+        f"Stress: {meta_params.get('stress_response', '?')}, "
+        f"Social style: {meta_params.get('social_style', '?')}"
+    )
+
+    system_prompt = """You are generating a personality file for a social simulation agent.
+You receive a seed description and a brief of raw questionnaire answers.
+Your job: synthesize them into a coherent person — not a game avatar, a real human with history.
+
+Return a JSON object with exactly two fields:
+{
+  "soul_md": "...",
+  "core": {
+    "cooperation_bias": <0-100>,
+    "deception_tendency": <0-100>,
+    "strategic_horizon": <0-100>,
+    "risk_appetite": <0-100>
+  }
+}
+
+SOUL.md rules:
+- Written in second person ("You...")
+- 200-400 words
+- Specific, grounded, no clichés — concrete observations about behavior
+- Include: how they think under pressure, what they want, what they hide, how they relate to others
+- No game/simulation references
+
+CORE rules:
+- cooperation_bias: willingness to help others (0=never, 100=always)
+- deception_tendency: tendency to mislead or hide true intentions (0=honest, 100=deceptive)
+- strategic_horizon: long-term (100) vs short-term (0) thinking
+- risk_appetite: comfort with uncertainty and bold choices (0=cautious, 100=reckless)
+
+Return ONLY valid JSON. No explanation."""
+
+    user_prompt = f"""Seed description:
+{seed_text}
+
+Meta profile: {meta_text}
+
+Questionnaire brief:
+{brief_text}
+
+Generate personality JSON:"""
+
+    raw = call_openrouter(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        model=model,
+        temperature=0.75,
+        max_tokens=800,
+        timeout=120,
+    )
+
+    # Parse JSON response
+    import re
+    json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not json_match:
+        raise ValueError(f"compile_from_brief: no JSON in response: {raw[:200]}")
+
+    result = json.loads(json_match.group())
+    soul_md = result.get("soul_md", "")
+    core = result.get("core", {})
+
+    # Ensure all CORE keys exist with defaults
+    core.setdefault("cooperation_bias", 50)
+    core.setdefault("deception_tendency", 50)
+    core.setdefault("strategic_horizon", 50)
+    core.setdefault("risk_appetite", 50)
+    # Add model field
+    core["model"] = "x-ai/grok-3-mini"
+
+    # Write files if output_dir provided
+    if output_dir:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        soul_path = output_dir / "SOUL.md"
+        with open(soul_path, "w", encoding="utf-8") as f:
+            f.write(soul_md)
+
+        core_data = {
+            "version": "1.0.0",
+            **{k: v for k, v in core.items() if k != "model"},
+            "model": core["model"],
+            "point_buy": {
+                "budget": 100,
+                "spent": 0,
+                "refund": 0,
+                "notes": f"Generated via brief-based initialization for agent {agent_id}",
+            },
+            "meta": {
+                "agent_id": agent_id,
+                **meta_params,
+            },
+            "trait_log": [],
+        }
+        core_path = output_dir / "CORE.json"
+        with open(core_path, "w", encoding="utf-8") as f:
+            json.dump(core_data, f, indent=2, ensure_ascii=False)
+
+    return {"soul_md": soul_md, "core": core}
+
+
+# ---------------------------------------------------------------------------
 # CLI smoke test
 # ---------------------------------------------------------------------------
 

@@ -71,6 +71,8 @@ class SessionState:
     answers: list[dict[str, Any]] = field(default_factory=list)
     trait_log: list[str] = field(default_factory=list)
     current_context_index: int = 0
+    # Raw brief — human-readable answers accumulated for two-phase SOUL generation
+    brief: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -80,6 +82,7 @@ class SessionState:
             "answers": self.answers,
             "trait_log": self.trait_log,
             "current_context_index": self.current_context_index,
+            "brief": self.brief,
         }
 
     @classmethod
@@ -93,6 +96,7 @@ class SessionState:
             answers=data.get("answers", []),
             trait_log=data.get("trait_log", []),
             current_context_index=data.get("current_context_index", 0),
+            brief=data.get("brief", []),
         )
 
 
@@ -388,11 +392,16 @@ def process_answer(
         "delta_key": delta_key,
         "choice_label": choice_label,
     }
+
+    # Accumulate raw brief entry for two-phase SOUL generation
+    brief_entry = choice_label
     if free_text:
-        answer_record["free_text"] = free_text
+        brief_entry = free_text  # prefer free text for richer brief
         traits = extract_traits(free_text, session.meta_params)
         session.trait_log.extend(traits)
+        answer_record["free_text"] = free_text
         answer_record["extracted_traits"] = traits
+    session.brief.append(brief_entry)
 
     session.answers.append(answer_record)
     session.current_context_index += 1
