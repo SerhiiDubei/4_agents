@@ -1,0 +1,32 @@
+{
+  "event_types": {
+    "storm": {
+      "event_type": "storm",
+      "effect": "all",
+      "time_delta_seconds": -30,
+      "description": "Всі втрачають 30 сек."
+    },
+    "crisis": {
+      "event_type": "crisis",
+      "effect": "low_time",
+      "threshold_seconds": 300,
+      "time_delta_seconds": -60,
+      "description": "Хто має менше 5 хв, втрачає 60 сек."
+    },
+    "code_spawn": {
+      "event_type": "code_spawn",
+      "effect": "spawn",
+      "description": "Система додає коди в гру."
+    }
+  },
+  "timer_compat": {
+    "self_add": { "effect_type": "self_add", "payload_key": "seconds" },
+    "self_subtract": { "effect_type": "self_subtract", "payload_key": "seconds" },
+    "team_add": { "effect_type": "team_add", "payload_key": "seconds" },
+    "steal": { "effect_type": "steal", "payload_keys": ["from_player_id", "seconds"] },
+    "cooperate": { "effect_type": "cooperate", "payload_keys": ["target_id", "seconds_each"] },
+    "storm": { "effect_type": "storm", "payload_key": "time_delta_seconds" },
+    "crisis": { "effect_type": "crisis", "payload_key": "time_delta_seconds" },
+    "skill_trigger": { "effect_type": "skill_trigger", "payload_keys": ["skill_id", "actor_id", "time_delta_seconds"] }
+  }
+}
