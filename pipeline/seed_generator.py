@@ -8,8 +8,10 @@ a personality seed paragraph for an agent.
 from __future__ import annotations
 
 import json
-import random
 import os
+import random
+import sys
+import time
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Any, Optional
@@ -210,26 +212,52 @@ def call_openrouter(
             },
         }
 
-    response = httpx.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=timeout,
-    )
-    if response.status_code == 401:
-        body = response.text
+    max_attempts = 3
+    backoff_seconds = [2, 4, 8]
+    last_exc = None
+    for attempt in range(max_attempts):
         try:
-            err_json = response.json()
-            if "error" in err_json and isinstance(err_json["error"], dict):
-                body = err_json["error"].get("message", body)
-        except Exception:
-            pass
-        raise EnvironmentError(
-            f"OpenRouter 401 Unauthorized. Key invalid or disabled. OpenRouter says: {body}"
-        )
-    response.raise_for_status()
-    data = response.json()
-    return data["choices"][0]["message"]["content"].strip()
+            response = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=timeout,
+            )
+            if response.status_code == 401:
+                body = response.text
+                try:
+                    err_json = response.json()
+                    if "error" in err_json and isinstance(err_json["error"], dict):
+                        body = err_json["error"].get("message", body)
+                except Exception:
+                    pass
+                raise EnvironmentError(
+                    f"OpenRouter 401 Unauthorized. Key invalid or disabled. OpenRouter says: {body}"
+                )
+            if response.status_code in (429, 502, 503):
+                last_exc = RuntimeError(
+                    f"OpenRouter {response.status_code} (attempt {attempt + 1}/{max_attempts})"
+                )
+                if attempt < max_attempts - 1:
+                    delay = backoff_seconds[attempt]
+                    print(f"  [OpenRouter] {last_exc}; retry in {delay}s", file=sys.stderr, flush=True)
+                    time.sleep(delay)
+                    continue
+                response.raise_for_status()
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"].strip()
+        except httpx.TimeoutException as e:
+            last_exc = e
+            if attempt < max_attempts - 1:
+                delay = backoff_seconds[attempt]
+                print(f"  [OpenRouter] timeout (attempt {attempt + 1}/{max_attempts}); retry in {delay}s", file=sys.stderr, flush=True)
+                time.sleep(delay)
+            else:
+                raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("OpenRouter call failed after retries")
 
 
 # ---------------------------------------------------------------------------

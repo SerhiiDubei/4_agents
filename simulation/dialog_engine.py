@@ -141,13 +141,15 @@ def _build_context(
     round_number: int,
     total_rounds: int,
     visible_history: dict,
+    memory_narrative: str = "",
 ) -> str:
     rounds_left = total_rounds - round_number
     deception_flag = deception_tendency > 60
+    mem_block = memory_narrative.strip() if memory_narrative else json.dumps(memory_summary, ensure_ascii=False)[:300]
     return (
         f"AGENT PROFILE:\n{soul_md[:800]}\n\n"
         f"CURRENT STATE:\n{states_md}\n\n"
-        f"MEMORY:\n{json.dumps(memory_summary, ensure_ascii=False)[:300]}\n\n"
+        f"MEMORY:\n{mem_block}\n\n"
         f"Round {round_number}/{total_rounds}. {rounds_left} rounds left.\n"
         f"Deception tendency: {deception_tendency:.0f}/100.\n"
         + ("DECEPTION FLAG: agent is likely misdirecting.\n" if deception_flag else "")
@@ -488,16 +490,21 @@ def _build_step_context(
     tension_match = re.search(r"tension:\s*([\d.]+)", states_md)
     tension = tension_match.group(1) if tension_match else "?"
 
-    mem_short = ""
-    if memory_summary:
+    mem_short = cfg.get("memory_narrative", "").strip()
+    if not mem_short and memory_summary:
         betrayals = memory_summary.get("total_betrayals_received", 0)
         coops = memory_summary.get("total_cooperations_received", 0)
         mem_short = f"You've been betrayed {betrayals}x and helped {coops}x so far."
 
+    bio_block = ""
+    if cfg.get("bio", "").strip():
+        bio_block = f"Твоя біографія (коротко): {cfg['bio'].strip()[:450]}\n"
+
     user = (
         f"Round {round_number}/{total_rounds}. Step {step_number}/{steps_per_round}. "
         f"{rounds_left} rounds remain.\n"
-        f"Your mood: {mood}. Tension: {tension}.\n"
+        + (bio_block if bio_block else "")
+        + f"Your mood: {mood}. Tension: {tension}.\n"
         + (f"{mem_short}\n" if mem_short else "")
         + f"Scene: {scene.topic or 'nothing yet'}. Scene tension: {scene.topic_tension:.2f}."
         + prev_line
@@ -820,14 +827,18 @@ def _build_flat_public_context(
     mood_match = re.search(r"mood:\s*(\w+)", states_md)
     mood = mood_match.group(1) if mood_match else "neutral"
 
-    # Memory short
-    betrayals = memory_summary.get("total_betrayals_received", 0)
-    coops = memory_summary.get("total_cooperations_received", 0)
-    mem_short = f"Betrayed {betrayals}x, helped {coops}x." if (betrayals or coops) else ""
+    # Memory: narrative (from memory_summary_to_narrative) or fallback to short stats
+    memory_narrative = cfg.get("memory_narrative", "").strip()
+    if memory_narrative:
+        mem_block = f"Твоя пам'ять (підсумок): {memory_narrative}"
+    else:
+        betrayals = memory_summary.get("total_betrayals_received", 0)
+        coops = memory_summary.get("total_cooperations_received", 0)
+        mem_block = f"Betrayed {betrayals}x, helped {coops}x." if (betrayals or coops) else ""
 
-    # Last round personal reflection (if agent reflected after previous round)
-    last_reflection = memory_summary.get("last_reflection", "")
-    last_conclusion = memory_summary.get("last_conclusion", "")
+    bio_block = ""
+    if cfg.get("bio", "").strip():
+        bio_block = f"Твоя біографія (коротко): {cfg['bio'].strip()[:500]}\n"
 
     # Last round concrete actions/outcomes (what actually happened)
     last_round_summary = cfg.get("last_round_summary")
@@ -868,12 +879,11 @@ def _build_flat_public_context(
 
     user = (
         f"Round {round_number}/{total_rounds}. Your mood: {mood}.\n"
+        + (bio_block if bio_block else "")
         + (situation_block if situation_block else "")
-        + (f"{mem_short}\n" if mem_short else "")
+        + (f"{mem_block}\n" if mem_block else "")
         + (f"Last round: {last_round_text}\n" if last_round_text else "")
         + (betrayal_hint if betrayal_hint else "")
-        + (f'Your reflection from last round: "{last_reflection}"\n' if last_reflection else "")
-        + (f'Your conclusion from last game: "{last_conclusion[:300]}"\n' if last_conclusion else "")
         + (others_context if others_context else "")
         + "Everyone will now make their decision — cooperate or betray — toward each other.\n"
         "This is your ONE public statement before that happens.\n"

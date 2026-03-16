@@ -284,6 +284,102 @@ def _():
         f"Expected {before_coop + 10}, got {session.core.cooperation_bias}"
 
 
+@test("memory_summary_to_narrative: empty summary returns empty string")
+def _():
+    from pipeline.memory import memory_summary_to_narrative
+    assert memory_summary_to_narrative({}) == ""
+    assert memory_summary_to_narrative({}, "", None) == ""
+
+
+@test("memory_summary_to_narrative: builds Ukrainian narrative from summary")
+def _():
+    from pipeline.memory import memory_summary_to_narrative
+    summary = {
+        "rounds_played": 5,
+        "games_played": 2,
+        "total_betrayals_received": 3,
+        "total_cooperations_received": 7,
+        "career_wins": 1,
+        "last_conclusion": "Я навчився не довіряти всім.",
+        "last_reflection": "Раунд був напруженим.",
+    }
+    out = memory_summary_to_narrative(summary)
+    assert isinstance(out, str) and len(out) > 0
+    assert "rounds_played" not in out and "total_betrayals" not in out  # no raw JSON keys
+    assert "зраджували" in out or "допомагали" in out or "раунд" in out or "зіграв" in out
+    assert "3" in out and "7" in out
+    assert "Я навчився" in out or "навчився" in out
+    assert "Раунд був" in out or "напруженим" in out
+
+
+@test("memory_summary_to_narrative: long last_conclusion is truncated with ellipsis")
+def _():
+    from pipeline.memory import memory_summary_to_narrative
+    long_conclusion = "А" * 500
+    summary = {"last_conclusion": long_conclusion, "games_played": 1}
+    out = memory_summary_to_narrative(summary)
+    assert "..." in out or len(out) <= 450
+
+
+@test("memory: archive_game stores trust_snapshot")
+def _():
+    from pipeline.memory import AgentMemory, RoundMemory
+    mem = AgentMemory(agent_id="agent_a")
+    mem.trust_history = {"agent_b": [0.3, 0.5], "agent_c": [0.8]}
+    mem.rounds = [
+        RoundMemory(round_number=1, actions_received={"agent_b": 0.5, "agent_c": 0.8}),
+        RoundMemory(round_number=2, actions_received={"agent_b": 0.5, "agent_c": 0.8}),
+    ]
+    mem.archive_game(game_id="g1", winner="agent_a", clear_rounds=True)
+    assert len(mem.game_history) == 1
+    entry = mem.game_history[0]
+    assert "trust_snapshot" in entry
+    assert entry["trust_snapshot"].get("agent_b") == 0.5
+    assert entry["trust_snapshot"].get("agent_c") == 0.8
+    assert mem.rounds == [] and mem.trust_history == {}
+
+
+@test("reflection: log_reflection_error writes to log file")
+def _():
+    from pipeline.reflection import log_reflection_error
+    log_path = Path(__file__).parent.parent / "logs" / "reflection_errors.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_reflection_error("agent_1", "round r2", Exception("test message"))
+    assert log_path.exists()
+    content = log_path.read_text(encoding="utf-8")
+    assert "agent_1" in content and "round r2" in content and "test message" in content
+
+
+@test("load_agents_from_disk: applies trust_snapshot from memory to states")
+def _():
+    import tempfile
+    from simulation.game_engine import load_agents_from_disk
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for aid in ["tmp_agent", "other"]:
+            (root / aid).mkdir()
+            (root / aid / "CORE.json").write_text('{"name": "Test", "cooperation_bias": 50}', encoding="utf-8")
+            (root / aid / "SOUL.md").write_text("Test soul.", encoding="utf-8")
+        mem_path = root / "tmp_agent" / "MEMORY.json"
+        mem_data = {
+            "agent_id": "tmp_agent",
+            "total_score": 0,
+            "reveals_used": 0,
+            "trust_history": {},
+            "rounds": [],
+            "game_history": [
+                {"game_id": "g1", "winner": "other", "trust_snapshot": {"other": 0.7}},
+            ],
+        }
+        mem_path.write_text(json.dumps(mem_data, ensure_ascii=False), encoding="utf-8")
+        agents = load_agents_from_disk(["tmp_agent", "other"], agents_dir=root)
+        assert len(agents) == 2
+        first = agents[0]
+        assert first.agent_id == "tmp_agent"
+        assert "other" in first.states.trust
+        assert first.states.trust["other"] == 0.7
+
+
 @test("existing agents: CORE.json files are valid")
 def _():
     agents_dir = Path(__file__).parent.parent / "agents"
@@ -301,23 +397,24 @@ def _():
         assert data.get("version"), f"Missing version in {path.parent.name}"
 
 
-@test("existing agents: SOUL.md files have all 6 sections")
+@test("existing agents: SOUL.md files have all 8 sections")
 def _():
     agents_dir = Path(__file__).parent.parent / "agents"
     soul_files = list(agents_dir.glob("*/SOUL.md"))
     if len(soul_files) < 1:
-        skip_test("existing agents: SOUL.md files have all 6 sections", "No SOUL.md files found")
+        skip_test("existing agents: SOUL.md files have all 8 sections", "No SOUL.md files found")
         return
     required_sections = [
         "## Identity", "## How You See Others", "## What You Never Say Out Loud",
-        "## What Makes You Feel Safe", "## Under Pressure", "## Decision Instinct"
+        "## What Makes You Feel Safe", "## Under Pressure", "## Decision Instinct",
+        "## Voice", "## Body Language"
     ]
     for path in soul_files:
         content = path.read_text()
         missing = [s for s in required_sections if s not in content]
         if missing:
             raise SkipTest(f"{path.parent.name}/SOUL.md missing sections (old template?): {missing[:1]}")
-        assert "You" in content, f"No second-person ('You') found in {path.parent.name}/SOUL.md"
+        assert "You" in content or "Ти" in content, f"No second-person ('You' or 'Ти') found in {path.parent.name}/SOUL.md"
 
 
 @test("existing agents: different agents have different CORE values")

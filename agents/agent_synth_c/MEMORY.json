@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_c",
-  "total_score": 173.238,
+  "total_score": 372.355,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -53,6 +53,17 @@
       "cooperations_received": 18,
       "final_mood": "dominant",
       "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 15,
+      "final_score": 372.36,
+      "winner": "agent_synth_g",
+      "betrayals_received": 28,
+      "cooperations_received": 47,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Що ж, гра закінчилася. Вождь переміг, хоча я думав, що зможу обійти його, якщо буду обережнішим. 28 зрад – це занадто багато. Я недооцінив, наскільки Вова і Марта ненадійні, більше ніколи не буду їм довіряти. З іншого боку, Роман Романюк і Павло виявилися вірними союзниками, на них можна покластися. Наступного разу буду більш обачним з тими, кому відкриваю свої плани."
     }
   ],
   "rounds": []

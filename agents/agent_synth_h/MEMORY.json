@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_h",
-  "total_score": 177.9797,
+  "total_score": 393.7221,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -53,6 +53,17 @@
       "cooperations_received": 21,
       "final_mood": "dominant",
       "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 15,
+      "final_score": 393.72,
+      "winner": "agent_synth_g",
+      "betrayals_received": 20,
+      "cooperations_received": 55,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От і все. Вождь виграв, а я... я просто програла. Алєг – зміюка, скільки разів він мене зрадив! Я знала, що на нього не можна покладатися, але сподівалася, що хоч трохи він буде передбачуваним. Роману Романюку, Павлу та Вові я довіряла, і вони більш-менш виправдали мої очікування. Наступного разу буду хитрішою, менше довіри, більше контролю. І ніколи, ніколи не недооцінюватиму Вождя. Він знає щось, чого не знаю я."
     }
   ],
   "rounds": []

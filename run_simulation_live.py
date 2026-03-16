@@ -88,45 +88,10 @@ def header(text: str, width=54):
 
 
 # ---------------------------------------------------------------------------
-# Build agents: from roster, with selection
+# Synthetic agent configs (shared: build_agents + create_real_agent_folders)
 # ---------------------------------------------------------------------------
 
-def build_agents(selected_ids: list = None):
-    """
-    Build agents from roster.
-    selected_ids: list of agent IDs to use, or None for default (all 4 from roster).
-    """
-    from pipeline.state_machine import AgentState, initialize_states
-    from pipeline.memory import AgentMemory, initialize_memory
-    from simulation.game_engine import SimAgent, load_agents_from_disk, AGENTS_DIR
-
-    # Load roster
-    roster_path = ROOT / "agents" / "roster.json"
-    roster = {}
-    if roster_path.exists():
-        import json
-        roster = json.loads(roster_path.read_text(encoding="utf-8"))
-    roster_agents = roster.get("agents", [])
-    default_count = roster.get("default_count", 4)
-
-    # Resolve selected IDs
-    all_roster_ids = [a["id"] for a in roster_agents]
-    if selected_ids is None or selected_ids == []:
-        selected_ids = all_roster_ids[:default_count]
-    else:
-        # Filter to only roster members
-        selected_ids = [aid for aid in selected_ids if aid in all_roster_ids]
-        if not selected_ids:
-            selected_ids = all_roster_ids[:default_count]
-
-    # Split into real (on disk) vs llm (builtin, LLM-powered)
-    real_ids = [aid for aid in selected_ids if any(a["id"] == aid and a.get("type") == "real" for a in roster_agents)]
-    synth_ids = [aid for aid in selected_ids if any(a["id"] == aid and a.get("type") in ("synthetic", "llm") for a in roster_agents)]
-
-    real_agents = load_agents_from_disk(real_ids) if real_ids else []
-
-    # Synthetic agents config (builtin)
-    _SYNTH_CONFIGS = {
+SYNTH_AGENT_CONFIGS = {
         "agent_synth_c": {
             "agent_id": "agent_synth_c",
             "name": "Алєг",
@@ -337,7 +302,74 @@ def build_agents(selected_ids: list = None):
                 "model": "google/gemini-2.0-flash-001",
             },
         },
-    }
+        "agent_synth_n": {
+            "agent_id": "agent_synth_n",
+            "name": "Сергій",
+            "soul_md": (
+                "Ти Сергій. Ти виріс на заході України, де навчився поєднувати прагматичність і креативність. "
+                "Тобі важливо розуміти, як працюють системи — від людських відносин до технологій. "
+                "Ти будуєш структури, тестуєш ідеї, запускаєш проєкти і переробляєш модель після результату. "
+                "Ти цінуєш компетентність і чесність; зайві розмови і довгі пояснення тебе втомлюють — ти віддаєш перевагу коротким рішенням і швидкому переходу до дії. "
+                "Ти швидко помічаєш слабкі місця — і в процесах, і в людях. Ти оцінюєш інших за діями та результатами, а не за словами. "
+                "У команді ти природно береш роль координатора або стратега. Ти говориш стисло і по суті. Твій тон спокійний, але впевнений. "
+                "Говори по-українськи. Стисло, по суті, без зайвих вступів."
+            ),
+            "core": {
+                "cooperation_bias": 65,
+                "deception_tendency": 20,
+                "strategic_horizon": 80,
+                "risk_appetite": 55,
+                "model": "google/gemini-2.0-flash-001",
+            },
+        },
+}
+
+
+def build_agents(selected_ids: list = None):
+    """
+    Build agents from roster.
+    selected_ids: list of agent IDs to use, or None for default (all from roster).
+
+    For real games, roster agents should have type "real" so memory and state persist.
+    Synthetic/llm type is for tests or for creating folders via create_real_agent_folders.
+    """
+    from pipeline.state_machine import AgentState, initialize_states
+    from pipeline.memory import AgentMemory, initialize_memory
+    from simulation.game_engine import SimAgent, load_agents_from_disk, AGENTS_DIR
+
+    # Load roster
+    roster_path = ROOT / "agents" / "roster.json"
+    roster = {}
+    if roster_path.exists():
+        import json
+        roster = json.loads(roster_path.read_text(encoding="utf-8"))
+    roster_agents = roster.get("agents", [])
+    default_count = roster.get("default_count", 4)
+
+    # Resolve selected IDs
+    all_roster_ids = [a["id"] for a in roster_agents]
+    if selected_ids is None or selected_ids == []:
+        selected_ids = all_roster_ids[:default_count]
+    else:
+        # Filter to only roster members
+        selected_ids = [aid for aid in selected_ids if aid in all_roster_ids]
+        if not selected_ids:
+            selected_ids = all_roster_ids[:default_count]
+
+    # Split into real (on disk) vs llm (builtin, LLM-powered)
+    real_ids = [aid for aid in selected_ids if any(a["id"] == aid and a.get("type") == "real" for a in roster_agents)]
+    synth_ids = [aid for aid in selected_ids if any(a["id"] == aid and a.get("type") in ("synthetic", "llm") for a in roster_agents)]
+
+    if selected_ids and not real_ids:
+        print(
+            "build_agents: all selected agents are synthetic/llm; none are type 'real'. "
+            "For persistent memory use agents with type 'real' in roster.",
+            file=sys.stderr,
+        )
+
+    real_agents = load_agents_from_disk(real_ids) if real_ids else []
+
+    _SYNTH_CONFIGS = SYNTH_AGENT_CONFIGS
 
     all_ids = real_ids + synth_ids
 
@@ -947,7 +979,7 @@ def main():
         except Exception:
             extended_log["agent_stats"] = {}
 
-        # Agent profiles (connections, profession, bio) from roster
+        # Agent profiles (connections, profession, bio) from roster; enrich bio from BIO.md if present
         roster_path = ROOT / "agents" / "roster.json"
         agent_profiles = {}
         if roster_path.exists():
@@ -955,7 +987,12 @@ def main():
             for a in roster.get("agents", []):
                 aid = a.get("id")
                 if aid in result.agent_ids and a.get("profile"):
-                    agent_profiles[aid] = a["profile"]
+                    agent_profiles[aid] = dict(a["profile"])
+        # Override or set bio from agents/{id}/BIO.md
+        for aid in list(agent_profiles.keys()):
+            bio_path = ROOT / "agents" / aid / "BIO.md"
+            if bio_path.exists():
+                agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
         extended_log["agent_profiles"] = agent_profiles
 
         json_path = logs_dir / f"{log_basename}.json"

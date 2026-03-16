@@ -129,9 +129,10 @@ class AgentState:
             round_number=int(d.get("round_number", 0)),
         )
 
-    def to_md(self) -> str:
+    def to_md(self, display_name: Optional[str] = None) -> str:
+        header = display_name if display_name else self.agent_id
         lines = [
-            f"# STATES — Agent {self.agent_id}",
+            f"# STATES — {header}",
             f"# Round {self.round_number}",
             "",
             f"tension:          {self.tension:.3f}",
@@ -337,6 +338,40 @@ def update_states(
     )
 
 
+def initial_state_from_core(agent_id: str, core: dict, peer_ids: list) -> AgentState:
+    """
+    Build initial AgentState from CORE params (cooperation_bias, deception_tendency,
+    strategic_horizon, risk_appetite in 0-100). Used for differentiated starting states.
+    """
+    c = _clamp(float(core.get("cooperation_bias", 50)) / 100.0)
+    d = _clamp(float(core.get("deception_tendency", 50)) / 100.0)
+    h = _clamp(float(core.get("strategic_horizon", 50)) / 100.0)
+    r = _clamp(float(core.get("risk_appetite", 50)) / 100.0)
+
+    tension = _clamp(0.15 + 0.35 * d + 0.15 * (1.0 - c))
+    fear = _clamp(0.2 - 0.12 * r + 0.08 * d)
+    dominance = _clamp(0.35 + 0.4 * h + 0.1 * d)
+    anger = _clamp(0.02 + 0.08 * (1.0 - c))
+    interest = _clamp(0.45 + 0.15 * h)
+    trust_baseline = _clamp(0.35 + 0.4 * c - 0.25 * d)
+    trust = {p: round(trust_baseline, 4) for p in peer_ids}
+    mood = _compute_mood(tension, fear, dominance)
+
+    return AgentState(
+        agent_id=agent_id,
+        tension=round(tension, 4),
+        fear=round(fear, 4),
+        dominance=round(dominance, 4),
+        anger=round(anger, 4),
+        interest=round(interest, 4),
+        talk_cooldown=0,
+        attention_target="",
+        trust=trust,
+        mood=mood,
+        round_number=0,
+    )
+
+
 # ---------------------------------------------------------------------------
 # File I/O
 # ---------------------------------------------------------------------------
@@ -350,11 +385,11 @@ def load_states(agent_dir: Path) -> AgentState:
     return AgentState.from_md(path.read_text(encoding="utf-8"), agent_id)
 
 
-def save_states(state: AgentState, agent_dir: Path) -> None:
+def save_states(state: AgentState, agent_dir: Path, display_name: Optional[str] = None) -> None:
     """Write STATES.md to agent directory."""
     agent_dir.mkdir(parents=True, exist_ok=True)
     path = agent_dir / "STATES.md"
-    path.write_text(state.to_md(), encoding="utf-8")
+    path.write_text(state.to_md(display_name=display_name), encoding="utf-8")
 
 
 def initialize_states(agent_id: str, peer_ids: list, agent_dir: Path) -> AgentState:

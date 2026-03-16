@@ -1263,7 +1263,7 @@ async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationRe
         # Persist updated states and memories
         for agent in agents:
             agent_dir = AGENTS_DIR / agent.agent_id
-            save_states(agent.states, agent_dir)
+            save_states(agent.states, agent_dir, display_name=agent.name)
             save_memory(agent.memory, agent_dir)
         return result
 

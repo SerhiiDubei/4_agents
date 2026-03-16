@@ -17,8 +17,11 @@ Reflection is non-critical: callers should wrap in try/except.
 from __future__ import annotations
 
 import os
+import traceback
 from pathlib import Path
 from typing import List
+
+_REFLECTION_ERROR_LOG = Path(__file__).resolve().parent.parent / "logs" / "reflection_errors.log"
 
 
 # ---------------------------------------------------------------------------
@@ -39,19 +42,47 @@ Return ONLY your personal note. Nothing else."""
 
 
 # ---------------------------------------------------------------------------
+# Reflection error logging
+# ---------------------------------------------------------------------------
+
+def log_reflection_error(agent_id: str, context: str, exc: BaseException) -> None:
+    """Append a reflection error to logs/reflection_errors.log."""
+    try:
+        _REFLECTION_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_REFLECTION_ERROR_LOG, "a", encoding="utf-8") as f:
+            tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            f.write(f"[{__import__('datetime').datetime.utcnow().isoformat()}Z] agent={agent_id} context={context}\n{tb}\n\n")
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # LLM call (reuses seed_generator.call_openrouter signature)
 # ---------------------------------------------------------------------------
 
 def _call(system: str, user: str, model: str, max_tokens: int = 150) -> str:
+    import time
     from pipeline.seed_generator import call_openrouter
-    return call_openrouter(
-        system_prompt=system,
-        user_prompt=user,
-        model=model,
-        temperature=0.7,
-        max_tokens=max_tokens,
-        timeout=60,
-    )
+    last_err = None
+    for attempt in range(2):
+        try:
+            return call_openrouter(
+                system_prompt=system,
+                user_prompt=user,
+                model=model,
+                temperature=0.7,
+                max_tokens=max_tokens,
+                timeout=60,
+            )
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                time.sleep(2)
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("reflection _call failed")
 
 
 # ---------------------------------------------------------------------------

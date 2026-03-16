@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_j",
-  "total_score": 189.2199,
+  "total_score": 414.983,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -53,6 +53,17 @@
       "cooperations_received": 25,
       "final_mood": "dominant",
       "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 15,
+      "final_score": 414.98,
+      "winner": "agent_synth_g",
+      "betrayals_received": 14,
+      "cooperations_received": 61,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все скінчилось. Вождь виявився хитрішим, ніж я думав, треба було менше йому довіряти. Алєг – абсолютний нуль, жодної порядності. Роману Романюку, Марті та Павлу можна було б дати шанс, вони хоч трохи надійні. Наступного разу буду більш вибірковим у своїх рішеннях, і точно не буду таким довірливим."
     }
   ],
   "rounds": []

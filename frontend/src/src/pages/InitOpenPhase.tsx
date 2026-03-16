@@ -4,9 +4,10 @@ import { OpenQuestionView, OpenQuestion } from '../components/OpenQuestionView';
 import { InitResultView } from '../components/InitResultView';
 import { InitStoryView } from '../components/InitStoryView';
 import { GamesResultsView } from '../components/GamesResultsView';
+import { LeaderboardView } from '../components/LeaderboardView';
 import { CRTOverlay } from '../components/CRTOverlay';
 
-type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results';
+type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard';
 
 export const InitOpenPhase: React.FC = () => {
   const [phase, setPhase] = useState<Phase>('intro');
@@ -182,7 +183,20 @@ export const InitOpenPhase: React.FC = () => {
                   onClick={() => setPhase('games-results')}
                   className="px-10 py-5 font-pixel text-lg text-game-cyan border-2 border-game-cyan box-glow-cyan bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-cyan/10"
                 >
-                  [ РЕЗУЛЬТАТИ {gamesCount !== null ? gamesCount : '…'} ІГОР ]
+                  РЕЗУЛЬТАТИ ({gamesCount !== null ? gamesCount : '…'} ігор)
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.25 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(234,179,8,0.5)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setPhase('leaderboard')}
+                  className="px-10 py-5 font-pixel text-lg text-game-gold border-2 border-game-gold bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-gold/10"
+                >
+                  [ ЛІДЕРБОРД ]
                 </motion.button>
               </div>
             </div>
@@ -255,6 +269,26 @@ export const InitOpenPhase: React.FC = () => {
             className="absolute inset-0"
           >
             <GamesResultsView
+              onBack={() => {
+                setPhase('intro');
+                fetch('/api/games-count')
+                  .then((res) => (res.ok ? res.json() : { count: 0 }))
+                  .then((data: { count?: number }) => setGamesCount(typeof data.count === 'number' ? data.count : 0))
+                  .catch(() => setGamesCount(0));
+              }}
+            />
+          </motion.div>
+        )}
+
+        {phase === 'leaderboard' && (
+          <motion.div
+            key="leaderboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          >
+            <LeaderboardView
               onBack={() => {
                 setPhase('intro');
                 fetch('/api/games-count')

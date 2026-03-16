@@ -1,7 +1,7 @@
 """
-Expand SOUL.md for each agent: generate full SOUL with 6 required sections
+Expand SOUL.md for each agent: generate full SOUL with 8 required sections
 (Identity, How You See Others, What You Never Say Out Loud, What Makes You Feel Safe,
-Under Pressure, Decision Instinct) from current SOUL + CORE + optional BIO.
+Under Pressure, Decision Instinct, Voice, Body Language) from current SOUL + CORE + optional BIO.
 Overwrites SOUL.md. Does not change soul_compiler or template.
 
 Usage:
@@ -31,19 +31,26 @@ REQUIRED_SECTIONS = [
     "## What Makes You Feel Safe",
     "## Under Pressure",
     "## Decision Instinct",
+    "## Voice",
+    "## Body Language",
 ]
 
-SOUL_SYSTEM = """You write a SOUL.md file for an AI agent. It defines personality in second person ("You...").
-Output must be in English section headers and English or Ukrainian body text.
-You MUST include exactly these 6 section headers (copy them exactly):
+SOUL_SYSTEM = """You write a SOUL.md file for an AI agent. It defines personality in second person ("You..." / "Ти...").
+Section headers must be in English (copy exactly). All section BODY text must be in Ukrainian.
+
+You MUST include exactly these 8 section headers:
 ## Identity
 ## How You See Others
 ## What You Never Say Out Loud
 ## What Makes You Feel Safe
 ## Under Pressure
 ## Decision Instinct
+## Voice
+## Body Language
 
-Under each header write 2-4 short sentences in second person. Be specific and behavioral, not vague.
+Under each header write 2-4 short sentences in second person, in Ukrainian. Be specific and behavioral, not abstract.
+Describe concrete behavior, not abstract values: e.g. "Ти шукаєш, в чому людина сильна, навіть коли вона сама не бачить" not "Ти віриш у потенціал людей"; "Ти автоматично ділиш порівну; якщо візьмеш більше — тілу незручно" not "Ти цінуєш справедливість".
+Voice = how they speak (rhythm, tone, typical phrases). Body Language = gestures, posture, facial expressions (for UI/avatar).
 No trait labels like "smart" or "cold" — show behavior. Tone: grounded, slightly understated.
 If the input already has good content for a section, expand or refine it; do not drop it."""
 
@@ -85,7 +92,7 @@ def generate_expanded_soul(name: str, soul_text: str, core: dict, bio_text: str 
         % (core.get("cooperation_bias", 50), core.get("deception_tendency", 50),
            core.get("strategic_horizon", 50), core.get("risk_appetite", 50)),
         "",
-        "Output the full SOUL.md with all 6 sections. Use the exact headers above. Only the SOUL text, no explanation.",
+        "Output the full SOUL.md with all 8 sections (Identity, How You See Others, What You Never Say Out Loud, What Makes You Feel Safe, Under Pressure, Decision Instinct, Voice, Body Language). Use the exact headers. Body text in Ukrainian. Only the SOUL text, no explanation.",
     ])
     user = "\n".join(user_parts)
 
@@ -94,13 +101,13 @@ def generate_expanded_soul(name: str, soul_text: str, core: dict, bio_text: str 
         user_prompt=user,
         model=model,
         temperature=0.6,
-        max_tokens=1400,
+        max_tokens=1800,
         timeout=90,
     ).strip()
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Expand SOUL.md with 6 sections from CORE + SOUL + optional BIO.")
+    parser = argparse.ArgumentParser(description="Expand SOUL.md with 8 sections from CORE + SOUL + optional BIO.")
     parser.add_argument("--dry-run", action="store_true", help="Print what would be done, do not write files.")
     parser.add_argument("--agent", type=str, default="", help="Comma-separated agent IDs to process (default: all).")
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL, help="OpenRouter model for generation.")
@@ -157,8 +164,8 @@ def main() -> int:
                 if sec not in out:
                     print(f"    WARNING: missing '{sec}' in output, appending placeholder", file=sys.stderr)
                     out += f"\n\n{sec}\n(To be filled.)"
-            if "You" not in out:
-                out += "\n\nYou act according to your character."
+            if "You" not in out and "Ти" not in out:
+                out += "\n\nТи дієш відповідно до свого характеру."
             soul_path.write_text(out, encoding="utf-8")
             print(f"    wrote SOUL.md ({len(out)} chars)")
         except Exception as e:

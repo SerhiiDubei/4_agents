@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_i",
-  "total_score": 182.4427,
+  "total_score": 440.316,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -53,6 +53,17 @@
       "cooperations_received": 21,
       "final_mood": "dominant",
       "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 15,
+      "final_score": 440.32,
+      "winner": "agent_synth_g",
+      "betrayals_received": 6,
+      "cooperations_received": 69,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, гра закінчилася, і Вождь виявився найхитрішим. Я отримав багато допомоги, але і зрад було достатньо. У наступній грі я буду обережнішим із Романом Романюком і Мартою, вони здаються не дуже надійними. Хоча Алєг і Вова майже завжди тримали слово, тому їм можна довіряти більше. Можливо, наступного разу не варто одразу повністю довіряти всім, навіть якщо вони здаються дружніми."
     }
   ],
   "rounds": []

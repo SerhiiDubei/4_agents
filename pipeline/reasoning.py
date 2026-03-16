@@ -255,6 +255,8 @@ def generate_reasoning(
     trust_scores: dict,
     last_reflection: str = "",
     last_conclusion: str = "",
+    memory_narrative: str = "",
+    bio: str = "",
     model: str = "google/gemini-2.0-flash-001",
     agent_names: Optional[dict] = None,
     story_context: str = "",
@@ -338,6 +340,8 @@ def generate_reasoning(
     if situation_text:
         sit_short = situation_text[:350] + ("..." if len(situation_text) > 350 else "")
         user_parts.append(f"\nСитуація: {sit_short}")
+    if bio and bio.strip():
+        user_parts.append(f"\nТвоя біографія (коротко): {bio.strip()[:500]}")
 
     if received_text:
         user_parts.append(f"\nМинулий раунд — що зробили з тобою:\n{received_text}")
@@ -347,10 +351,13 @@ def generate_reasoning(
         user_parts.append(f"\nПоточний рівень довіри:\n{trust_text}")
     if dialog_text:
         user_parts.append(f"\nЩо відбулось в діалозі:\n{dialog_text}")
-    if last_reflection:
-        user_parts.append(f'\nТвоя власна нотатка з минулого раунду: "{last_reflection}"')
-    if last_conclusion:
-        user_parts.append(f'\nТвій висновок з минулої гри: "{last_conclusion[:350]}"')
+    if memory_narrative and memory_narrative.strip():
+        user_parts.append(f"\nТвоя пам'ять (підсумок): {memory_narrative.strip()}")
+    else:
+        if last_reflection:
+            user_parts.append(f'\nТвоя власна нотатка з минулого раунду: "{last_reflection}"')
+        if last_conclusion:
+            user_parts.append(f'\nТвій висновок з минулої гри: "{last_conclusion[:350]}"')
 
     user_parts.append(
         f"\nТепер вирішуй: яке значення (0.0 / 0.33 / 0.66 / 1.0) ти даси кожному з {peers_display}?\n"

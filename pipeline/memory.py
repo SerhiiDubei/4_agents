@@ -130,6 +130,12 @@ class AgentMemory:
         )
         final_mood = self.rounds[-1].mood if self.rounds else "neutral"
 
+        # Snapshot current trust (last value per peer) for cross-game memory
+        trust_snapshot = {}
+        for peer_id, history in self.trust_history.items():
+            if history:
+                trust_snapshot[peer_id] = round(float(history[-1]), 4)
+
         self.game_history.append({
             "game_id": game_id,
             "rounds_played": len(self.rounds),
@@ -140,6 +146,7 @@ class AgentMemory:
             "final_mood": final_mood,
             "reveals_used": self.reveals_used,
             "conclusion": "",
+            "trust_snapshot": trust_snapshot,
         })
 
         if clear_rounds:
@@ -194,6 +201,7 @@ class AgentMemory:
                 1 for g in self.game_history if g.get("winner") == self.agent_id
             )
             result["last_conclusion"] = self.game_history[-1].get("conclusion", "")
+            result["last_trust_snapshot"] = self.game_history[-1].get("trust_snapshot", {})
             result["recent_conclusions"] = [
                 g.get("conclusion", "") for g in self.game_history[-3:]
                 if g.get("conclusion")
@@ -235,6 +243,41 @@ class AgentMemory:
                 if k in RoundMemory.__dataclass_fields__
             }))
         return mem
+
+
+def memory_summary_to_narrative(
+    summary: dict,
+    agent_id: str = "",
+    names: Optional[Dict[str, str]] = None,
+) -> str:
+    """
+    Convert AgentMemory.summary() dict into a short Ukrainian narrative for LLM prompts.
+    Avoids raw JSON; gives emotional context (e.g. "Тебе зрадили 5 разів").
+    """
+    if not summary:
+        return ""
+    names = names or {}
+    parts = []
+    rounds = summary.get("rounds_played", 0)
+    games = summary.get("games_played", 0)
+    betrayals = summary.get("total_betrayals_received", 0)
+    coops = summary.get("total_cooperations_received", 0)
+    if games:
+        parts.append(f"Ти зіграв уже {games} ігор.")
+    if rounds:
+        parts.append(f"У цій грі пройшло {rounds} раундів.")
+    if betrayals or coops:
+        parts.append(f"Тебе зраджували {betrayals} разів, допомагали {coops} разів.")
+    career = summary.get("career_wins", 0)
+    if career and games:
+        parts.append(f"Ти виграв {career} ігор.")
+    last = summary.get("last_conclusion", "").strip()
+    if last:
+        parts.append(f'Твій останній висновок: "{last[:400]}{"..." if len(last) > 400 else ""}"')
+    last_ref = summary.get("last_reflection", "").strip()
+    if last_ref:
+        parts.append(f'Остання нотатка: "{last_ref[:250]}{"..." if len(last_ref) > 250 else ""}"')
+    return " ".join(parts).strip()
 
 
 # ---------------------------------------------------------------------------

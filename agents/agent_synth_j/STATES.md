@@ -1,7 +1,7 @@
 # STATES — Вова
-# Round 7
+# Round 15
 
-tension:          0.049
+tension:          0.000
 fear:             0.000
 dominance:        1.000
 anger:            0.000
@@ -12,12 +12,12 @@ mood:             dominant
 
 ## Trust
   agent_65c37face813: 0.605
-  agent_synth_c: 0.778
-  agent_synth_d: 0.873
+  agent_synth_c: 0.054
+  agent_synth_d: 0.955
   agent_synth_e: 0.605
   agent_synth_f: 0.605
-  agent_synth_g: 0.865
-  agent_synth_h: 0.848
+  agent_synth_g: 1.000
+  agent_synth_h: 1.000
   agent_synth_i: 1.000
   agent_synth_k: 0.605
   agent_synth_l: 0.605

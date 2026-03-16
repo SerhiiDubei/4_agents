@@ -1,5 +1,5 @@
 # STATES — Роман Романюк
-# Round 2
+# Round 15
 
 tension:          0.000
 fear:             0.000
@@ -15,10 +15,10 @@ mood:             dominant
   agent_synth_c: 1.000
   agent_synth_e: 0.510
   agent_synth_f: 0.510
-  agent_synth_g: 0.690
-  agent_synth_h: 0.851
+  agent_synth_g: 1.000
+  agent_synth_h: 1.000
   agent_synth_i: 1.000
-  agent_synth_j: 0.835
+  agent_synth_j: 1.000
   agent_synth_k: 0.510
   agent_synth_l: 0.510
   agent_synth_m: 0.510

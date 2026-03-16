@@ -455,11 +455,17 @@ def run_simulation(
                     visibility_mode="mixed",
                 )
                 last_round = agent.memory.last_round() if agent.memory else None
+                mem_sum = agent.memory.summary() if agent.memory else {}
+                from pipeline.memory import memory_summary_to_narrative
+                bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
+                bio_text = (bio_path.read_text(encoding="utf-8").strip()[:550]) if bio_path.exists() else ""
                 cfg = {
                     "agent_id": agent.agent_id,
                     "soul_md": agent.soul_md,
                     "states_md": agent.states.to_md() if agent.states else "",
-                    "memory_summary": agent.memory.summary() if agent.memory else {},
+                    "memory_summary": mem_sum,
+                    "memory_narrative": memory_summary_to_narrative(mem_sum, agent.agent_id, result.agent_names),
+                    "bio": bio_text,
                     "deception_tendency": agent.core.get("deception_tendency", 50),
                     "cooperation_bias": agent.core.get("cooperation_bias", 50),
                     "total_rounds": total_rounds,
@@ -545,7 +551,10 @@ def run_simulation(
                 if last_round and last_round.notes:
                     last_reflection = last_round.notes
                 mem_summary = agent.memory.summary() if agent.memory else {}
-                last_conclusion = mem_summary.get("last_conclusion", "")
+                from pipeline.memory import memory_summary_to_narrative
+                memory_narrative = memory_summary_to_narrative(mem_summary, agent.agent_id, result.agent_names)
+                _bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
+                bio_text = (_bio_path.read_text(encoding="utf-8").strip()[:500]) if _bio_path.exists() else ""
 
                 story_ctx = story_params.to_context_str() if story_params else ""
                 sit_text = (situations_per_agent.get(agent.agent_id, "") or "")[:400]
@@ -566,7 +575,9 @@ def run_simulation(
                     dialog_heard=dialog_heard,
                     trust_scores=trust,
                     last_reflection=last_reflection,
-                    last_conclusion=last_conclusion,
+                    last_conclusion=mem_summary.get("last_conclusion", ""),
+                    memory_narrative=memory_narrative,
+                    bio=bio_text,
                     model=agent.core.get("model", model),
                     agent_names=result.agent_names,
                     story_context=story_ctx,
@@ -828,7 +839,7 @@ def run_simulation(
             agent_round_mems[agent.agent_id] = round_mem
 
         # Post-round reflections — parallel LLM calls (non-critical)
-        from pipeline.reflection import reflect_on_round as _reflect_fn
+        from pipeline.reflection import reflect_on_round as _reflect_fn, log_reflection_error as _log_reflection_error
 
         if verbose:
             print(f"  [r{round_num}] reflections (parallel)...", file=_sys.stderr, flush=True)
@@ -852,6 +863,7 @@ def run_simulation(
                 return agent.agent_id, notes
             except Exception as _reflect_err:
                 print(f"  [reflect/round] {_name} r{round_num}: {_reflect_err}", file=_sys.stderr, flush=True)
+                _log_reflection_error(agent.agent_id, f"round r{round_num}", _reflect_err)
                 return agent.agent_id, ""
 
         async def _gather_reflections():
@@ -926,7 +938,7 @@ def run_simulation(
             # Post-game conclusion — fills game_history[-1]["conclusion"] (non-critical)
             if agent.memory.game_history:
                 import time as _time
-                from pipeline.reflection import reflect_on_game
+                from pipeline.reflection import reflect_on_game, log_reflection_error as _log_reflection_error
                 conclusion = None
                 for attempt in range(2):  # initial + 1 retry
                     try:
@@ -942,6 +954,7 @@ def run_simulation(
                     except Exception as _game_reflect_err:
                         import sys as _sys
                         print(f"  [reflect/game] {agent.agent_id}: {_game_reflect_err}", file=_sys.stderr, flush=True)
+                        _log_reflection_error(agent.agent_id, f"game {result.simulation_id}", _game_reflect_err)
                         if attempt == 0:
                             _time.sleep(2)
                 if conclusion is not None:
@@ -986,6 +999,13 @@ def load_agents_from_disk(agent_ids: List[str], agents_dir: Path = AGENTS_DIR) -
         memory = load_memory(agent_dir)
         if not memory.rounds and not (agent_dir / "MEMORY.json").exists():
             memory = initialize_memory(agent_id, agent_dir)
+
+        # Seed trust from last game's snapshot so "memory" of others carries over
+        if memory.game_history:
+            snapshot = memory.game_history[-1].get("trust_snapshot", {})
+            for peer_id, value in snapshot.items():
+                if peer_id in peers:
+                    states.trust[peer_id] = value
 
         agents.append(SimAgent(
             agent_id=agent_id,

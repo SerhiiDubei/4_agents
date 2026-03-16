@@ -101,6 +101,17 @@
       }
     },
     {
+      "id": "agent_synth_n",
+      "name": "Сергій",
+      "type": "real",
+      "source": "agents/agent_synth_n",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
       "id": "agent_synth_e",
       "name": "Тайлер Дерден",
       "type": "real",
