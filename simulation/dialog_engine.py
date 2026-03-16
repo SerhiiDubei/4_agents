@@ -145,7 +145,7 @@ def _build_context(
     rounds_left = total_rounds - round_number
     deception_flag = deception_tendency > 60
     return (
-        f"AGENT PROFILE:\n{soul_md[:500]}\n\n"
+        f"AGENT PROFILE:\n{soul_md[:800]}\n\n"
         f"CURRENT STATE:\n{states_md}\n\n"
         f"MEMORY:\n{json.dumps(memory_summary, ensure_ascii=False)[:300]}\n\n"
         f"Round {round_number}/{total_rounds}. {rounds_left} rounds left.\n"
@@ -216,7 +216,7 @@ def generate_dm(
     deception_flag = deception_tendency > 60
     system = _STEP_SYSTEM_TEMPLATE.format(
         agent_id=sender_id,
-        soul_md=soul_md[:600],
+        soul_md=soul_md[:900],
         dialog_rules=DIALOG_RULES,
     )
     if deception_flag:
@@ -470,7 +470,7 @@ def _build_step_context(
     # System prompt — stable identity (SOUL as first-person definition)
     system = _STEP_SYSTEM_TEMPLATE.format(
         agent_id=speaker_id,
-        soul_md=soul_md[:600],
+        soul_md=soul_md[:900],
         dialog_rules=DIALOG_RULES,
     )
     if deception_flag:
@@ -727,6 +727,15 @@ def generate_round_dialog_stepped(
 # Flat dialog model (simplified: 1 public + 1 DM per agent per round)
 # ---------------------------------------------------------------------------
 
+def _cooperation_val(val) -> float:
+    """Extract cooperation from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 def _format_last_round(summary: dict) -> str:
     """Convert last_round_summary dict to a compact human-readable string."""
     payoff = summary.get("payoff", 0.0)
@@ -753,11 +762,13 @@ def _format_last_round(summary: dict) -> str:
 
     parts = [f"you earned {payoff:+.1f} pts."]
     for aid, val in received.items():
+        v = _cooperation_val(val)
         short = aid.split("_")[-1][:8]
-        parts.append(f"{short} {_action_label(val)}")
+        parts.append(f"{short} {_action_label(v)}")
     for aid, val in given.items():
+        v = _cooperation_val(val)
         short = aid.split("_")[-1][:8]
-        parts.append(f"{_gave_label(val)} with {short} ({val:.2f})")
+        parts.append(f"{_gave_label(v)} with {short} ({v:.2f})")
     return " ".join(parts)
 
 
@@ -773,7 +784,7 @@ def _get_betrayers_from_last_round(summary: dict, names: dict) -> List[str]:
     received = summary.get("received", {})
     betrayers = []
     for aid, val in received.items():
-        if val <= 0.15:
+        if _cooperation_val(val) <= 0.15:
             betrayers.append(_dn(aid, names))
     return betrayers
 
@@ -799,7 +810,7 @@ def _build_flat_public_context(
 
     system = _STEP_SYSTEM_TEMPLATE.format(
         display_name=display_name,
-        soul_md=soul_md[:600],
+        soul_md=soul_md[:900],
         dialog_rules=DIALOG_RULES,
     )
     if deception_flag:
@@ -816,6 +827,7 @@ def _build_flat_public_context(
 
     # Last round personal reflection (if agent reflected after previous round)
     last_reflection = memory_summary.get("last_reflection", "")
+    last_conclusion = memory_summary.get("last_conclusion", "")
 
     # Last round concrete actions/outcomes (what actually happened)
     last_round_summary = cfg.get("last_round_summary")
@@ -861,6 +873,7 @@ def _build_flat_public_context(
         + (f"Last round: {last_round_text}\n" if last_round_text else "")
         + (betrayal_hint if betrayal_hint else "")
         + (f'Your reflection from last round: "{last_reflection}"\n' if last_reflection else "")
+        + (f'Your conclusion from last game: "{last_conclusion[:300]}"\n' if last_conclusion else "")
         + (others_context if others_context else "")
         + "Everyone will now make their decision — cooperate or betray — toward each other.\n"
         "This is your ONE public statement before that happens.\n"
@@ -1001,7 +1014,7 @@ def generate_round_dialog_flat(
 
         system = _STEP_SYSTEM_TEMPLATE.format(
             display_name=display_name,
-            soul_md=soul_md[:600],
+            soul_md=soul_md[:900],
             dialog_rules=DIALOG_RULES,
         )
         system += (
@@ -1089,7 +1102,7 @@ def generate_round_dialog_flat(
 
         system = _STEP_SYSTEM_TEMPLATE.format(
             display_name=display_name,
-            soul_md=soul_md[:600],
+            soul_md=soul_md[:900],
             dialog_rules=DIALOG_RULES,
         )
         system += "\nYou are writing a private reply. Be honest or strategic — only this person reads it."

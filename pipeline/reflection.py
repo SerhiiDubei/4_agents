@@ -63,23 +63,33 @@ def _dn(agent_id: str, names: dict) -> str:
     return names.get(agent_id) or agent_id.split("_")[-1][:6]
 
 
+def _cooperation_val(val) -> float:
+    """Extract cooperation from legacy float or per-dim dict (agent_id -> float or dict)."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 def _readable_actions(actions: dict, names: dict = None) -> str:
-    """Convert {agent_id: float} action dict to human-readable string."""
+    """Convert {agent_id: float|dict} action dict to human-readable string."""
     names = names or {}
     if not actions:
         return "none"
     parts = []
     for agent_id, val in actions.items():
-        if val <= 0.2:
+        v = _cooperation_val(val)
+        if v <= 0.2:
             label = "betrayed"
-        elif val <= 0.45:
+        elif v <= 0.45:
             label = "soft defect"
-        elif val <= 0.75:
+        elif v <= 0.75:
             label = "soft cooperate"
         else:
             label = "fully cooperated"
         name = _dn(agent_id, names)
-        parts.append(f"{name}: {label} ({val:.2f})")
+        parts.append(f"{name}: {label} ({v:.2f})")
     return ", ".join(parts)
 
 
@@ -140,7 +150,7 @@ def reflect_on_situation(
 
     system = _REFLECTION_SYSTEM_TEMPLATE.format(
         display_name=display_name,
-        soul_md=soul_md[:500],
+        soul_md=soul_md[:800],
     )
 
     user = (
@@ -176,7 +186,7 @@ def reflect_on_round(
 
     system = _REFLECTION_SYSTEM_TEMPLATE.format(
         display_name=display_name,
-        soul_md=soul_md[:500],
+        soul_md=soul_md[:800],
     )
 
     actions_given_text = _readable_actions(round_mem.actions_given, names)
@@ -228,7 +238,7 @@ def reflect_on_game(
 
     system = _REFLECTION_SYSTEM_TEMPLATE.format(
         display_name=display_name,
-        soul_md=soul_md[:500],
+        soul_md=soul_md[:800],
     )
 
     final_score = game_summary.get("final_score", 0)

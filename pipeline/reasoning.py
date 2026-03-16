@@ -105,21 +105,31 @@ def _dn(agent_id: str, names: dict) -> str:
     return names.get(agent_id) or agent_id.split("_")[-1][:8]
 
 
+def _cooperation_val(val) -> float:
+    """Extract cooperation from legacy float or per-dim dict."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        return float(val.get("cooperation", 0.5))
+    return 0.5
+
+
 def _format_received(actions_received: dict, names: dict = None) -> str:
     names = names or {}
     if not actions_received:
         return ""
     parts = []
     for aid, val in actions_received.items():
+        v = _cooperation_val(val)
         name = _dn(aid, names)
-        if val <= 0.15:
+        if v <= 0.15:
             label = "зрадив тебе (0.0)"
-        elif val <= 0.45:
-            label = f"м'яко зрадив ({val:.2f})"
-        elif val <= 0.75:
-            label = f"частково кооперував ({val:.2f})"
+        elif v <= 0.45:
+            label = f"м'яко зрадив ({v:.2f})"
+        elif v <= 0.75:
+            label = f"частково кооперував ({v:.2f})"
         else:
-            label = f"повністю кооперував ({val:.2f})"
+            label = f"повністю кооперував ({v:.2f})"
         parts.append(f"  {name}: {label}")
     return "\n".join(parts)
 
@@ -130,15 +140,16 @@ def _format_given(actions_given: dict, names: dict = None) -> str:
         return ""
     parts = []
     for aid, val in actions_given.items():
+        v = _cooperation_val(val)
         name = _dn(aid, names)
-        if val <= 0.15:
+        if v <= 0.15:
             label = "ти зрадив (0.0)"
-        elif val <= 0.45:
-            label = f"ти м'яко зрадив ({val:.2f})"
-        elif val <= 0.75:
-            label = f"ти частково кооперував ({val:.2f})"
+        elif v <= 0.45:
+            label = f"ти м'яко зрадив ({v:.2f})"
+        elif v <= 0.75:
+            label = f"ти частково кооперував ({v:.2f})"
         else:
-            label = f"ти повністю кооперував ({val:.2f})"
+            label = f"ти повністю кооперував ({v:.2f})"
         parts.append(f"  {name}: {label}")
     return "\n".join(parts)
 
@@ -243,6 +254,7 @@ def generate_reasoning(
     dialog_heard: dict,
     trust_scores: dict,
     last_reflection: str = "",
+    last_conclusion: str = "",
     model: str = "google/gemini-2.0-flash-001",
     agent_names: Optional[dict] = None,
     story_context: str = "",
@@ -257,6 +269,7 @@ def generate_reasoning(
     dialog_heard: raw dict from game_engine — may mix public and DM messages.
                   DM messages are identified by keys starting with 'dm:'.
     last_reflection: agent's own note from the previous round (from RoundMemory.notes).
+    last_conclusion: agent's post-game conclusion from last game (from memory.game_history).
     agent_names: {agent_id: display_name} — used in prompts so LLM uses real names.
 
     Returns ReasoningResult with thought + per-target intents.
@@ -280,7 +293,7 @@ def generate_reasoning(
 
     system = _REASONING_SYSTEM_TEMPLATE.format(
         display_name=display_name,
-        soul_md=soul_md[:600],
+        soul_md=soul_md[:900],
         peers_named=peers_named,
     )
 
@@ -336,6 +349,8 @@ def generate_reasoning(
         user_parts.append(f"\nЩо відбулось в діалозі:\n{dialog_text}")
     if last_reflection:
         user_parts.append(f'\nТвоя власна нотатка з минулого раунду: "{last_reflection}"')
+    if last_conclusion:
+        user_parts.append(f'\nТвій висновок з минулої гри: "{last_conclusion[:350]}"')
 
     user_parts.append(
         f"\nТепер вирішуй: яке значення (0.0 / 0.33 / 0.66 / 1.0) ти даси кожному з {peers_display}?\n"

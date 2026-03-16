@@ -351,7 +351,12 @@ def run_simulation(
                     for a in roster_data.get("agents", []):
                         aid = a.get("id")
                         if aid in agent_ids and a.get("profile"):
-                            agent_profiles[aid] = a["profile"]
+                            agent_profiles[aid] = dict(a["profile"])
+                # Enrich bio from agents/{id}/BIO.md if present
+                for aid in list(agent_profiles.keys()):
+                    bio_path = AGENTS_DIR / aid / "BIO.md"
+                    if bio_path.exists():
+                        agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
                 import asyncio as _asyncio
                 import sys as _sys
 
@@ -539,6 +544,8 @@ def run_simulation(
                 last_reflection = ""
                 if last_round and last_round.notes:
                     last_reflection = last_round.notes
+                mem_summary = agent.memory.summary() if agent.memory else {}
+                last_conclusion = mem_summary.get("last_conclusion", "")
 
                 story_ctx = story_params.to_context_str() if story_params else ""
                 sit_text = (situations_per_agent.get(agent.agent_id, "") or "")[:400]
@@ -559,6 +566,7 @@ def run_simulation(
                     dialog_heard=dialog_heard,
                     trust_scores=trust,
                     last_reflection=last_reflection,
+                    last_conclusion=last_conclusion,
                     model=agent.core.get("model", model),
                     agent_names=result.agent_names,
                     story_context=story_ctx,
@@ -703,7 +711,11 @@ def run_simulation(
                     for a in roster_data.get("agents", []):
                         aid = a.get("id")
                         if aid in agent_ids and a.get("profile"):
-                            agent_profiles[aid] = a["profile"]
+                            agent_profiles[aid] = dict(a["profile"])
+                for aid in list(agent_profiles.keys()):
+                    bio_path = AGENTS_DIR / aid / "BIO.md"
+                    if bio_path.exists():
+                        agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
                 prev_narr = " ".join(
                     r.round_narrative for r in result.rounds[-2:] if getattr(r, "round_narrative", "")
                 )[:500]
@@ -907,28 +919,36 @@ def run_simulation(
             )
             if has_disk:
                 from pipeline.memory import save_memory
+                from pipeline.state_machine import save_states
                 save_memory(agent.memory, agent_dir)
+                save_states(agent.states, agent_dir, display_name=agent.name)
 
             # Post-game conclusion — fills game_history[-1]["conclusion"] (non-critical)
-            try:
+            if agent.memory.game_history:
+                import time as _time
                 from pipeline.reflection import reflect_on_game
-                if agent.memory.game_history:
-                    conclusion = reflect_on_game(
-                        agent_id=agent.agent_id,
-                        soul_md=agent.soul_md,
-                        game_summary=agent.memory.game_history[-1],
-                        recent_rounds=recent_for_conclusion,
-                        model=agent.core.get("model", model),
-                        agent_names=result.agent_names,
-                    )
+                conclusion = None
+                for attempt in range(2):  # initial + 1 retry
+                    try:
+                        conclusion = reflect_on_game(
+                            agent_id=agent.agent_id,
+                            soul_md=agent.soul_md,
+                            game_summary=agent.memory.game_history[-1],
+                            recent_rounds=recent_for_conclusion,
+                            model=agent.core.get("model", model),
+                            agent_names=result.agent_names,
+                        )
+                        break
+                    except Exception as _game_reflect_err:
+                        import sys as _sys
+                        print(f"  [reflect/game] {agent.agent_id}: {_game_reflect_err}", file=_sys.stderr, flush=True)
+                        if attempt == 0:
+                            _time.sleep(2)
+                if conclusion is not None:
                     agent.memory.game_history[-1]["conclusion"] = conclusion
-                    # Re-save to disk if needed
                     if has_disk:
                         from pipeline.memory import save_memory
                         save_memory(agent.memory, agent_dir)
-            except Exception as _game_reflect_err:
-                import sys as _sys
-                print(f"  [reflect/game] {agent.agent_id}: {_game_reflect_err}", file=_sys.stderr, flush=True)
 
     return result
 

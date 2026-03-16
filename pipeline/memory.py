@@ -139,6 +139,7 @@ class AgentMemory:
             "cooperations_received": total_cooperations,
             "final_mood": final_mood,
             "reveals_used": self.reveals_used,
+            "conclusion": "",
         })
 
         if clear_rounds:
@@ -192,6 +193,14 @@ class AgentMemory:
             result["career_wins"] = sum(
                 1 for g in self.game_history if g.get("winner") == self.agent_id
             )
+            result["last_conclusion"] = self.game_history[-1].get("conclusion", "")
+            result["recent_conclusions"] = [
+                g.get("conclusion", "") for g in self.game_history[-3:]
+                if g.get("conclusion")
+            ]
+        else:
+            result["last_conclusion"] = ""
+            result["recent_conclusions"] = []
         # Last round reflection — freshest personal context for next round's dialog
         if self.rounds and self.rounds[-1].notes:
             result["last_reflection"] = self.rounds[-1].notes
