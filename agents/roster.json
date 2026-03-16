@@ -1,0 +1,137 @@
+{
+  "default_count": 6,
+  "agents": [
+    {
+      "id": "agent_synth_g",
+      "name": "Вождь",
+      "type": "real",
+      "source": "agents/agent_synth_g",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_c",
+      "name": "Алєг",
+      "type": "real",
+      "source": "agents/agent_synth_c",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_d",
+      "name": "Роман Романюк",
+      "type": "real",
+      "source": "agents/agent_synth_d",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_h",
+      "name": "Марта",
+      "type": "real",
+      "source": "agents/agent_synth_h",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_i",
+      "name": "Павло",
+      "type": "real",
+      "source": "agents/agent_synth_i",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_j",
+      "name": "Вова",
+      "type": "real",
+      "source": "agents/agent_synth_j",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_k",
+      "name": "Ліля",
+      "type": "real",
+      "source": "agents/agent_synth_k",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_l",
+      "name": "Артурчик",
+      "type": "real",
+      "source": "agents/agent_synth_l",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_m",
+      "name": "Чорна Кішка",
+      "type": "real",
+      "source": "agents/agent_synth_m",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_e",
+      "name": "Тайлер Дерден",
+      "type": "real",
+      "source": "agents/agent_synth_e",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_synth_f",
+      "name": "Катерина Марсова",
+      "type": "real",
+      "source": "agents/agent_synth_f",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    },
+    {
+      "id": "agent_65c37face813",
+      "name": "Новий персонаж",
+      "type": "real",
+      "source": "agents/agent_65c37face813",
+      "profile": {
+        "connections": "",
+        "profession": "",
+        "bio": ""
+      }
+    }
+  ]
+}

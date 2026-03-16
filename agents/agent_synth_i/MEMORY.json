@@ -1,0 +1,59 @@
+{
+  "agent_id": "agent_synth_i",
+  "total_score": 182.4427,
+  "reveals_used": 0,
+  "trust_history": {},
+  "game_history": [
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 170.52,
+      "winner": "agent_synth_d",
+      "betrayals_received": 15,
+      "cooperations_received": 20,
+      "final_mood": "dominant",
+      "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 181.19,
+      "winner": "agent_synth_h",
+      "betrayals_received": 16,
+      "cooperations_received": 19,
+      "final_mood": "dominant",
+      "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 152.04,
+      "winner": "agent_synth_d",
+      "betrayals_received": 18,
+      "cooperations_received": 17,
+      "final_mood": "dominant",
+      "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 191.59,
+      "winner": "agent_synth_i",
+      "betrayals_received": 10,
+      "cooperations_received": 25,
+      "final_mood": "dominant",
+      "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 182.44,
+      "winner": "agent_synth_j",
+      "betrayals_received": 14,
+      "cooperations_received": 21,
+      "final_mood": "dominant",
+      "reveals_used": 0
+    }
+  ],
+  "rounds": []
+}

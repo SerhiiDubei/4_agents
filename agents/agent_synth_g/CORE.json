@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 58,
+  "deception_tendency": 30,
+  "strategic_horizon": 85,
+  "risk_appetite": 60,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Вождь",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_g"
+  },
+  "trait_log": []
+}

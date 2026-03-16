@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 72,
+  "deception_tendency": 25,
+  "strategic_horizon": 80,
+  "risk_appetite": 45,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Катерина Марсова",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_f"
+  },
+  "trait_log": []
+}

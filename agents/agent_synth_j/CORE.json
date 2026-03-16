@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 70,
+  "deception_tendency": 10,
+  "strategic_horizon": 90,
+  "risk_appetite": 35,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Вова",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_j"
+  },
+  "trait_log": []
+}

@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 52,
+  "deception_tendency": 55,
+  "strategic_horizon": 72,
+  "risk_appetite": 58,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Чорна Кішка",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_m"
+  },
+  "trait_log": []
+}
