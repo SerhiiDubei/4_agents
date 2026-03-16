@@ -1,11 +1,11 @@
 # STATES — Вождь
-# Round 7
+# Round 2
 
 tension:          0.000
 fear:             0.000
 dominance:        1.000
 anger:            0.000
-interest:         0.984
+interest:         1.000
 talk_cooldown:    0
 attention_target: 
 mood:             dominant

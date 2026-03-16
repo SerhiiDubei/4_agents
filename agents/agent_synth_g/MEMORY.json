@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_g",
-  "total_score": 187.496,
+  "total_score": 10.2175,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -53,6 +53,17 @@
       "cooperations_received": 24,
       "final_mood": "dominant",
       "reveals_used": 0
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 10.22,
+      "winner": "agent_synth_d",
+      "betrayals_received": 0,
+      "cooperations_received": 2,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Романюк виявився розумнішим, ніж я думав. В першому раунді він трохи злякався, але потім зрозумів, що я тримаю слово. Треба було з самого початку натиснути сильніше, щоб він не вагався. Наступного разу буду менше роздумувати і більше довіряти інстинктам. Головне – бачити, хто готовий йти до кінця, а хто боїться ризикнути."
     }
   ],
   "rounds": []
