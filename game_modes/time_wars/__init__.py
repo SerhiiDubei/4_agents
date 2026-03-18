@@ -1,5 +1,5 @@
 """
-TIME WARS — game mode: time as resource, ADD/Steal/Cooperate, roles with skills.
+TIME WARS — game mode: time as resource, ADD/Steal/Cooperate, roles with skills, codes (manifest).
 Aligned with TIMER (rooms, players, events, codes) for future UI/integration.
 """
 
@@ -17,6 +17,19 @@ from game_modes.time_wars.constants import (
     EVENT_TYPE_GAME_START,
     EVENT_TYPE_GAME_OVER,
     EVENT_TYPE_ROLE_ASSIGNMENT,
+    X_MANA_PER_MINUTE,
+    CODE_CLASS_C,
+    CODE_CLASS_B,
+    CODE_CLASS_A,
+    CODE_CLASS_S,
+    RISK_LEVEL_MULTIPLIER,
+)
+from game_modes.time_wars.code_manifest import (
+    TYPE_COEFFICIENTS,
+    code_cost,
+    base_ev_from_cost,
+    segment_for_cost,
+    validate_card,
 )
 
 __all__ = [
@@ -33,4 +46,15 @@ __all__ = [
     "EVENT_TYPE_GAME_START",
     "EVENT_TYPE_GAME_OVER",
     "EVENT_TYPE_ROLE_ASSIGNMENT",
+    "X_MANA_PER_MINUTE",
+    "CODE_CLASS_C",
+    "CODE_CLASS_B",
+    "CODE_CLASS_A",
+    "CODE_CLASS_S",
+    "RISK_LEVEL_MULTIPLIER",
+    "TYPE_COEFFICIENTS",
+    "code_cost",
+    "base_ev_from_cost",
+    "segment_for_cost",
+    "validate_card",
 ]

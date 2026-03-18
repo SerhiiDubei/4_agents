@@ -23,6 +23,12 @@ MUTUAL_DEFECT_LOSS = 10
 STEAL_ROLL_SUCCESS_MIN = 15
 STEAL_ROLL_PARTIAL_MIN = 8
 
+# Mana (trust = mana; gain/loss per action)
+COOP_MANA_EACH = 5           # both get +5 mana on cooperate
+STEAL_MANA_SUCCESS_ACTOR = 8  # actor gains mana on successful steal
+STEAL_MANA_FAIL_ACTOR = -3   # actor loses mana on failed steal
+STARTING_MANA = 20
+
 # Event type names (TIMER-compatible)
 EVENT_TYPE_COOPERATE = "cooperate"
 EVENT_TYPE_STEAL = "steal"
@@ -35,6 +41,30 @@ EVENT_TYPE_ELIMINATION = "elimination"
 EVENT_TYPE_GAME_START = "game_start"
 EVENT_TYPE_GAME_OVER = "game_over"
 EVENT_TYPE_ROLE_ASSIGNMENT = "role_assignment"
+EVENT_TYPE_CODE_BUY = "code_buy"
+EVENT_TYPE_STATE_SNAPSHOT = "state_snapshot"
+EVENT_TYPE_ROUND_START = "round_start"
+EVENT_TYPE_PLAYER_INTENT = "player_intent"
 
 # Action phase
 ACTION_PHASE_INTERVAL_SEC = 30         # run action phase every N sec (or on event)
+
+# Balance / simulation (1 tick = 1 "game minute" for pacing)
+SECONDS_PER_GAME_MINUTE = 60           # 1 game minute = 60 sec (tick cost per player per tick)
+DEFAULT_BALANCE_B_MINUTES = 20         # default start time per player (game minutes)
+DEFAULT_BALANCE_T_TICKS = 20           # default game length (ticks = game minutes)
+
+# ---------------------------------------------------------------------------
+# Code manifest (CODE_MANIFEST.md) — classes and risk
+# ---------------------------------------------------------------------------
+from game_modes.time_wars.code_manifest import (
+    X_MANA_PER_MINUTE,
+    CODE_CLASS_C,
+    CODE_CLASS_B,
+    CODE_CLASS_A,
+    CODE_CLASS_S,
+    CODE_CLASS_COEFFICIENT,
+    CODE_CLASS_PRICE_MIN,
+    CODE_CLASS_PRICE_MAX,
+    RISK_LEVEL_MULTIPLIER,
+)

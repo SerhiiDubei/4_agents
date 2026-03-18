@@ -20,11 +20,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, List, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
 
 # Project root (absolute) for .env loading
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -64,10 +65,51 @@ app = FastAPI(title="Island Agent Init", version="1.0.0")
 
 logger = logging.getLogger("island")
 
+# ---------------------------------------------------------------------------
+# DB + Auth setup
+# ---------------------------------------------------------------------------
+from db.database import init_db, get_db, SessionLocal
+from db.models import User, GameSession
+from db.auth import hash_password, verify_password, create_access_token, decode_token
+from sqlalchemy.orm import Session as DbSession
+import uuid as _uuid_mod
+
+_http_bearer = HTTPBearer(auto_error=False)
+
+
+def _get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+) -> Optional[User]:
+    """Returns current User or None (endpoints that accept optional auth)."""
+    if not credentials:
+        return None
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        return None
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    return user
+
+
+def _require_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+) -> User:
+    """Like _get_current_user but raises 401 if not authenticated."""
+    user = _get_current_user.__wrapped__(credentials, db) if hasattr(_get_current_user, "__wrapped__") else None
+    if credentials:
+        payload = decode_token(credentials.credentials)
+        if payload:
+            user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return user
+
 
 @app.on_event("startup")
 def _ensure_env_loaded():
-    """Load .env on startup so worker always has OPENROUTER_API_KEY (fixes uvicorn reload)."""
+    """Load .env on startup and initialize DB."""
+    init_db()
     env_file = _PROJECT_ROOT / ".env"
     if env_file.is_file():
         try:
@@ -103,6 +145,120 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+# Auth endpoints
+# ---------------------------------------------------------------------------
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    username: str
+
+
+import collections as _collections
+import time as _time
+_auth_rate: dict[str, list] = _collections.defaultdict(list)
+
+def _auth_rate_limit(key: str, max_calls: int = 5, window: float = 60.0) -> bool:
+    now = _time.time()
+    _auth_rate[key] = [t for t in _auth_rate[key] if now - t < window]
+    if len(_auth_rate[key]) >= max_calls:
+        return False
+    _auth_rate[key].append(now)
+    return True
+
+from fastapi import Request as _Request
+
+@app.post("/auth/register", response_model=TokenResponse, tags=["auth"])
+def auth_register(body: RegisterRequest, request: _Request, db: DbSession = Depends(get_db)):
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"register:{ip}"):
+        raise HTTPException(status_code=429, detail="Too many registration attempts")
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    user = User(
+        id=str(_uuid_mod.uuid4()),
+        username=body.username,
+        email=body.email,
+        password_hash=hash_password(body.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user_id=user.id, username=user.username)
+
+
+@app.post("/auth/login", response_model=TokenResponse, tags=["auth"])
+def auth_login(body: LoginRequest, request: _Request, db: DbSession = Depends(get_db)):
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"login:{ip}", max_calls=10):
+        raise HTTPException(status_code=429, detail="Too many login attempts")
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user_id=user.id, username=user.username)
+
+
+@app.get("/auth/me", tags=["auth"])
+def auth_me(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user_id": user.id, "username": user.username, "email": user.email, "created_at": user.created_at}
+
+
+@app.get("/api/my-games", tags=["auth"])
+def my_games(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    sessions = (
+        db.query(GameSession)
+        .filter(GameSession.human_player_id == payload.get("sub"))
+        .order_by(GameSession.started_at.desc())
+        .limit(50)
+        .all()
+    )
+    return {"games": [
+        {
+            "session_id": s.session_id,
+            "started_at": s.started_at,
+            "ended_at": s.ended_at,
+            "winner_id": s.winner_id,
+            "rounds": s.rounds,
+            "report_path": s.report_path,
+        }
+        for s in sessions
+    ]}
+
 
 # In-memory session store: session_id → SessionState dict
 _sessions: dict[str, dict[str, Any]] = {}
@@ -1337,6 +1493,7 @@ async def api_list_agents() -> Dict[str, Any]:
 LOGS_DIR = _PROJECT_ROOT / "logs"
 
 _GAMES_SUMMARY_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_game_(\d+)\.json")
+_TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jsonl")
 
 
 @app.get("/api/games-count")
@@ -1408,6 +1565,125 @@ async def games_summary() -> dict[str, Any]:
     return {
         "games": games,
         "runs": runs_order,
+        "agentTotals": agent_totals,
+        "agentNames": agent_names_order,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Time Wars API
+# ---------------------------------------------------------------------------
+
+def _load_agent_names() -> dict[str, str]:
+    """Load agent display names from agents/*/MEMORY.json or roster.json."""
+    names: dict[str, str] = {}
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            for a in roster.get("agents", []):
+                if a.get("id") and a.get("name"):
+                    names[a["id"]] = a["name"]
+        except Exception:
+            pass
+    # Fallback: scan agents/*/MEMORY.json
+    for mem in (_PROJECT_ROOT / "agents").glob("*/MEMORY.json"):
+        try:
+            data = json.loads(mem.read_text(encoding="utf-8"))
+            aid = mem.parent.name
+            name = data.get("name") or data.get("agent_name") or aid
+            if aid not in names:
+                names[aid] = name
+        except Exception:
+            pass
+    return names
+
+
+def _parse_tw_jsonl(path: Path) -> dict[str, Any] | None:
+    """Parse a time_wars JSONL file and return summary dict."""
+    game_start: dict[str, Any] = {}
+    game_over: dict[str, Any] = {}
+    roles: dict[str, str] = {}
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except Exception:
+                continue
+            et = ev.get("event_type", "")
+            if et == "game_start":
+                game_start = ev
+            elif et == "role_assignment":
+                roles[ev.get("agent_id", "")] = ev.get("role_id", "")
+            elif et == "game_over":
+                game_over = ev
+    except Exception:
+        return None
+    if not game_over:
+        return None
+    return {"game_start": game_start, "game_over": game_over, "roles": roles}
+
+
+@app.get("/api/time-wars-count")
+async def time_wars_count() -> dict[str, int]:
+    """Return number of completed Time Wars sessions."""
+    if not LOGS_DIR.exists():
+        return {"count": 0}
+    count = sum(1 for f in LOGS_DIR.glob("time_wars_*.jsonl") if _TW_PATTERN.match(f.name))
+    return {"count": count}
+
+
+@app.get("/api/time-wars-summary")
+async def time_wars_summary() -> dict[str, Any]:
+    """Return summary of all time_wars_*.jsonl logs."""
+    if not LOGS_DIR.exists():
+        return {"sessions": [], "agentTotals": {}, "agentNames": []}
+
+    paths = [f for f in LOGS_DIR.glob("time_wars_*.jsonl") if _TW_PATTERN.match(f.name)]
+    paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    agent_display = _load_agent_names()
+    sessions: list[dict[str, Any]] = []
+    agent_totals: dict[str, int] = {}
+    agent_names_order: list[str] = []
+
+    for path in paths:
+        m = _TW_PATTERN.match(path.name)
+        if not m:
+            continue
+        session_id, date_str, time_str = m.group(1), m.group(2), m.group(3)
+        parsed = _parse_tw_jsonl(path)
+        if not parsed:
+            continue
+        go = parsed["game_over"]
+        final_times: dict[str, int] = go.get("final_times", {})
+        winner_id: str = go.get("winner_id", "")
+        winner_name = agent_display.get(winner_id, winner_id)
+        played_at = f"{date_str} {time_str.replace('-', ':')}"
+
+        scores_by_name = {agent_display.get(aid, aid): t for aid, t in final_times.items()}
+        for name, val in scores_by_name.items():
+            agent_totals[name] = agent_totals.get(name, 0) + val
+
+        if not agent_names_order and scores_by_name:
+            agent_names_order = list(scores_by_name.keys())
+
+        html_name = path.name.replace(".jsonl", ".html")
+        sessions.append({
+            "sessionId": session_id,
+            "playedAt": played_at,
+            "winner": winner_name,
+            "finalTimes": scores_by_name,
+            "roles": {agent_display.get(aid, aid): rid for aid, rid in parsed["roles"].items()},
+            "reportPath": f"/logs/{html_name}",
+            "tick": go.get("tick", 0),
+        })
+
+    return {
+        "sessions": sessions,
         "agentTotals": agent_totals,
         "agentNames": agent_names_order,
     }

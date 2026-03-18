@@ -9,7 +9,7 @@
           "id": "skill_snake_steal_bonus",
           "name": "Гострий зуб",
           "trigger": "BEFORE_STEAL_ROLL",
-          "effect": { "steal_roll_bonus": 2 },
+          "effect": { "steal_roll_bonus": 1 },
           "cost": { "time_seconds": 0 },
           "passive": true
         },

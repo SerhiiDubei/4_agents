@@ -18,12 +18,13 @@ _ROLES_PATH = Path(__file__).resolve().parent / "roles.json"
 
 @dataclass
 class Player:
-    """One player in a TIME WARS session. Maps to TIMER player + role + inventory."""
+    """One player in a TIME WARS session. Maps to TIMER player + role + inventory + mana."""
     agent_id: str
     time_remaining_sec: int
     role_id: str
-    inventory: List[dict] = field(default_factory=list)  # list of code items: {"code_id": str, "effect_type": str, "seconds": int}
+    inventory: List[dict] = field(default_factory=list)  # list of code items: card or {"code_id", "seconds"} legacy
     status: str = "active"  # active | eliminated
+    mana: float = 20.0  # trust = mana; start 20, accumulates per round
 
     def to_dict(self) -> dict:
         return {
@@ -32,6 +33,7 @@ class Player:
             "role_id": self.role_id,
             "inventory": list(self.inventory),
             "status": self.status,
+            "mana": self.mana,
         }
 
 
@@ -134,6 +136,7 @@ def create_session(
             role_id=assignments.get(aid, "role_snake"),
             inventory=[],
             status="active",
+            mana=20.0,
         )
         for aid in agent_ids
     ]
