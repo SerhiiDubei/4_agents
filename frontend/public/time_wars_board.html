@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIME WARS — Робоча модель гри</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding-top: 0;
+    }
+    .timer-top {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, #0f172a 0%, #0c1222 100%);
+      border-bottom: 2px solid #334155;
+      padding: 14px 20px 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .timer-top h1 { font-size: 1rem; color: #94a3b8; letter-spacing: 0.15em; margin-bottom: 10px; font-weight: 600; }
+    .timer-main { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .timer-digits { font-size: 1.75rem; font-weight: 700; color: #38bdf8; font-variant-numeric: tabular-nums; }
+    .timer-digits .current { color: #7dd3fc; }
+    .timer-digits .total { color: #64748b; font-weight: 500; }
+    .timer-progress-wrap { flex: 1; min-width: 120px; max-width: 320px; height: 12px; background: #1e293b; border-radius: 6px; overflow: hidden; }
+    .timer-progress-bar { height: 100%; background: linear-gradient(90deg, #0ea5e9, #38bdf8); border-radius: 6px; transition: width 0.3s ease; }
+    .timer-left { font-size: 0.95rem; color: #94a3b8; }
+    .timer-left strong { color: #e2e8f0; }
+    .game-over-badge { background: #14532d; color: #4ade80; padding: 4px 10px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; }
+    .board { max-width: 900px; margin: 0 auto; padding: 24px 20px 40px; }
+    .players-title { font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+    .players-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .player-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 16px; transition: border-color 0.2s, box-shadow 0.2s; }
+    .player-card.winner { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25); }
+    .player-card.eliminated { opacity: 0.65; border-color: #475569; }
+    .player-card .name { font-weight: 700; color: #f1f5f9; font-size: 1rem; }
+    .player-card .role { font-size: 0.8rem; color: #f59e0b; margin-top: 4px; }
+    .player-card .time { font-size: 1.25rem; font-weight: 700; color: #38bdf8; margin-top: 8px; font-variant-numeric: tabular-nums; }
+    .player-card .time.zero { color: #64748b; }
+    .player-card .status { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+    .controls { margin-top: 28px; padding-top: 20px; border-top: 1px solid #334155; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn { padding: 10px 18px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border: none; background: #334155; color: #e2e8f0; }
+    .btn:hover { background: #475569; }
+    .btn.primary { background: #0ea5e9; color: #fff; }
+    .btn.primary:hover { background: #0284c7; }
+    .btn.btn-show-game { font-size: 1.2rem; padding: 14px 28px; background: #16a34a; color: #fff; }
+    .btn.btn-show-game:hover { background: #15803d; }
+    .btn.btn-result { background: #7c3aed; color: #fff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .btn.btn-result:hover { background: #6d28d9; color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .last-event { margin-top: 16px; padding: 10px 14px; background: #0f172a; border-left: 4px solid #475569; border-radius: 4px; font-size: 0.9rem; color: #94a3b8; }
+    .last-event.coop { border-left-color: #22c55e; }
+    .last-event.steal { border-left-color: #ef4444; }
+    .last-event.storm { border-left-color: #3b82f6; }
+    .last-event.crisis { border-left-color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <header class="timer-top">
+    <h1>TIME WARS</h1>
+    <div class="timer-main">
+      <div class="timer-digits"><span class="current" id="tick-current">0</span><span class="total"> / <span id="tick-total">20</span> тіків</span></div>
+      <div class="timer-progress-wrap"><div class="timer-progress-bar" id="timer-progress" style="width: 0%"></div></div>
+      <div class="timer-left">Залишилось: <strong id="tick-left">20</strong> тіків</div>
+      <div id="game-over-badge" class="game-over-badge" style="display: none;">Гра завершена</div>
+    </div>
+  </header>
+  <main class="board">
+    <p class="players-title">Гравці</p>
+    <div class="players-grid" id="players-grid"></div>
+    <div class="last-event" id="last-event">—</div>
+    <div class="controls">
+      <button type="button" class="btn btn-show-game primary" id="btn-demo">СТАРТ</button>
+      <button type="button" class="btn" id="btn-stop" disabled>Зупинити</button>
+      <button type="button" class="btn btn-result" id="btn-results">ПОДИВИТИСЬ РЕЗУЛЬТАТ ГРИ</button>
+    </div>
+  </main>
+  <script>
+    (function () {
+      const TICK_TOTAL = 20, TICK_MS = 800, START_SEC = 90, COOP_REWARD = 30, STEAL_GAIN = 45, STEAL_LOSS = 30;
+      const PLAYERS = [
+        { id: 'agent_synth_g', name: 'Вождь', role: 'Миротворець' },
+        { id: 'agent_synth_c', name: 'Алєг', role: 'Гемблер' },
+        { id: 'agent_synth_d', name: 'Роман Романюк', role: 'Банкір' },
+        { id: 'agent_synth_h', name: 'Марта', role: 'Миротворець' },
+      ];
+      let state = { tick: 0, players: PLAYERS.map(p => ({ ...p, timeSec: START_SEC, status: 'active' })), winnerId: null, lastEvent: '—' };
+      let demoInterval = null;
+      function getActivePlayers() { return state.players.filter(p => p.status === 'active'); }
+      function render() {
+        document.getElementById('tick-current').textContent = state.tick;
+        document.getElementById('tick-total').textContent = TICK_TOTAL;
+        document.getElementById('tick-left').textContent = Math.max(0, TICK_TOTAL - state.tick);
+        document.getElementById('timer-progress').style.width = (state.tick / TICK_TOTAL * 100) + '%';
+        document.getElementById('game-over-badge').style.display = state.winnerId || state.tick >= TICK_TOTAL ? 'block' : 'none';
+        const sorted = [...state.players].sort((a, b) => b.timeSec - a.timeSec);
+        document.getElementById('players-grid').innerHTML = sorted.map(p => {
+          const isWinner = state.winnerId === p.id, eliminated = p.status === 'eliminated' || p.timeSec <= 0;
+          return '<div class="player-card ' + (isWinner ? 'winner' : '') + ' ' + (eliminated ? 'eliminated' : '') + '"><div class="name">' + p.name + '</div><div class="role">' + p.role + '</div><div class="time ' + (p.timeSec <= 0 ? 'zero' : '') + '">' + Math.max(0, p.timeSec) + ' сек</div><div class="status">' + (eliminated ? 'Вибув' : 'Активний') + '</div></div>';
+        }).join('');
+        document.getElementById('last-event').textContent = state.lastEvent;
+        document.getElementById('last-event').className = 'last-event ' + (state.lastEvent.includes('кооп') ? 'coop' : state.lastEvent.includes('вкрав') ? 'steal' : state.lastEvent.includes('Шторм') ? 'storm' : state.lastEvent.includes('Криза') ? 'crisis' : '');
+      }
+      function tick() {
+        if (state.tick >= TICK_TOTAL) return;
+        state.tick += 1;
+        const active = getActivePlayers();
+        active.forEach(p => { p.timeSec = Math.max(0, p.timeSec - 1); if (p.timeSec <= 0) p.status = 'eliminated'; });
+        if (state.tick === 10) { active.forEach(p => { p.timeSec = Math.max(0, p.timeSec - 15); if (p.timeSec <= 0) p.status = 'eliminated'; }); state.lastEvent = '⛈ Шторм: всі −15 сек'; }
+        else if (state.tick === 14) { active.filter(p => p.timeSec < 60).forEach(p => { p.timeSec = Math.max(0, p.timeSec - 20); if (p.timeSec <= 0) p.status = 'eliminated'; }); state.lastEvent = '⚠ Криза: хто < 60 сек −20 сек'; }
+        else if (active.length >= 2 && Math.random() < 0.4) {
+          if (Math.random() < 0.6) {
+            const i = Math.floor(Math.random() * active.length), j = i === 0 ? 1 : (i === active.length - 1 ? i - 1 : (Math.random() < 0.5 ? i - 1 : i + 1));
+            const o = active[j] || active[0];
+            active[i].timeSec += COOP_REWARD; o.timeSec += COOP_REWARD;
+            state.lastEvent = '🤝 ' + active[i].name + ' та ' + o.name + ' кооперують (+' + COOP_REWARD + ' сек)';
+          } else {
+            const i = Math.floor(Math.random() * active.length), j = i === 0 ? 1 : (i === active.length - 1 ? i - 1 : (Math.random() < 0.5 ? i - 1 : i + 1));
+            const o = active[j] || active[0], loss = Math.min(STEAL_LOSS, o.timeSec);
+            active[i].timeSec += STEAL_GAIN; o.timeSec = Math.max(0, o.timeSec - loss); if (o.timeSec <= 0) o.status = 'eliminated';
+            state.lastEvent = '🎭 ' + active[i].name + ' вкрав у ' + o.name + ' (+' + STEAL_GAIN + '/−' + loss + ' сек)';
+          }
+        } else state.lastEvent = 'Тік ' + state.tick + ': всі −1 сек';
+        const stillActive = getActivePlayers();
+        if (stillActive.length === 1) state.winnerId = stillActive[0].id;
+        if (state.tick >= TICK_TOTAL && !state.winnerId && stillActive.length > 0) state.winnerId = stillActive.reduce((a, b) => a.timeSec >= b.timeSec ? a : b).id;
+        render();
+      }
+      function runDemo() {
+        if (demoInterval) return;
+        state = { tick: 0, players: PLAYERS.map(p => ({ ...p, timeSec: START_SEC, status: 'active' })), winnerId: null, lastEvent: 'Гра почалась. Демо запущено.' };
+        render();
+        document.getElementById('btn-demo').disabled = true;
+        document.getElementById('btn-stop').disabled = false;
+        document.getElementById('btn-demo').textContent = 'Зупинити гру…';
+        demoInterval = setInterval(function () {
+          tick();
+          if (state.tick >= TICK_TOTAL || state.winnerId) {
+            clearInterval(demoInterval);
+            demoInterval = null;
+            document.getElementById('btn-demo').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('btn-demo').textContent = 'ЗАПУСТИТИ ЗНОВУ';
+          }
+        }, TICK_MS);
+      }
+      document.getElementById('btn-demo').onclick = runDemo;
+      document.getElementById('btn-stop').onclick = function () { if (demoInterval) clearInterval(demoInterval); demoInterval = null; document.getElementById('btn-demo').disabled = false; document.getElementById('btn-stop').disabled = true; document.getElementById('btn-demo').textContent = 'СТАРТ'; };
+      document.getElementById('btn-results').onclick = function () {
+        if (window.location.protocol === 'file:') {
+          alert('Відкрий борд через сервер: http://localhost:5173');
+          return;
+        }
+        window.open(window.location.origin + '/?view=games-results', '_blank');
+      };
+      render();
+    })();
+  </script>
+</body>
+</html>

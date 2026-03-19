@@ -96,13 +96,14 @@ def _require_user(
     db: DbSession = Depends(get_db),
 ) -> User:
     """Like _get_current_user but raises 401 if not authenticated."""
-    user = _get_current_user.__wrapped__(credentials, db) if hasattr(_get_current_user, "__wrapped__") else None
-    if credentials:
-        payload = decode_token(credentials.credentials)
-        if payload:
-            user = db.query(User).filter(User.id == payload.get("sub")).first()
-    if not user:
+    if not credentials or not credentials.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
 
@@ -138,9 +139,15 @@ def _ensure_env_loaded():
         logger.exception("Failed to create AGENTS_DIR at startup")
 
 
+_cors_origins_env = os.getenv("CORS_ORIGINS", "").strip()
+_cors_origins = (
+    [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+    if _cors_origins_env
+    else ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -167,16 +174,19 @@ class TokenResponse(BaseModel):
 
 
 import collections as _collections
+import threading as _threading
 import time as _time
 _auth_rate: dict[str, list] = _collections.defaultdict(list)
+_auth_rate_lock = _threading.Lock()
 
 def _auth_rate_limit(key: str, max_calls: int = 5, window: float = 60.0) -> bool:
     now = _time.time()
-    _auth_rate[key] = [t for t in _auth_rate[key] if now - t < window]
-    if len(_auth_rate[key]) >= max_calls:
-        return False
-    _auth_rate[key].append(now)
-    return True
+    with _auth_rate_lock:
+        _auth_rate[key] = [t for t in _auth_rate[key] if now - t < window]
+        if len(_auth_rate[key]) >= max_calls:
+            return False
+        _auth_rate[key].append(now)
+        return True
 
 from fastapi import Request as _Request
 
@@ -262,9 +272,23 @@ def my_games(
 
 # In-memory session store: session_id → SessionState dict
 _sessions: dict[str, dict[str, Any]] = {}
+_session_timestamps: dict[str, float] = {}
+_SESSION_TTL_SECONDS = 4 * 3600  # 4 hours
+
+
+def _cleanup_expired_sessions() -> None:
+    """Remove sessions older than _SESSION_TTL_SECONDS."""
+    now = _time.time()
+    expired = [sid for sid, ts in list(_session_timestamps.items()) if now - ts > _SESSION_TTL_SECONDS]
+    for sid in expired:
+        _sessions.pop(sid, None)
+        _session_timestamps.pop(sid, None)
+    if expired:
+        logger.info(f"[session] cleaned up {len(expired)} expired sessions")
 
 
 def get_session(session_id: str) -> SessionState:
+    _cleanup_expired_sessions()
     data = _sessions.get(session_id)
     if not data:
         logger.warning(f"[session] not found session_id={session_id}")
@@ -274,6 +298,7 @@ def get_session(session_id: str) -> SessionState:
 
 def save_session(session_id: str, session: SessionState) -> None:
     _sessions[session_id] = session.to_dict()
+    _session_timestamps[session_id] = _time.time()
 
 
 # ---------------------------------------------------------------------------
@@ -499,8 +524,11 @@ class AgentListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.post("/generate-seed", response_model=GenerateSeedResponse)
-async def api_generate_seed(req: GenerateSeedRequest) -> GenerateSeedResponse:
+async def api_generate_seed(req: GenerateSeedRequest, request: _Request) -> GenerateSeedResponse:
     """Generate a random personality seed and initialize a session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=30, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     result = generate_seed(model=req.model)
 
     session_id = str(uuid.uuid4())
@@ -519,8 +547,11 @@ async def api_generate_seed(req: GenerateSeedRequest) -> GenerateSeedResponse:
 
 
 @app.post("/generate-question", response_model=GenerateQuestionResponse)
-async def api_generate_question(req: GenerateQuestionRequest) -> GenerateQuestionResponse:
+async def api_generate_question(req: GenerateQuestionRequest, request: _Request) -> GenerateQuestionResponse:
     """Generate the next question for the current context in the session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=30, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     session = get_session(req.session_id)
     total = get_context_count()
 
@@ -590,8 +621,11 @@ async def api_submit_answer(req: SubmitAnswerRequest) -> SubmitAnswerResponse:
 
 
 @app.post("/compile-soul", response_model=CompileSoulResponse)
-async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
+async def api_compile_soul(req: CompileSoulRequest, request: _Request) -> CompileSoulResponse:
     """Compile SOUL.md and CORE.json from the completed session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=10, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     session = get_session(req.session_id)
 
     # Legacy endpoint: use default user namespace
@@ -1377,6 +1411,7 @@ class StartSimulationRequest(BaseModel):
     use_dialog: bool = False   # False by default — faster, no LLM cost
     model: str = GROK_MODEL
     reveal_requests: Optional[Dict[str, str]] = None  # {round_str: {revealer: target}}
+    export_html: bool = True   # Export HTML report to logs/ and return reportPath
 
 
 class StartSimulationResponse(BaseModel):
@@ -1386,6 +1421,7 @@ class StartSimulationResponse(BaseModel):
     final_scores: Dict[str, Any]
     rounds_played: int
     result: Dict[str, Any]
+    report_path: Optional[str] = None  # /logs/game_xxx.html when export_html=True
 
 
 @app.post("/start-simulation", response_model=StartSimulationResponse)
@@ -1421,9 +1457,57 @@ async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationRe
             agent_dir = AGENTS_DIR / agent.agent_id
             save_states(agent.states, agent_dir, display_name=agent.name)
             save_memory(agent.memory, agent_dir)
-        return result
 
-    result = await asyncio.to_thread(_run)
+        report_path = None
+        if req.export_html and LOGS_DIR:
+            from export_game_log import export_to_html
+
+            LOGS_DIR.mkdir(parents=True, exist_ok=True)
+            extended_log = result.to_dict()
+            extended_log["score_range"] = result.score_range()
+
+            agent_reflections = {a.agent_id: [] for a in agents}
+            agent_reasonings = {a.agent_id: [] for a in agents}
+            for rr in result.rounds:
+                for aid in agent_reflections:
+                    note = rr.notes.get(aid, "")
+                    if note:
+                        agent_reflections[aid].append({"round": rr.round_number, "notes": note})
+                    reasoning = rr.reasonings.get(aid)
+                    if reasoning:
+                        agent_reasonings[aid].append({"round": rr.round_number, "reasoning": reasoning})
+            extended_log["agent_reflections"] = agent_reflections
+            extended_log["agent_reasonings"] = agent_reasonings
+
+            extended_log["game_conclusions"] = {}
+            for a in agents:
+                if a.memory.game_history:
+                    last = a.memory.game_history[-1]
+                    if last.get("conclusion"):
+                        extended_log["game_conclusions"][a.agent_id] = last["conclusion"]
+
+            roster_path = AGENTS_DIR / "roster.json"
+            agent_profiles = {}
+            if roster_path.exists():
+                roster = json.loads(roster_path.read_text(encoding="utf-8"))
+                for a in roster.get("agents", []):
+                    aid = a.get("id")
+                    if aid in result.agent_ids and a.get("profile"):
+                        agent_profiles[aid] = dict(a["profile"])
+            for aid in list(agent_profiles.keys()):
+                bio_path = AGENTS_DIR / aid / "BIO.md"
+                if bio_path.exists():
+                    agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+            extended_log["agent_profiles"] = agent_profiles
+
+            html_name = f"game_{result.simulation_id}.html"
+            html_path = LOGS_DIR / html_name
+            export_to_html(extended_log, output_path=html_path)
+            report_path = f"/logs/{html_name}"
+
+        return result, report_path
+
+    result, report_path = await asyncio.to_thread(_run)
     result_dict = result.to_dict()
 
     return StartSimulationResponse(
@@ -1433,6 +1517,7 @@ async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationRe
         final_scores=result.final_scores,
         rounds_played=len(result.rounds),
         result=result_dict,
+        report_path=report_path,
     )
 
 
@@ -1493,7 +1578,24 @@ async def api_list_agents() -> Dict[str, Any]:
 LOGS_DIR = _PROJECT_ROOT / "logs"
 
 _GAMES_SUMMARY_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_game_(\d+)\.json")
+_GAMES_CUSTOM_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_(.+)\.json")
 _TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jsonl")
+
+
+def _match_island_game(path: Path) -> re.Match | None:
+    """Match game_*.json: game_DATE_TIME_game_N.json or game_DATE_TIME_customname.json."""
+    m = _GAMES_SUMMARY_PATTERN.match(path.name)
+    if m:
+        return m
+    return _GAMES_CUSTOM_PATTERN.match(path.name)  # e.g. jesus_6players
+
+
+def _island_game_sort_key(path: Path, m: re.Match) -> tuple:
+    """Sort by (date, time, game_num or 0 for custom)."""
+    date_str, time_str = m.group(1), m.group(2)
+    if len(m.groups()) >= 3 and m.group(3).isdigit():
+        return (date_str, time_str, int(m.group(3)))
+    return (date_str, time_str, 0)
 
 
 @app.get("/api/games-count")
@@ -1501,33 +1603,54 @@ async def games_count() -> dict[str, int]:
     """Return total number of games (for dynamic tab/button label)."""
     if not LOGS_DIR.exists():
         return {"count": 0}
-    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
+    paths = [f for f in LOGS_DIR.glob("game_*.json") if _match_island_game(f)]
     return {"count": len(paths)}
 
 
 @app.get("/api/games-summary")
 async def games_summary() -> dict[str, Any]:
-    """Return summary of game_*_game_*.json logs: games grouped by run, + total score per agent."""
+    """Return summary of game_*.json logs: games grouped by run, + total score per agent.
+    All agents from roster are included in the table (even with 0 games/score)."""
+    # Pre-load ALL agents from roster — table shows everyone, not just those who played
+    roster_names: dict[str, str] = {}
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            for a in roster.get("agents", []):
+                if a.get("id") and a.get("name"):
+                    roster_names[a["id"]] = a["name"]
+        except Exception:
+            pass
+    all_display_names = list(roster_names.values()) if roster_names else []
+
     if not LOGS_DIR.exists():
-        return {"games": [], "runs": [], "agentTotals": {}, "agentNames": []}
-    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
-    # Sort by (date+time desc, game_id) so latest run first, games 1,2,3… inside run
-    def sort_key(p: Path) -> tuple:
-        m = _GAMES_SUMMARY_PATTERN.match(p.name)
-        return (m.group(1), m.group(2), int(m.group(3)))
-    paths.sort(key=sort_key, reverse=True)
+        agent_totals = {name: 0.0 for name in all_display_names}
+        agent_games: dict[str, int] = {name: 0 for name in all_display_names}
+        agent_rounds: dict[str, int] = {name: 0 for name in all_display_names}
+        agent_avg: dict[str, float] = {name: 0.0 for name in all_display_names}
+        return {"games": [], "runs": [], "agentTotals": agent_totals, "agentNames": all_display_names,
+                "agentGamesPlayed": agent_games, "agentRoundsPlayed": agent_rounds, "agentAvgPerRound": agent_avg}
+    paths = [f for f in LOGS_DIR.glob("game_*.json") if _match_island_game(f)]
+    paths.sort(key=lambda p: _island_game_sort_key(p, _match_island_game(p)), reverse=True)
     games: list[dict[str, Any]] = []
     runs_order: list[dict[str, Any]] = []
     seen_run: dict[str, dict[str, Any]] = {}
-    agent_totals: dict[str, float] = {}
-    agent_names_order: list[str] = []
+    # Initialize with ALL roster agents at 0 — so table shows everyone
+    agent_totals: dict[str, float] = {name: 0.0 for name in all_display_names}
+    agent_games: dict[str, int] = {name: 0 for name in all_display_names}
+    agent_rounds: dict[str, int] = {name: 0 for name in all_display_names}
+    agent_names_order: list[str] = all_display_names.copy()
     for path in paths:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        m = _GAMES_SUMMARY_PATTERN.match(path.name)
-        date_str, time_str, game_num_str = m.group(1), m.group(2), int(m.group(3))
+        m = _match_island_game(path)
+        if not m:
+            continue
+        date_str, time_str = m.group(1), m.group(2)
+        game_display = int(m.group(3)) if m.group(3).isdigit() else m.group(3)
         run_id = f"{date_str}_{time_str}"
         if run_id not in seen_run:
             time_display_run = time_str.replace("-", ":")
@@ -1539,18 +1662,27 @@ async def games_summary() -> dict[str, Any]:
         winner_id = data.get("winner") or ""
         winner_name = names.get(winner_id, winner_id)
         rounds = data.get("total_rounds") or 0
+        # Fallback: if roster was empty, build agent_names_order from first game
         if not agent_names_order and data.get("agents") and names:
             agent_names_order = [names.get(aid, aid) for aid in data["agents"] if names.get(aid)]
             if not agent_names_order:
                 agent_names_order = list(names.values())
         scores_by_name = {names.get(aid, aid): scores.get(aid, 0) for aid in scores}
+        # Ensure game agents are in agent_totals (for legacy games with different roster)
+        for name in scores_by_name:
+            if name and name not in agent_totals:
+                agent_totals[name] = 0.0
+                agent_games[name] = 0
+                agent_rounds[name] = 0
         for name, val in scores_by_name.items():
             agent_totals[name] = agent_totals.get(name, 0) + val
+            agent_games[name] = agent_games.get(name, 0) + 1
+            agent_rounds[name] = agent_rounds.get(name, 0) + rounds
         html_name = path.name.replace(".json", ".html")
         time_display = time_str.replace("-", ":")  # 22-58-50 → 22:58:50
         played_at = f"{date_str} {time_display}"
         games.append({
-            "game": game_num_str,
+            "game": game_display,
             "rounds": rounds,
             "winner": winner_name,
             "scores": scores_by_name,
@@ -1562,11 +1694,37 @@ async def games_summary() -> dict[str, Any]:
     for r in runs_order:
         n = r["gameCount"]
         r["runTitle"] = f"3×7 (3 ігри)" if n == 3 else f"7 ігор" if n == 7 else f"{n} ігор"
+    # Середній бал: кожну гру нормалізуємо до єдиної шкали (бо ігри мають різні шкали: 17 vs 28 vs 70 бал/раунд).
+    # Для кожної гри: game_avg = середнє(бал/раунд), scale = 100/game_avg. agent_norm = (бал/раунд)*scale.
+    # Потім усереднюємо agent_norm за кількістю ігор. 100 = середній по грі.
+    agent_avg_per_round: dict[str, float] = {}
+    for name in agent_totals:
+        per_game_sum = 0.0
+        games_played = 0
+        for g in games:
+            if name not in g["scores"]:
+                continue
+            scores = g["scores"]
+            rounds = g.get("rounds") or 0
+            if rounds <= 0:
+                continue
+            # Середнє бал/раунд по всіх агентах у цій грі
+            game_per_round = [s / rounds for s in scores.values()]
+            game_avg = sum(game_per_round) / len(game_per_round) if game_per_round else 1.0
+            scale = 100.0 / game_avg if game_avg > 0 else 1.0
+            agent_per_round = scores[name] / rounds
+            agent_norm = agent_per_round * scale
+            per_game_sum += agent_norm
+            games_played += 1
+        agent_avg_per_round[name] = round(per_game_sum / games_played, 2) if games_played > 0 else 0.0
     return {
         "games": games,
         "runs": runs_order,
         "agentTotals": agent_totals,
         "agentNames": agent_names_order,
+        "agentGamesPlayed": agent_games,
+        "agentRoundsPlayed": agent_rounds,
+        "agentAvgPerRound": agent_avg_per_round,
     }
 
 

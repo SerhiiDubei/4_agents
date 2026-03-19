@@ -28,6 +28,7 @@ COOP_MANA_EACH = 5           # both get +5 mana on cooperate
 STEAL_MANA_SUCCESS_ACTOR = 8  # actor gains mana on successful steal
 STEAL_MANA_FAIL_ACTOR = -3   # actor loses mana on failed steal
 STARTING_MANA = 20
+MANA_PER_ROUND = 1           # minimal passive fallback; primary mana from cooperate (+5 each)
 
 # Event type names (TIMER-compatible)
 EVENT_TYPE_COOPERATE = "cooperate"

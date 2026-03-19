@@ -27,13 +27,14 @@ from game_modes.time_wars.loop import (
     tick,
     apply_cooperate,
     apply_steal,
-    apply_code_use,
+    apply_mana_per_round,
     escalating_drain,
     is_game_over,
     apply_game_end_bonuses,
     run_storm,
+    run_code_phase,
 )
-from game_modes.time_wars.shop import load_codes, get_available_codes, buy_code
+from game_modes.time_wars.shop import load_codes, get_available_codes, buy_code, effective_cost
 from game_modes.time_wars.agent_context import get_agent_action_mock
 
 BASE_SEC = 1000
@@ -95,24 +96,60 @@ def run_one_game(run_id: int, rng: random.Random, codes_catalog: List[dict]) -> 
         if t % TICKS_PER_ACTION == 0:
             rounds_played += 1
             drain_history.append({"round": rounds_played, "tick": t, "drain": drain})
+            apply_mana_per_round(session, t)
 
+            # SHOP phase: buy as many codes as mana allows (mock: prefer situationally)
             if codes_catalog:
                 for p in session.active_players():
-                    available = get_available_codes(session, p.agent_id, codes_catalog)
-                    if available and rng.random() < 0.30:
-                        card = rng.choice(available)
-                        buy_code(session, p.agent_id, card["id"], codes_catalog)
+                    bought = 0
+                    while bought < 6:
+                        available = get_available_codes(session, p.agent_id, codes_catalog)
+                        if not available:
+                            break
+                        my_ratio = p.time_remaining_sec / BASE_SEC
+                        if my_ratio < 0.4:
+                            pref = [c for c in available if c.get("type") in ("self", "steal", "gamble")]
+                        elif my_ratio > 0.7:
+                            pref = [c for c in available if c.get("type") in ("give", "plus_all_except_one", "steal")]
+                        else:
+                            pref = []
+                        card = rng.choice(pref) if pref else rng.choice(available)
+                        cost = effective_cost(card, session, p.agent_id)
+                        if p.mana < cost:
+                            break
+                        if buy_code(session, p.agent_id, card["id"], codes_catalog):
+                            bought += 1
+                        else:
+                            break
 
+            # CODE phase: utility-based code usage (separate from ACTION)
+            run_code_phase(session, t, rng=rng)
+
+            # Mock COMM phase: update trust slightly based on time pressure
+            # (in real games this is LLM dialog; here we simulate trust drift)
             for p in session.active_players():
-                act = get_agent_action_mock(session, p.agent_id, rng=rng)
+                my_ratio = p.time_remaining_sec / BASE_SEC
+                for o in session.active_players():
+                    if o.agent_id == p.agent_id:
+                        continue
+                    old_trust = session.get_trust(p.agent_id, o.agent_id)
+                    # Desperate players trust slightly less (survival instinct)
+                    drift = -0.02 if my_ratio < 0.3 else 0.0
+                    session.set_trust(p.agent_id, o.agent_id, max(0.0, min(1.0, old_trust + drift)))
+
+            # ACTION phase: per-target cooperation levels + cooperate/steal/pass
+            for p in session.active_players():
+                act = get_agent_action_mock(
+                    session, p.agent_id, rng=rng,
+                    round_num=rounds_played, total_rounds=max(20, DURATION // TICKS_PER_ACTION),
+                    current_tick=t, ticks_per_action=TICKS_PER_ACTION,
+                )
                 action_counts[p.agent_id][act["action"]] += 1
 
                 if act["action"] == "cooperate" and act["target_id"]:
                     apply_cooperate(session, p.agent_id, act["target_id"], t)
                 elif act["action"] == "steal" and act["target_id"]:
                     apply_steal(session, p.agent_id, act["target_id"], t, rng=rng)
-                elif act["action"] == "use_code" and act["code_index"] is not None:
-                    apply_code_use(session, p.agent_id, act["code_index"], t, rng=rng)
 
             if is_game_over(session, t, TICKS_PER_ACTION):
                 apply_game_end_bonuses(session, t)

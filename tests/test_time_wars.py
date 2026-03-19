@@ -62,11 +62,12 @@ def _():
     assert any("steal" in (id or "") or "snake" in (id or "") for id in ids), "snake has steal-related skill"
 
 
-@test("time_wars: apply_before_steal_roll role_snake gives roll_bonus 2")
+@test("time_wars: apply_before_steal_roll role_snake gives roll_bonus 1")
 def _():
+    # Snake nerf: roll_bonus 2 → 1 (balance v6, see SIMULATION_ANALYSIS.md fix A)
     from game_modes.time_wars.skills import apply_before_steal_roll
     r = apply_before_steal_roll("role_snake", {"actor_id": "a", "target_id": "b"})
-    assert r.get("roll_bonus") == 2, f"expected roll_bonus 2, got {r}"
+    assert r.get("roll_bonus") == 1, f"expected roll_bonus 1, got {r}"
 
 
 @test("time_wars: apply_on_steal_fail role_gambler gives penalty_override 25")

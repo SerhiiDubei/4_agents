@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS — Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    line-height: 1.6;
+  }
+  nav {
+    position: fixed;
+    top: 0; left: 0;
+    width: 220px;
+    height: 100vh;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    padding: 20px 12px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  nav h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #8b949e;
+    margin-bottom: 12px;
+  }
+  nav a {
+    display: block;
+    color: #8b949e;
+    text-decoration: none;
+    font-size: 13px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+  }
+  nav a:hover { background: #21262d; color: #e6edf3; }
+  nav a.active { background: #1f6feb22; color: #58a6ff; border-left: 2px solid #58a6ff; }
+
+  main {
+    margin-left: 220px;
+    padding: 40px 48px;
+    max-width: 1200px;
+  }
+  header {
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #30363d;
+  }
+  header h1 { font-size: 28px; color: #f0f6fc; }
+  header p { color: #8b949e; margin-top: 6px; }
+
+  section {
+    margin-bottom: 56px;
+    scroll-margin-top: 20px;
+  }
+  section h2 {
+    font-size: 18px;
+    color: #f0f6fc;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .diagram-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+  }
+  .diagram-box .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 16px;
+  }
+  th {
+    background: #21262d;
+    color: #8b949e;
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #21262d;
+    vertical-align: top;
+  }
+  tr:hover td { background: #161b22; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-red    { background: #ff000022; color: #ff7b7b; border: 1px solid #ff000044; }
+  .badge-yellow { background: #ffd43b22; color: #ffd43b; border: 1px solid #ffd43b44; }
+  .badge-green  { background: #3fb95022; color: #3fb950; border: 1px solid #3fb95044; }
+  .badge-orange { background: #f0883e22; color: #f0883e; border: 1px solid #f0883e44; }
+
+  code {
+    background: #21262d;
+    color: #79c0ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+  pre {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    color: #e6edf3;
+    line-height: 1.7;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card h3 { font-size: 14px; margin-bottom: 10px; color: #f0f6fc; }
+  .card ul { list-style: none; padding: 0; }
+  .card li { font-size: 13px; color: #8b949e; padding: 3px 0; }
+  .card li::before { content: "▸ "; color: #58a6ff; }
+
+  .win-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .win-bar-label { width: 110px; font-size: 13px; }
+  .win-bar-track { flex: 1; background: #21262d; border-radius: 4px; height: 20px; position: relative; }
+  .win-bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 12px; font-weight: 600; }
+  .win-bar-target { position: absolute; top: 0; bottom: 0; width: 2px; background: #58a6ff; }
+
+  .note { background: #1f6feb22; border: 1px solid #1f6feb44; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #79c0ff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <h2>Навігація</h2>
+  <a href="#overview">1. Загальна карта</a>
+  <a href="#pipeline-flow">2. Pipeline dataflow</a>
+  <a href="#timewars-flow">3. Time Wars dataflow</a>
+  <a href="#deps">4. Залежності</a>
+  <a href="#agent-files">5. Файли агента</a>
+  <a href="#strengths">6. Сильні/Слабкі</a>
+  <a href="#security">7. Безпека</a>
+  <a href="#llm">8. LLM виклики</a>
+  <a href="#balance">9. Баланс ролей</a>
+  <a href="#roadmap">10. Roadmap</a>
+  <a href="#quickref">11. Довідник</a>
+</nav>
+
+<main>
+  <header>
+    <h1>4 AGENTS — Architecture</h1>
+    <p>Остання актуалізація: 2026-03-19 &nbsp;·&nbsp; Mermaid + HTML візуалізація</p>
+  </header>
+
+  <!-- 1. ЗАГАЛЬНА КАРТА -->
+  <section id="overview">
+    <h2>1. Загальна карта системи</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+graph TB
+    subgraph CLIENT["КЛІЄНТ"]
+        FE["Frontend\nReact 18 + TypeScript\n/frontend/src/"]
+    end
+
+    subgraph SERVER["СЕРВЕР  server/main.py"]
+        API["FastAPI REST API\n1805 рядків"]
+        AUTH["Auth middleware\nJWT + bcrypt"]
+        SSE["SSE stream\n/api/game-events/{id}"]
+    end
+
+    subgraph PIPELINE["PIPELINE — ініціалізація агента"]
+        SG["seed_generator.py"]
+        QE["question_engine.py"]
+        SC["soul_compiler.py"]
+        DE["decision_engine.py"]
+        MEM["memory.py"]
+        RSN["reasoning.py"]
+        RFL["reflection.py"]
+        SM["state_machine.py"]
+    end
+
+    subgraph SIMULATION["SIMULATION — Island гра"]
+        GE["game_engine.py"]
+        DLG["dialog_engine.py"]
+        PM["payoff_matrix.py"]
+        ID["interaction_dimensions.py"]
+        RS["reveal_skill.py"]
+    end
+
+    subgraph TIMEWARS["TIME WARS — ресурсна гра"]
+        TW_LOOP["loop.py"]
+        TW_STATE["state.py"]
+        TW_AGENT["agent_context.py"]
+        TW_SKILLS["skills.py"]
+        TW_SHOP["shop.py"]
+    end
+
+    subgraph STORYTELL["STORYTELL — наратив"]
+        STG["story_generator.py"]
+        SIT["situation.py"]
+        REV["round_events.py"]
+        RNR["round_narrative.py"]
+    end
+
+    subgraph DB["DATABASE"]
+        MODELS["models.py"]
+        DBAUTH["auth.py"]
+        DATABASE["database.py\nSQLAlchemy + SQLite/PG"]
+    end
+
+    FE -->|"HTTP REST"| API
+    FE -->|"SSE"| SSE
+    API --> AUTH
+    API --> PIPELINE
+    API --> SIMULATION
+    API --> TIMEWARS
+    API --> DB
+
+    SG --> QE
+    QE --> SC
+    GE --> DLG
+    GE --> DE
+    GE --> MEM
+    GE --> RSN
+    GE --> RFL
+    DLG --> STORYTELL
+
+    TW_LOOP --> TW_STATE
+    TW_LOOP --> TW_AGENT
+    TW_LOOP --> TW_SKILLS
+
+    AUTH --> DBAUTH
+    MODELS --> DATABASE
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. PIPELINE DATAFLOW -->
+  <section id="pipeline-flow">
+    <h2>2. Dataflow — Ініціалізація агента (Island Pipeline)</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+sequenceDiagram
+    participant U as Користувач
+    participant FE as Frontend
+    participant API as FastAPI
+    participant SG as seed_generator
+    participant QE as question_engine
+    participant SC as soul_compiler
+    participant LLM as OpenRouter LLM
+    participant FS as agents/{id}/
+
+    U->>FE: Запустити ритуал
+    FE->>API: POST /generate-seed
+    API->>SG: random_meta_params()
+    SG->>LLM: SEED_SYSTEM_PROMPT + MetaParams
+    LLM-->>SG: seed_text
+    SG-->>API: SeedResult
+    API-->>FE: session_id + seed_text
+
+    loop 7 контекстів
+        FE->>API: POST /generate-question
+        API->>QE: generate_question()
+        QE->>LLM: context + seed_text
+        LLM-->>QE: питання + варіанти
+        API-->>FE: питання
+        U->>FE: обирає відповідь
+        FE->>API: POST /submit-answer
+        API->>QE: CoreValues += delta
+    end
+
+    FE->>API: POST /compile-soul
+    API->>SC: compile_soul()
+    loop 6 секцій SOUL
+        SC->>LLM: section_instruction + seed + CoreValues
+        LLM-->>SC: секція тексту
+    end
+    SC->>FS: SOUL.md + CORE.json + MEMORY.json
+    API-->>FE: CompileResult
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. TIME WARS DATAFLOW -->
+  <section id="timewars-flow">
+    <h2>3. Dataflow — Time Wars (tick loop)</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+sequenceDiagram
+    participant API as FastAPI
+    participant LOOP as loop.py
+    participant STATE as state.py
+    participant AGENT as agent_context.py
+    participant SSE as SSE Stream
+    participant FE as Frontend
+
+    API->>STATE: create_session(agent_ids)
+    STATE->>STATE: assign_roles() → Snake/Banker/Peacekeeper/Gambler
+    STATE->>STATE: init_trust_from_memory()
+    STATE-->>API: Session
+
+    loop Кожен тік
+        LOOP->>LOOP: escalating_drain(tick)
+        LOOP->>LOOP: apply_drain()
+
+        loop Кожен гравець
+            LOOP->>AGENT: get_agent_action_mock()
+            AGENT-->>LOOP: action {type, target}
+
+            alt cooperate
+                LOOP->>STATE: actor +30c, target +30c
+            else steal
+                LOOP->>STATE: d20 roll
+            else use_code
+                LOOP->>STATE: code effect
+            else pass
+                LOOP->>STATE: nothing
+            end
+        end
+
+        LOOP->>LOOP: check_eliminations()
+        LOOP->>SSE: event {type, actor, delta, tick}
+        SSE-->>FE: real-time оновлення
+    end
+
+    LOOP->>STATE: save_trust_to_memory()
+    LOOP-->>API: GameResult
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. ЗАЛЕЖНОСТІ -->
+  <section id="deps">
+    <h2>4. Залежності між модулями</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+graph LR
+    SCHEMAS["schemas/\nJSON конфіги"] -->|"MetaParams, prompts"| PIPELINE
+    PIPELINE -->|"SOUL.md\nCORE.json\nMEMORY.json"| AGENTS_DIR["agents/{id}/"]
+    AGENTS_DIR -->|"CORE.json"| TIMEWARS
+    AGENTS_DIR -->|"MEMORY.json"| TIMEWARS
+    TIMEWARS -->|"MEMORY.json update"| AGENTS_DIR
+    AGENTS_DIR -->|"всі файли"| SIMULATION
+    SIMULATION -->|"STATES.md\nMEMORY.json"| AGENTS_DIR
+    PIPELINE -->|"HTTP POST"| OpenRouter["OpenRouter API"]
+    SIMULATION -->|"HTTP POST"| OpenRouter
+    DB["DB\nSQLite/PG"] --- SERVER["server/main.py"]
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ФАЙЛИ АГЕНТА -->
+  <section id="agent-files">
+    <h2>5. Структура файлів агента</h2>
+    <pre>agents/{agent_id}/
+├── SOUL.md          — 6 секцій особистості (LLM-генерований текст)
+│                      Identity, How You See Others,
+│                      What You Never Say Out Loud,
+│                      What Makes You Feel Safe,
+│                      Under Pressure, Decision Instinct
+│
+├── CORE.json        — Числові параметри (0–100)
+│                      cooperation_bias, deception_tendency,
+│                      strategic_horizon, risk_appetite, support_bias
+│
+├── STATES.md        — Поточний емоційний стан
+│                      tension, fear, dominance, mood
+│
+├── MEMORY.json      — Епізодична пам'ять + trust_history (EMA)
+│
+└── BIO.md           — Коротка біографія</pre>
+  </section>
+
+  <!-- 6. СИЛЬНІ/СЛАБКІ -->
+  <section id="strengths">
+    <h2>6. Сильні та слабкі місця</h2>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Pipeline</h3>
+        <table>
+          <tr><th>Компонент</th><th>Сильне</th><th>Слабке</th></tr>
+          <tr><td><code>seed_generator</code></td><td>Детерміновані MetaParams</td><td>Промпт технічний</td></tr>
+          <tr><td><code>question_engine</code></td><td>7 контекстів × delta</td><td>JSON парсинг крихкий</td></tr>
+          <tr><td><code>soul_compiler</code></td><td>По-секційна генерація</td><td>Немає валідації секцій</td></tr>
+          <tr><td><code>decision_engine</code></td><td>Softmax варіативність</td><td>Залежить від файлів</td></tr>
+          <tr><td><code>memory.py</code></td><td>EMA trust tracking</td><td>Запис не атомарний</td></tr>
+          <tr><td><code>reasoning.py</code></td><td>LLM pre-decision</td><td>Немає timeout</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Time Wars</h3>
+        <table>
+          <tr><th>Компонент</th><th>Сильне</th><th>Слабке</th></tr>
+          <tr><td><code>loop.py</code></td><td>escalating_drain</td><td>Порядок insertion order</td></tr>
+          <tr><td><code>state.py</code></td><td>Trust cosine similarity</td><td>Session ніколи не видал.</td></tr>
+          <tr><td><code>agent_context</code></td><td>Role-specific weights</td><td>Ваги фіксовані</td></tr>
+          <tr><td><code>skills.py</code></td><td>Banker 1.5× множник</td><td>Vampire 40 mana — дорого</td></tr>
+          <tr><td><code>balance_sim</code></td><td>6×1000 ігор, spread 3.4%</td><td>Peacekeeper 14.8%</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>Server (FastAPI)</h3>
+        <table>
+          <tr><th>Компонент</th><th>Сильне</th><th>Слабке</th></tr>
+          <tr><td>Auth</td><td>bcrypt + JWT</td><td>JWT default secret ⛔</td></tr>
+          <tr><td>Rate limiting</td><td>5 спроб/60с</td><td>Не thread-safe ⛔</td></tr>
+          <tr><td>Sessions</td><td>In-memory → швидко</td><td>Ніколи не expire ⛔</td></tr>
+          <tr><td>CORS</td><td>Whitelist є</td><td>Hardcoded localhost</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Frontend (React)</h3>
+        <table>
+          <tr><th>Компонент</th><th>Сильне</th><th>Слабке</th></tr>
+          <tr><td>UI</td><td>CRT/glitch атмосфера</td><td>Немає Error Boundaries</td></tr>
+          <tr><td>SSE</td><td>Real-time board</td><td>Немає retry</td></tr>
+          <tr><td>State</td><td>TypeScript типізація</td><td>Немає global state</td></tr>
+          <tr><td>Mobile</td><td>—</td><td>Desktop-only</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. БЕЗПЕКА -->
+  <section id="security">
+    <h2>7. Безпека — зведена таблиця</h2>
+    <table>
+      <tr>
+        <th>#</th><th>Проблема</th><th>Місце</th><th>Severity</th><th>Fix</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>JWT default secret</td>
+        <td><code>db/auth.py:15</code></td>
+        <td><span class="badge badge-red">CRITICAL</span></td>
+        <td>Генерувати random при старті</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Rate limit без lock</td>
+        <td><code>server/main.py:180</code></td>
+        <td><span class="badge badge-red">HIGH</span></td>
+        <td><code>threading.Lock()</code></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Session leak</td>
+        <td><code>server/main.py:~100</code></td>
+        <td><span class="badge badge-red">HIGH</span></td>
+        <td>TTL 4 год + cleanup</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>CORS hardcoded</td>
+        <td><code>server/main.py:140</code></td>
+        <td><span class="badge badge-yellow">MEDIUM</span></td>
+        <td><code>CORS_ORIGINS</code> env var</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>LLM JSON fragile</td>
+        <td><code>pipeline/question_engine.py:200</code></td>
+        <td><span class="badge badge-yellow">MEDIUM</span></td>
+        <td>Pre-process unary plus</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>MEMORY.json не atomic</td>
+        <td><code>pipeline/memory.py:300</code></td>
+        <td><span class="badge badge-yellow">MEDIUM</span></td>
+        <td>write tmp → rename</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>OpenRouter key у .env</td>
+        <td><code>.env</code></td>
+        <td><span class="badge badge-yellow">MEDIUM</span></td>
+        <td>Окремі ключі per env</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>pip audit не запускався</td>
+        <td><code>requirements.txt</code></td>
+        <td><span class="badge badge-orange">LOW</span></td>
+        <td>Запустити перед релізом</td>
+      </tr>
+      <tr>
+        <td>✅</td><td>bcrypt паролі</td><td>—</td><td><span class="badge badge-green">OK</span></td><td>—</td>
+      </tr>
+      <tr>
+        <td>✅</td><td>SQLAlchemy ORM</td><td>—</td><td><span class="badge badge-green">OK</span></td><td>no SQL injection</td>
+      </tr>
+      <tr>
+        <td>✅</td><td>Pydantic validation</td><td>—</td><td><span class="badge badge-green">OK</span></td><td>—</td>
+      </tr>
+      <tr>
+        <td>✅</td><td>JWT expiry 24 год</td><td>—</td><td><span class="badge badge-green">OK</span></td><td>—</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- 8. LLM -->
+  <section id="llm">
+    <h2>8. LLM виклики — карта</h2>
+    <div class="note">⚠️ Жоден LLM виклик не має retry/backoff. При помилці мережі — одразу exception до користувача.</div>
+    <div class="diagram-box" style="margin-top:16px">
+      <div class="mermaid">
+graph TD
+    OR["OpenRouter API"]
+
+    L1["seed_generator.py\nМодель: gpt-4o-mini\nТаймаут: 60с | Повтори: немає"]
+    L2["question_engine.py\nМодель: gpt-4o-mini / Grok\nТаймаут: 60с | Повтори: немає"]
+    L3["soul_compiler.py × 6 секцій\nМодель: gpt-4o-mini\nТаймаут: 60с×6 | Повтори: немає"]
+    L4["reasoning.py\nМодель: gemini-2.0\nПеред кожним рішенням"]
+    L5["dialog_engine.py\nКожен крок діалогу\nНЕМАЄ TIMEOUT ⛔"]
+    L6["reflection.py\nМодель: gpt-4o-mini\nПісля раунду"]
+
+    L1 --> OR
+    L2 --> OR
+    L3 --> OR
+    L4 --> OR
+    L5 --> OR
+    L6 --> OR
+
+    style L5 fill:#ff4444,color:#fff
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. БАЛАНС -->
+  <section id="balance">
+    <h2>9. Баланс Time Wars v6</h2>
+    <p style="color:#8b949e; font-size:13px; margin-bottom:16px">Ціль: 16.7% для кожної ролі (рівний баланс)</p>
+
+    <div class="win-bar">
+      <div class="win-bar-label">🐍 Snake</div>
+      <div class="win-bar-track">
+        <div class="win-bar-fill" style="width:72.8%; background:#e05c5c;">18.2%</div>
+        <div class="win-bar-target" style="left:66.8%"></div>
+      </div>
+    </div>
+    <div class="win-bar">
+      <div class="win-bar-label">💰 Banker</div>
+      <div class="win-bar-track">
+        <div class="win-bar-fill" style="width:72.8%; background:#58a6ff;">18.2%</div>
+        <div class="win-bar-target" style="left:66.8%"></div>
+      </div>
+    </div>
+    <div class="win-bar">
+      <div class="win-bar-label">🎲 Gambler</div>
+      <div class="win-bar-track">
+        <div class="win-bar-fill" style="width:63.2%; background:#ffd43b; color:#000">15.8%</div>
+        <div class="win-bar-target" style="left:66.8%"></div>
+      </div>
+    </div>
+    <div class="win-bar">
+      <div class="win-bar-label">🕊️ Peacekeeper</div>
+      <div class="win-bar-track">
+        <div class="win-bar-fill" style="width:59.2%; background:#3fb950;">14.8%</div>
+        <div class="win-bar-target" style="left:66.8%"></div>
+      </div>
+    </div>
+    <p style="color:#58a6ff; font-size:12px; margin-top:8px">│ синя лінія = ціль 16.7%</p>
+
+    <table style="margin-top:16px">
+      <tr><th>Роль</th><th>Win %</th><th>Основна дія</th><th>Особливість</th></tr>
+      <tr><td>🐍 Snake</td><td>18.2%</td><td>steal (41%)</td><td>+1 roll, -5 fail penalty</td></tr>
+      <tr><td>💰 Banker</td><td>18.2%</td><td>code (24%)</td><td>×1.5 code multiplier</td></tr>
+      <tr><td>🎲 Gambler</td><td>15.8%</td><td>mixed</td><td>-25с fail penalty (high variance)</td></tr>
+      <tr><td>🕊️ Peacekeeper</td><td>14.8%</td><td>coop (50%)</td><td>ON_GAME_END +10/coop</td></tr>
+    </table>
+  </section>
+
+  <!-- 10. ROADMAP -->
+  <section id="roadmap">
+    <h2>10. Roadmap</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+gantt
+    title Roadmap 4 AGENTS
+    dateFormat YYYY-MM-DD
+    section S1 Done
+        OpenRouter стабільність   :done, 2026-01-01, 2026-02-01
+        Session pipeline          :done, 2026-01-01, 2026-02-01
+        Railway deploy            :done, 2026-01-01, 2026-02-01
+
+    section S2 Зараз
+        T5 Storyteller            :active, 2026-03-19, 14d
+        T4 Frontend UI align      :active, 2026-03-19, 21d
+
+    section S2.5 Техборг
+        SEC-1 JWT fix             :2026-03-25, 3d
+        SEC-2 Rate limit lock     :2026-03-25, 2d
+        SEC-3 Session TTL         :2026-03-27, 3d
+        ROB-1 LLM retry backoff   :2026-03-28, 5d
+
+    section S3 Геймплей
+        T6 4-player rules         :2026-04-10, 21d
+        GP-1 Human Time Wars      :2026-04-20, 14d
+
+    section S4 Якість
+        QA-1 Integration tests    :2026-05-01, 14d
+        GP-2 Replay mode          :2026-05-10, 14d
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. QUICK REF -->
+  <section id="quickref">
+    <h2>11. Швидкий довідник</h2>
+    <table>
+      <tr><th>Хочу змінити...</th><th>Файл</th></tr>
+      <tr><td>Промпт для seed</td><td><code>pipeline/seed_generator.py → SEED_SYSTEM_PROMPT</code></td></tr>
+      <tr><td>Промпт для питань</td><td><code>schemas/question_generator_prompt.md</code></td></tr>
+      <tr><td>Варіанти відповідей</td><td><code>schemas/question_contexts.json</code></td></tr>
+      <tr><td>Delta значення</td><td><code>schemas/core_defaults.json → delta_table</code></td></tr>
+      <tr><td>Секції SOUL</td><td><code>schemas/soul_template.json</code></td></tr>
+      <tr><td>Параметри MetaParams</td><td><code>schemas/meta_params.json</code></td></tr>
+      <tr><td>Баланс Time Wars</td><td><code>game_modes/time_wars/constants.py + roles.json</code></td></tr>
+      <tr><td>Поведінку mock-агентів</td><td><code>game_modes/time_wars/agent_context.py</code></td></tr>
+      <tr><td>REST ендпоінти</td><td><code>server/main.py</code></td></tr>
+      <tr><td>JWT / Auth</td><td><code>db/auth.py</code></td></tr>
+      <tr><td>База даних / моделі</td><td><code>db/models.py</code></td></tr>
+      <tr><td>Frontend компоненти</td><td><code>frontend/src/components/</code></td></tr>
+      <tr><td>Список агентів</td><td><code>agents/roster.json</code></td></tr>
+    </table>
+  </section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#161b22',
+      primaryColor: '#1f6feb',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#30363d',
+      lineColor: '#8b949e',
+      secondaryColor: '#21262d',
+      tertiaryColor: '#0d1117',
+      edgeLabelBackground: '#161b22',
+      clusterBkg: '#161b22',
+      clusterBorder: '#30363d',
+    }
+  });
+
+  // Підсвічування активного пункту навігації
+  const sections = document.querySelectorAll('section');
+  const navLinks = document.querySelectorAll('nav a');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

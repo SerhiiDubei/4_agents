@@ -133,8 +133,9 @@ class AgentMemory:
         # Snapshot current trust (last value per peer) for cross-game memory
         trust_snapshot = {}
         for peer_id, history in self.trust_history.items():
-            if history:
-                trust_snapshot[peer_id] = round(float(history[-1]), 4)
+            val = history[-1] if isinstance(history, list) and history else (history if isinstance(history, (int, float)) else None)
+            if val is not None:
+                trust_snapshot[peer_id] = round(float(val), 4)
 
         self.game_history.append({
             "game_id": game_id,
@@ -189,7 +190,11 @@ class AgentMemory:
                 agent_id: {
                     "betrayals": self.betrayals_by(agent_id),
                     "cooperations": self.cooperations_by(agent_id),
-                    "recent_action": history[-1] if history else None,
+                    "recent_action": (
+                        history[-1] if isinstance(history, list) and history
+                        else history if isinstance(history, (int, float))
+                        else None
+                    ),
                 }
                 for agent_id, history in self.trust_history.items()
             },
@@ -230,11 +235,20 @@ class AgentMemory:
 
     @classmethod
     def from_dict(cls, d: dict) -> "AgentMemory":
+        raw_th = d.get("trust_history", {})
+        trust_history = {}
+        for aid, val in raw_th.items():
+            if isinstance(val, list):
+                trust_history[aid] = [float(x) for x in val]
+            elif isinstance(val, (int, float)):
+                trust_history[aid] = [float(val)]
+            else:
+                trust_history[aid] = []
         mem = cls(
             agent_id=d.get("agent_id", "unknown"),
             total_score=float(d.get("total_score", 0.0)),
             reveals_used=int(d.get("reveals_used", 0)),
-            trust_history=d.get("trust_history", {}),
+            trust_history=trust_history,
             game_history=d.get("game_history", []),
         )
         for r in d.get("rounds", []):
@@ -298,11 +312,22 @@ def load_memory(agent_dir: Path) -> AgentMemory:
 
 
 def save_memory(memory: AgentMemory, agent_dir: Path) -> None:
-    """Write MEMORY.json to agent directory."""
+    """Write MEMORY.json to agent directory atomically (tmp → rename)."""
+    import os
+    import tempfile
     agent_dir.mkdir(parents=True, exist_ok=True)
     path = agent_dir / "MEMORY.json"
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(memory.to_dict(), f, indent=2, ensure_ascii=False)
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=agent_dir, suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(memory.to_dict(), f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def initialize_memory(agent_id: str, agent_dir: Path) -> AgentMemory:

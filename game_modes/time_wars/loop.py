@@ -14,6 +14,7 @@ from game_modes.time_wars.constants import (
     COOP_MANA_EACH,
     STEAL_MANA_SUCCESS_ACTOR,
     STEAL_MANA_FAIL_ACTOR,
+    MANA_PER_ROUND,
     STEAL_SUCCESS_ACTOR_GAIN,
     STEAL_SUCCESS_TARGET_LOSS,
     STEAL_PARTIAL_ACTOR_GAIN,
@@ -38,6 +39,7 @@ from game_modes.time_wars.constants import (
     EVENT_TYPE_PLAYER_INTENT,
 )
 from game_modes.time_wars.state import Session, Player
+# run_code_phase uses Player type annotation (imported above)
 from game_modes.time_wars import skills
 
 
@@ -66,6 +68,14 @@ def escalating_drain(tick_num: int, base: int = 1, double_every: int = 5) -> int
     Doubles every `double_every` ticks: ticks 1-5 → base, 6-10 → base*2, 11-15 → base*4, ...
     """
     return base * (2 ** ((tick_num - 1) // double_every))
+
+
+def apply_mana_per_round(session: Session, tick_num: int, amount: int = 0) -> None:
+    """Add passive mana to each active player each round (when cooperate/steal disabled)."""
+    delta = amount or MANA_PER_ROUND
+    for p in session.players:
+        if p.status == "active":
+            p.mana = max(0, p.mana + delta)
 
 
 def tick(session: Session, tick_num: int, drain_sec: int = 1) -> List[str]:
@@ -328,6 +338,122 @@ def apply_code_use(
     return True
 
 
+def pick_best_code(
+    player: "Player",
+    session: Session,
+) -> Optional[int]:
+    """
+    Choose the best code index from player inventory based on utility:
+    - self/gamble type → when own time < 50% of base (need time)
+    - steal type       → when enemy is richest and we're competitive
+    - give type        → when we have surplus time AND trust > 0.65 to someone
+    - minus_all        → when we have time advantage over most players
+    - plus_all_except_one → when we want to boost allies except leader
+    Returns inventory index or None if no code is worth using now.
+    """
+    if not player.inventory:
+        return None
+
+    base_sec = session.base_seconds_per_player or 1000
+    others = [o for o in session.active_players() if o.agent_id != player.agent_id]
+    my_ratio = player.time_remaining_sec / base_sec
+
+    scored: list[tuple[float, int]] = []
+    for idx, code in enumerate(player.inventory):
+        code_type = code.get("type", "self")
+        score = 0.0
+
+        if code_type in ("self",):
+            # Use self-boost when low on time
+            urgency = max(0.0, 1.0 - my_ratio * 2)  # 0 at 50%+, 1 at 0%
+            score = urgency * float(code.get("base_ev", 1))
+
+        elif code_type == "gamble":
+            # Use gamble when we have some risk appetite and are in danger
+            urgency = max(0.0, 0.75 - my_ratio)
+            risk = player.risk_appetite() if hasattr(player, "risk_appetite") else 0.5
+            score = urgency * risk * float(code.get("base_ev", 1))
+
+        elif code_type == "steal":
+            # Use steal when there's a rich target and we need time
+            if others:
+                richest = max(others, key=lambda o: o.time_remaining_sec)
+                target_ratio = richest.time_remaining_sec / base_sec
+                need = max(0.0, 0.6 - my_ratio)
+                score = need * target_ratio * float(code.get("base_ev", 1.5))
+
+        elif code_type == "give":
+            # Use give when we have surplus and high trust to someone
+            if others and my_ratio > 0.5:
+                best_trust = max(session.get_trust(player.agent_id, o.agent_id) for o in others)
+                surplus = max(0.0, my_ratio - 0.5)
+                score = surplus * best_trust * float(code.get("base_ev", 2))
+
+        elif code_type == "minus_all":
+            # Use time_bomb when we're ahead of most players
+            if others:
+                avg_ratio = sum(o.time_remaining_sec for o in others) / (len(others) * base_sec)
+                advantage = max(0.0, my_ratio - avg_ratio)
+                score = advantage * float(code.get("base_ev", 3)) * 0.5
+
+        elif code_type == "plus_all_except_one":
+            # Use solidarity when we want to boost allies
+            if others and my_ratio > 0.4:
+                score = my_ratio * float(code.get("base_ev", 3)) * 0.4
+
+        scored.append((score, idx))
+
+    if not scored:
+        return None
+    best_score, best_idx = max(scored, key=lambda x: x[0])
+    # Only use if score meets minimum threshold
+    if best_score < 0.15:
+        return None
+    return best_idx
+
+
+def run_code_phase(
+    session: Session,
+    tick_num: int,
+    rng: Optional[random.Random] = None,
+) -> None:
+    """
+    CODE phase: each active player may use one or more codes from their inventory.
+    Uses pick_best_code() utility to decide which code (if any) to use.
+    Called after SHOP phase, before COMM/ACTION phases.
+    """
+    for p in session.active_players():
+        # Allow using multiple codes per round if utility warrants it
+        max_uses = len(p.inventory)
+        for _ in range(max_uses):
+            if not p.inventory:
+                break
+            idx = pick_best_code(p, session)
+            if idx is None:
+                break
+            # Pick target for codes that need one
+            code = p.inventory[idx]
+            target_id: Optional[str] = None
+            if code.get("target_other") or code.get("target_all_except_one"):
+                others = [o for o in session.active_players() if o.agent_id != p.agent_id]
+                if others:
+                    if code.get("type") == "give":
+                        # Give to the player we trust most who is low on time
+                        target_id = min(
+                            others,
+                            key=lambda o: o.time_remaining_sec - session.get_trust(p.agent_id, o.agent_id) * 200
+                        ).agent_id
+                    elif code.get("type") == "steal":
+                        # Steal from the richest player
+                        target_id = max(others, key=lambda o: o.time_remaining_sec).agent_id
+                    elif code.get("type") == "plus_all_except_one":
+                        # Exclude the leader (most time)
+                        target_id = max(others, key=lambda o: o.time_remaining_sec).agent_id
+                    else:
+                        target_id = (rng or random).choice(others).agent_id
+            apply_code_use(session, p.agent_id, idx, tick_num, target_id=target_id, rng=rng)
+
+
 def run_storm(session: Session, tick_num: int, delta_sec: int = -30) -> None:
     """Apply storm: all active players lose delta_sec."""
     for p in session.active_players():
@@ -515,10 +641,25 @@ def log_game_over(session: Session, tick_num: int, winner_id: Optional[str] = No
         with_time = [p for p in session.players if p.time_remaining_sec > 0]
         if with_time:
             winner_id = max(with_time, key=lambda p: p.time_remaining_sec).agent_id
+
+    # Include per-player stats (steals, coops, role) and skill bonuses for frontend display
+    player_stats = {}
+    for p in session.players:
+        stats = _player_stats(session, p.agent_id)
+        end_ctx = {"steal_count": stats["steal_count"], "coop_count": stats["coop_count"]}
+        end_bonus = skills.apply_on_game_end(p.role_id, end_ctx).get("bonus_seconds", 0)
+        player_stats[p.agent_id] = {
+            "role_id": p.role_id,
+            "steal_count": stats["steal_count"],
+            "coop_count": stats["coop_count"],
+            "game_end_bonus_sec": end_bonus,
+        }
+
     _log(session, {
         "event_type": EVENT_TYPE_GAME_OVER,
         "tick": tick_num,
         "winner_id": winner_id,
         "final_times": {p.agent_id: p.time_remaining_sec for p in session.players},
         "final_mana": {p.agent_id: p.mana for p in session.players},
+        "player_stats": player_stats,
     }, tick=tick_num)

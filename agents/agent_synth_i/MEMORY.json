@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_i",
-  "total_score": 440.316,
+  "total_score": 511.8925,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -64,6 +64,188 @@
       "final_mood": "dominant",
       "reveals_used": 0,
       "conclusion": "Отже, гра закінчилася, і Вождь виявився найхитрішим. Я отримав багато допомоги, але і зрад було достатньо. У наступній грі я буду обережнішим із Романом Романюком і Мартою, вони здаються не дуже надійними. Хоча Алєг і Вова майже завжди тримали слово, тому їм можна довіряти більше. Можливо, наступного разу не варто одразу повністю довіряти всім, навіть якщо вони здаються дружніми."
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 3,
+      "final_score": 48.35,
+      "winner": "agent_synth_g",
+      "betrayals_received": 2,
+      "cooperations_received": 7,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, Вождь виграв... Я думав, у мене вийде краще. Сергій двічі мене підвів, хоч я намагався з ним співпрацювати. Вождь, як завжди, тримав слово, йому можна довіряти. Можливо, наступного разу варто менше вірити Марті, вона не завжди відповідала взаємністю на мою допомогу. Треба бути уважнішим до того, як люди поводяться, а не до того, що вони говорять.",
+      "trust_snapshot": {
+        "agent_synth_n": 0.33,
+        "agent_synth_g": 1.0,
+        "agent_synth_h": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 201.94,
+      "winner": "agent_synth_d",
+      "betrayals_received": 6,
+      "cooperations_received": 29,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.66,
+        "agent_synth_j": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 3,
+      "final_score": 81.44,
+      "winner": "agent_synth_d",
+      "betrayals_received": 5,
+      "cooperations_received": 10,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все скінчилось. Роман Романюк виграв, молодець. Я думав, що зможу домовитись з усіма, але Вождь і Алєг виявились ненадійними. Наступного разу буду обережнішим з ними, а Роману, Марті й Вові можна довіряти.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.66,
+        "agent_synth_j": 1.0
+      }
+    },
+    {
+      "game_id": "67373bc8",
+      "rounds_played": 2,
+      "final_score": 118.02,
+      "winner": "agent_synth_jesus",
+      "betrayals_received": 13,
+      "cooperations_received": 13,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Сьогодні була дивна гра. Я думав, що зрозумів, як треба діяти, але Хесус виявився хитрішим за мене. Я довіряв Катерині Марсовій та Хесусу, а вони мене підвели в кінці. Наступного разу буду обережнішим з Вождем, він якось дивно себе поводив — ніби намагався щось вигадати. Можливо, треба менше довіряти людям, навіть якщо вони здаються чесними, як Роман Романюк.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.0,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 1.0,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 0.33,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 0.0,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 0.0
+      }
+    },
+    {
+      "game_id": "1fecdf11",
+      "rounds_played": 5,
+      "final_score": 337.13,
+      "winner": "agent_synth_f",
+      "betrayals_received": 27,
+      "cooperations_received": 38,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я трохи розчарований, Катерина Марсова виграла, а я лише другий. Найбільше мене здивував Алєг — спочатку допомагав, а потім почав зраджувати. Вождь, здається, справжній друг, завжди підтримував. Наступного разу я б більше довіряв Роману Романюку та Вові, вони здаються чесними. Можливо, не варто було так часто зраджувати Лілю та Артурчика, це могло змінити результат.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.66,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 1.0
+      }
+    },
+    {
+      "game_id": "4326c081",
+      "rounds_played": 8,
+      "final_score": 519.47,
+      "winner": "agent_synth_d",
+      "betrayals_received": 43,
+      "cooperations_received": 61,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Блін, Роман Романюк виграв. Я йому так довіряв, особливо в середині, а він мене зраджував! Треба було менше вірити Тайлеру Дердену і Хесусу, вони теж виявилися не дуже чесними. Вождь і Вова, навпаки, майже завжди допомагали, їм можна довіряти. Катерина Марсова в останньому раунді зрадила, хоча я їй повністю довіряв, от тобі й на. Наступного разу буду обережнішим і більше слухатиму інтуїцію, а не сліпо довірятиму всім підряд.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.33,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.0,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.33
+      }
+    },
+    {
+      "game_id": "311668de",
+      "rounds_played": 8,
+      "final_score": 505.2,
+      "winner": "agent_synth_e",
+      "betrayals_received": 50,
+      "cooperations_received": 54,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я трохи розчарований, що Тайлер Дерден виграв, але, здається, довіра не завжди окуповується. В наступній грі я буду обережнішим з тим, кому повністю довіряю. Можливо, слід було більше співпрацювати з Вождем та Вовою, вони здаються більш передбачуваними. А ось Роман Романюк та Сергій, схоже, хитрі. Марта, Ліля та Хесус теж були непослідовними. Треба краще аналізувати дії кожного гравця.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 1.0,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 1.0
+      }
+    },
+    {
+      "game_id": "52135aeb",
+      "rounds_played": 8,
+      "final_score": 511.89,
+      "winner": "agent_synth_jesus",
+      "betrayals_received": 41,
+      "cooperations_received": 63,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я трохи розчарований результатом, але Хесус молодець, добре грав. Я зрозумів, що не всі такі чесні, як я очікував. Мабуть, наступного разу не варто так сильно довіряти Вождю, Алєгу, Роману Романюку, Марті, Вові, Артурчику, Чорній Кішці, Тайлеру Дердену і Хесусу — вони мене зрадили. А ось Ліля, Сергій, Катерина Марсова і Новий персонаж були більш передбачуваними. Треба бути хитрішим, як Хесус.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_j": 0.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.0
+      }
     }
   ],
   "rounds": []

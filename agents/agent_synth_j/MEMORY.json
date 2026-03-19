@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_j",
-  "total_score": 414.983,
+  "total_score": 477.7308,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -64,6 +64,190 @@
       "final_mood": "dominant",
       "reveals_used": 0,
       "conclusion": "Отже, все скінчилось. Вождь виявився хитрішим, ніж я думав, треба було менше йому довіряти. Алєг – абсолютний нуль, жодної порядності. Роману Романюку, Марті та Павлу можна було б дати шанс, вони хоч трохи надійні. Наступного разу буду більш вибірковим у своїх рішеннях, і точно не буду таким довірливим."
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 7,
+      "final_score": 183.58,
+      "winner": "agent_synth_d",
+      "betrayals_received": 10,
+      "cooperations_received": 25,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 3,
+      "final_score": 79.0,
+      "winner": "agent_synth_d",
+      "betrayals_received": 7,
+      "cooperations_received": 8,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все закінчилось. Роман Романюк виявився спритнішим за мене, хоча я й не думав, що він здатен на таке. Марта мене розчарувала, не очікував від неї підлості. Павло, як завжди, тримався свого слова, на нього можна покластися. Наступного разу буду обережнішим з Романом, і можливо, дам Алєгу ще один шанс. Головне – не давати емоціям брати верх над розумом.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 10,
+      "final_score": 239.8,
+      "winner": "agent_synth_j",
+      "betrayals_received": 31,
+      "cooperations_received": 19,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все, гра закінчилась. Переміг, але осадок лишився неприємний. Алєг, як завжди, тримав слово, але Марта, Тайлер Дерден і Хесус – ті ще пройдисвіти. Наступного разу буду обережнішим, особливо з тими, хто одразу не викликає довіри. Можливо, варто було менше довіряти Артурчику, хоч він і намагався співпрацювати. Треба бути жорсткішим, інакше сядуть на голову.",
+      "trust_snapshot": {
+        "agent_synth_c": 1.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_l": 0.66,
+        "agent_synth_e": 0.33,
+        "agent_synth_jesus": 0.33
+      }
+    },
+    {
+      "game_id": "67373bc8",
+      "rounds_played": 2,
+      "final_score": 124.22,
+      "winner": "agent_synth_jesus",
+      "betrayals_received": 12,
+      "cooperations_received": 14,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, Вова, інженер, Харків. Підсумуємо. Хесус виявився найхитрішим, але це не дивно. Я був занадто довірливим у першому раунді, особливо до тих, кого не знав, як от Новий персонаж. Звісно, я очікував більшої чесності від Романа Романюка, Алєга та Вождя, але, мабуть, дарма. Їхня непослідовність розчарувала. Наступного разу буду обережнішим і більше довірятиму тим, хто довів свою надійність, як Павло та Артурчик. Марта, Ліля та Катерина Марсова показали себе абсолютно непередбачуваними.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.33,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 1.0,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 1.0,
+        "agent_synth_f": 0.0,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 0.66
+      }
+    },
+    {
+      "game_id": "1fecdf11",
+      "rounds_played": 5,
+      "final_score": 334.8,
+      "winner": "agent_synth_f",
+      "betrayals_received": 20,
+      "cooperations_received": 45,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Що ж, гра закінчилась. Я, звісно, розраховував на кращий результат, але маємо що маємо. Здивувало, як часто Алєг порушував домовленості, хоча я йому довіряв. Наступного разу буду обережнішим з ним. Катерина Марсова виграла – вітаю її, але її поведінка теж була не зовсім прозорою, треба буде це врахувати.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.66,
+        "agent_synth_i": 0.66,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.0,
+        "agent_synth_e": 1.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.66
+      }
+    },
+    {
+      "game_id": "4326c081",
+      "rounds_played": 8,
+      "final_score": 523.74,
+      "winner": "agent_synth_d",
+      "betrayals_received": 45,
+      "cooperations_received": 59,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все закінчилось. Я, звісно, розраховував на кращий результат. Роман Романюк виграв, вітаю його, але я досі не розумію, як він це зробив.\n\nЯ надто довіряв людям, особливо на початку. Марта, Сергій та Новий персонаж здавалися надійними, але, мабуть, я помилився. Алєг виявився більш хитрим, ніж я думав.\n\nНаступного разу буду обережнішим і менше довірятиму, особливо тим, хто здається занадто \"добрими\". Треба було більше \"зраджувати\" у відповідь, можливо, тоді б я виграв.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 1.0,
+        "agent_synth_i": 0.0,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 1.0,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.33,
+        "agent_synth_e": 1.0,
+        "agent_synth_f": 0.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.66
+      }
+    },
+    {
+      "game_id": "311668de",
+      "rounds_played": 8,
+      "final_score": 540.24,
+      "winner": "agent_synth_e",
+      "betrayals_received": 40,
+      "cooperations_received": 64,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Чорт забирай, Тайлер Дерден виявився спритнішим за мене. Я занадто довіряв людям, особливо тим, хто здавався передбачуваним. Павло, Ліля, Артурчик — я їм вірив, а вони... Треба було бути більш жорстким з самого початку. З Алєгом треба було одразу розірвати будь-які стосунки, він виявився ненадійним. Наступного разу буду діяти інакше, менше емоцій, більше розрахунку.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.0,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.66
+      }
+    },
+    {
+      "game_id": "52135aeb",
+      "rounds_played": 8,
+      "final_score": 477.73,
+      "winner": "agent_synth_jesus",
+      "betrayals_received": 50,
+      "cooperations_received": 54,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і гра. Хесус виграв, молодець, що тут скажеш. Але як же багато зрад, особливо від Алєга та Романа Романюка, не очікував. Треба було з самого початку ставитись до них з підозрою. Наступного разу буду обережнішим, особливо з тими, хто так легко зраджує.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.66,
+        "agent_synth_i": 0.66,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 0.0,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.66
+      }
     }
   ],
   "rounds": []

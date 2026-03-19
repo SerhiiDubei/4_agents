@@ -1,0 +1,877 @@
+[
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 560.55,
+    "final_time_median": 560.0,
+    "final_time_stdev": 93.13641123521157,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 318.46125,
+    "final_time_median": 320.0,
+    "final_time_stdev": 92.44288734290255,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 3.996,
+    "first_elimination_tick_mean": 15.995,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 10,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 318.26875,
+    "final_time_median": 320.0,
+    "final_time_stdev": 92.12107846042446,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 3.999,
+    "first_elimination_tick_mean": 15.998,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 349.7325,
+    "final_time_median": 350.0,
+    "final_time_stdev": 105.52511469412295,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 3.997,
+    "first_elimination_tick_mean": 20.997,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 111.2,
+    "final_time_median": 105.0,
+    "final_time_stdev": 92.94155170325193,
+    "survival_rate": 0.995,
+    "survival_rate_2plus": 0.96,
+    "mean_survivors_per_run": 3.177,
+    "first_elimination_tick_mean": 19.92,
+    "first_elimination_tick_median": 20.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 14,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 103.825,
+    "final_time_median": 95.0,
+    "final_time_stdev": 98.83653950025312,
+    "survival_rate": 0.959,
+    "survival_rate_2plus": 0.859,
+    "mean_survivors_per_run": 2.68,
+    "first_elimination_tick_mean": 17.26,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 138.98,
+    "final_time_median": 130.0,
+    "final_time_stdev": 106.42129003513905,
+    "survival_rate": 0.995,
+    "survival_rate_2plus": 0.978,
+    "mean_survivors_per_run": 3.338,
+    "first_elimination_tick_mean": 25.008,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 6.87625,
+    "final_time_median": 0.0,
+    "final_time_stdev": 25.955574717239948,
+    "survival_rate": 0.291,
+    "survival_rate_2plus": 0.082,
+    "mean_survivors_per_run": 0.39,
+    "first_elimination_tick_mean": 20.232,
+    "first_elimination_tick_median": 20.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 17,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 4.0925,
+    "final_time_median": 0.0,
+    "final_time_stdev": 22.07001846802115,
+    "survival_rate": 0.166,
+    "survival_rate_2plus": 0.051,
+    "mean_survivors_per_run": 0.222,
+    "first_elimination_tick_mean": 17.237,
+    "first_elimination_tick_median": 17.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 859.24625,
+    "final_time_median": 860.0,
+    "final_time_stdev": 90.82958281427948,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 616.9425,
+    "final_time_median": 615.0,
+    "final_time_stdev": 91.72209346366523,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 10,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 622.67125,
+    "final_time_median": 620.0,
+    "final_time_stdev": 93.434419092245,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 644.6175,
+    "final_time_median": 640.0,
+    "final_time_stdev": 106.87619858605588,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 406.37375,
+    "final_time_median": 405.0,
+    "final_time_stdev": 109.11585874012378,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 14,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 404.385,
+    "final_time_median": 405.0,
+    "final_time_stdev": 106.73732940903264,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 431.93,
+    "final_time_median": 430.0,
+    "final_time_stdev": 119.18253319616413,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 3.999,
+    "first_elimination_tick_mean": 25.999,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 191.985,
+    "final_time_median": 190.0,
+    "final_time_stdev": 114.6740917200915,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 0.998,
+    "mean_survivors_per_run": 3.706,
+    "first_elimination_tick_mean": 25.581,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1500,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 17,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 194.305,
+    "final_time_median": 190.0,
+    "final_time_stdev": 114.46584679510579,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 0.996,
+    "mean_survivors_per_run": 3.711,
+    "first_elimination_tick_mean": 25.463,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 1158.74,
+    "final_time_median": 1155.0,
+    "final_time_stdev": 92.34077704230236,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 918.37625,
+    "final_time_median": 915.0,
+    "final_time_stdev": 93.96789173492601,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 15,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 7,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 10,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 921.59375,
+    "final_time_median": 920.0,
+    "final_time_stdev": 90.79648788081163,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 16,
+    "first_elimination_tick_median": 16.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 944.49375,
+    "final_time_median": 945.0,
+    "final_time_stdev": 105.22490451917866,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 704.73,
+    "final_time_median": 705.0,
+    "final_time_stdev": 104.69780326015382,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 14,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 704.3275,
+    "final_time_median": 705.0,
+    "final_time_stdev": 106.09199603012196,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 21,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 731.55375,
+    "final_time_median": 730.0,
+    "final_time_stdev": 117.35564621211016,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 26,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 488.465,
+    "final_time_median": 485.0,
+    "final_time_stdev": 117.60506584700431,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 26,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1800,
+      "T_ticks": 25,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 17,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.3,
+      "p_steal": 0.2,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 492.3375,
+    "final_time_median": 490.0,
+    "final_time_stdev": 117.06264139020746,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 4,
+    "first_elimination_tick_mean": 26,
+    "first_elimination_tick_median": 26.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 14,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.5,
+      "p_steal": 0.1,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 307.64,
+    "final_time_median": 310.0,
+    "final_time_stdev": 108.8688132783037,
+    "survival_rate": 1.0,
+    "survival_rate_2plus": 1.0,
+    "mean_survivors_per_run": 3.936,
+    "first_elimination_tick_mean": 20.748,
+    "first_elimination_tick_median": 21.0
+  },
+  {
+    "params": {
+      "n_players": 4,
+      "B_sec": 1200,
+      "T_ticks": 20,
+      "tick_cost_sec": 60,
+      "events": [
+        {
+          "tick": 10,
+          "kind": "storm",
+          "delta_sec": -240,
+          "threshold_sec": 0,
+          "penalty_sec": 0
+        },
+        {
+          "tick": 14,
+          "kind": "crisis",
+          "delta_sec": 0,
+          "threshold_sec": 300,
+          "penalty_sec": -180
+        }
+      ],
+      "p_coop": 0.2,
+      "p_steal": 0.4,
+      "p_code_use": 0.0,
+      "action_every_n_ticks": 1
+    },
+    "n_runs": 1000,
+    "final_time_mean": 30.4525,
+    "final_time_median": 0.0,
+    "final_time_stdev": 58.72207689045562,
+    "survival_rate": 0.744,
+    "survival_rate_2plus": 0.373,
+    "mean_survivors_per_run": 1.216,
+    "first_elimination_tick_mean": 14.808,
+    "first_elimination_tick_median": 14.0
+  }
+]

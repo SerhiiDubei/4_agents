@@ -127,7 +127,7 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
       deceptionTendency  → boosts defective actions (while seeming cooperative)
       strategicHorizon   → boosts actions that are better long-term
       riskAppetite       → handled via temperature, not score
-      reasoning_hint     → LLM intent signal shifts cooperation_bias by ±8
+      reasoning_hint     → LLM intent signal shifts cooperation_bias by ±20
     """
     cb = core.cooperation_bias / 100      # 0-1
     dt = core.deception_tendency / 100    # 0-1
@@ -138,12 +138,14 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
     reasoning_delta = 0.0
     if context.reasoning_hint:
         txt = context.reasoning_hint.lower()
-        _coop_signals = ["кооперу", "співпрац", "довіряю", "підтримаю", "разом", "союзник", "допоможу"]
-        _defect_signals = ["зраджу", "зрадж", "не довіряю", "зменшу", "дефект", "покажу хто", "зменшу довіру", "не буду довіряти"]
-        if any(w in txt for w in _coop_signals):
-            reasoning_delta = +8.0
-        elif any(w in txt for w in _defect_signals):
-            reasoning_delta = -8.0
+        _coop_signals = ["кооперу", "співпрац", "довіряю", "підтримаю", "разом", "союзник", "допоможу", "підтримую", "за тебе"]
+        _defect_signals = ["зраджу", "зрадж", "не довіряю", "зменшу", "дефект", "покажу хто", "зменшу довіру", "не буду довіряти", "краду", "вкраду"]
+        coop_hits = sum(1 for w in _coop_signals if w in txt)
+        defect_hits = sum(1 for w in _defect_signals if w in txt)
+        if coop_hits > defect_hits:
+            reasoning_delta = +20.0
+        elif defect_hits > coop_hits:
+            reasoning_delta = -20.0
     cb_effective = max(0.0, min(1.0, cb + reasoning_delta / 100.0))
 
     # Rounds remaining factor — late game shifts toward defection slightly

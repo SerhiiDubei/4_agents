@@ -41,6 +41,13 @@ _TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\
 _sessions_store: dict[str, list[dict]] = {}
 _sessions_status: dict[str, str] = {}   # "running" | "done" | "error"
 _sessions_html: dict[str, str] = {}     # session_id → /logs/time_wars_*.html path
+_sessions_progress: dict[str, dict] = {}  # session_id → {round, tick, active} for SSE progress
+_sessions_live_events: dict[str, list[dict]] = {}  # stream events in real-time; append each round
+_sessions_last_flush: dict[str, int] = {}  # session_id -> last flushed event_log index
+
+# Logging: always print to stderr so user sees TW activity (incl. LLM calls)
+def _tw_log(msg: str) -> None:
+    print(f"[TW] {msg}", flush=True, file=sys.stderr)
 
 # Human player support
 _sessions_human: dict[str, bool] = {}          # session_id → has human slot
@@ -54,6 +61,26 @@ ROLE_NAMES: dict[str, str] = {
     "role_banker": "Банкір",
     "role_gambler": "Авантюрист",
 }
+
+
+def _flush_events_to_live(session_id: str, session: "Session") -> None:
+    """Append new enriched events to _sessions_live_events for real-time SSE streaming."""
+    last = _sessions_last_flush.get(session_id, 0)
+    new_events = session.event_log[last:]
+    if not new_events:
+        return
+    agent_display = _load_agent_names()
+    for ev in new_events:
+        e = dict(ev)
+        for field in ("agent_id", "actor_id", "target_id", "winner_id"):
+            if field in e and e[field]:
+                e[f"{field}_name"] = agent_display.get(e[field], e[field])
+        if "final_times" in e:
+            e["final_times_named"] = {agent_display.get(k, k): v for k, v in e["final_times"].items()}
+        if "roles" not in e and ev.get("event_type") == "role_assignment":
+            e["role_name"] = ROLE_NAMES.get(e.get("role_id", ""), e.get("role_id", ""))
+        _sessions_live_events.setdefault(session_id, []).append(e)
+    _sessions_last_flush[session_id] = len(session.event_log)
 
 try:
     from fastapi import FastAPI, HTTPException, Request
@@ -189,20 +216,22 @@ def _get_sessions() -> list[dict]:
 
 def _run_game_in_thread(session_id: str) -> None:
     """Run one TIME WARS session synchronously in a background thread."""
+    _tw_log(f"Thread started for session {session_id}")
     _sessions_status[session_id] = "running"
     _sessions_store[session_id] = []
     try:
         sys.path.insert(0, str(ROOT))
-        from game_modes.time_wars.state import create_session
+        from game_modes.time_wars.state import create_session, save_trust_to_memory
         from game_modes.time_wars.loop import (
             tick, escalating_drain, apply_cooperate, apply_steal, apply_code_use,
             run_storm, run_crisis, apply_game_end_bonuses,
             is_game_over, log_game_start, log_game_over, log_code_buy,
             build_situation_text, log_round_start, log_player_intent,
+            run_code_phase, apply_mana_per_round,
         )
         from game_modes.time_wars.agent_context import get_agent_action_mock
         from game_modes.time_wars.logging_export import write_session_log
-        from game_modes.time_wars.shop import load_codes, get_available_codes, buy_code
+        from game_modes.time_wars.shop import load_codes, get_available_codes, buy_code, effective_cost
         from game_modes.time_wars.log_to_html import generate_time_wars_html
 
         agent_ids = _load_roster_agents() or ["agent_synth_g", "agent_synth_c", "agent_synth_d", "agent_synth_h"]
@@ -223,6 +252,8 @@ def _run_game_in_thread(session_id: str) -> None:
         storm_after_ticks = 300        # storm at round 30 (tick 300) — mid/late game
         rng = random.Random()
 
+        _tw_log(f"Session {session_id} starting... agents={agent_ids}")
+        t_session_start = time.perf_counter()
         session = create_session(
             session_id=session_id,
             agent_ids=agent_ids,
@@ -230,10 +261,18 @@ def _run_game_in_thread(session_id: str) -> None:
             duration_limit_sec=duration,
         )
         log_game_start(session, drain_double_every=DRAIN_DOUBLE_EVERY)
+        _sessions_live_events[session_id] = []
+        _sessions_last_flush[session_id] = 0
+        _flush_events_to_live(session_id, session)
+        _tw_log(f"Session created in {time.perf_counter() - t_session_start:.2f}s")
+        _sessions_progress[session_id] = {"round": 0, "tick": 0, "active": len(agent_ids)}
 
         codes_catalog = load_codes()
+        _tw_log("Entering main game loop...")
 
         for t in range(1, duration + 1):
+            if t <= 3 or t % 50 == 0:
+                _tw_log(f"Tick {t}...")
             drain = escalating_drain(t, base=DRAIN_BASE, double_every=DRAIN_DOUBLE_EVERY)
             eliminated = tick(session, t, drain_sec=drain)
 
@@ -250,27 +289,177 @@ def _run_game_in_thread(session_id: str) -> None:
                 else:
                     winner = None
                 log_game_over(session, t, winner_id=winner)
+                _tw_log(f"Game over at tick {t} | winner={winner} | total session time: {time.perf_counter() - t_session_start:.1f}s")
                 break
 
             # Action phase every ticks_per_action ticks
             if t % ticks_per_action == 0:
                 round_num = t // ticks_per_action
-                # threshold = 30% of base_sec so agents get "danger" signal early enough
+                t_round_start = time.perf_counter()
                 sit = build_situation_text(session, threshold_sec=max(60, base_sec // 3))
-                # Augment round_start with current drain so frontend can display it
                 _log_extra = {"drain_sec": drain, "drain_double_every": DRAIN_DOUBLE_EVERY}
                 log_round_start(session, round_num, t, t, {**sit, **_log_extra})
+                apply_mana_per_round(session, t)
+                _tw_log(f"Round {round_num} (tick {t}) | drain={drain}s | active={len(session.active_players())}")
+                _sessions_progress[session_id] = {"round": round_num, "tick": t, "active": len(session.active_players())}
 
+                # ── SHOP phase: buy as many codes as mana allows ──────────
+                t_shop = time.perf_counter()
+                _tw_log("  SHOP phase...")
                 if codes_catalog:
                     for p in session.active_players():
-                        available = get_available_codes(session, p.agent_id, codes_catalog)
-                        if available and rng.random() < 0.30:
-                            card = rng.choice(available)
+                        bought = 0
+                        while bought < 6:  # safety cap per round
+                            available = get_available_codes(session, p.agent_id, codes_catalog)
+                            if not available:
+                                break
+                            # Prefer self/steal codes when in danger, give codes when rich
+                            my_ratio = p.time_remaining_sec / base_sec
+                            if my_ratio < 0.4:
+                                pref_types = ["self", "steal", "gamble"]
+                            elif my_ratio > 0.7:
+                                pref_types = ["give", "plus_all_except_one", "steal"]
+                            else:
+                                pref_types = []
+                            preferred = [c for c in available if c.get("type") in pref_types] if pref_types else []
+                            card = rng.choice(preferred) if preferred else rng.choice(available)
+                            cost = effective_cost(card, session, p.agent_id)
+                            if p.mana < cost:
+                                break
                             if buy_code(session, p.agent_id, card["id"], codes_catalog):
-                                log_code_buy(session, p.agent_id, card["id"], card.get("cost_mana", 0), t)
+                                log_code_buy(session, p.agent_id, card["id"], cost, t)
+                                bought += 1
+                            else:
+                                break
+                _tw_log(f"  SHOP done in {time.perf_counter() - t_shop:.2f}s")
 
+                # ── CODE phase: use codes from inventory (utility-based) ──
+                t_code = time.perf_counter()
+                run_code_phase(session, t, rng=rng)
+                _tw_log(f"  CODE done in {time.perf_counter() - t_code:.2f}s")
+
+                # ── COMM phase: LLM dialog (public + DM) ─────────────────
+                round_messages: list[dict] = []
+                t_comm = time.perf_counter()
+                try:
+                    from pathlib import Path as _Path
+                    from simulation.dialog_engine import generate_round_dialog_flat
+                    agent_display = _load_agent_names()
+                    agents_root = ROOT / "agents"
+                    agent_cfgs = []
+                    for p in session.active_players():
+                        soul_path = agents_root / p.agent_id / "SOUL.md"
+                        states_path = agents_root / p.agent_id / "STATES.md"
+                        mem_path = agents_root / p.agent_id / "MEMORY.json"
+                        core_path = agents_root / p.agent_id / "CORE.json"
+                        soul_md = soul_path.read_text(encoding="utf-8") if soul_path.exists() else ""
+                        states_md = states_path.read_text(encoding="utf-8") if states_path.exists() else ""
+                        mem_data = json.loads(mem_path.read_text(encoding="utf-8")) if mem_path.exists() else {}
+                        core_data = json.loads(core_path.read_text(encoding="utf-8")) if core_path.exists() else {}
+                        # Choose DM target: agent we trust least (most likely to betray)
+                        others_sorted = sorted(
+                            [o for o in session.active_players() if o.agent_id != p.agent_id],
+                            key=lambda o: session.get_trust(p.agent_id, o.agent_id)
+                        )
+                        dm_target = others_sorted[0].agent_id if others_sorted else None
+                        agent_cfgs.append({
+                            "agent_id": p.agent_id,
+                            "soul_md": soul_md,
+                            "states_md": states_md,
+                            "memory_summary": mem_data,
+                            "deception_tendency": float(core_data.get("deception_tendency", 30)),
+                            "model": core_data.get("model", "google/gemini-2.0-flash-001"),
+                            "dm_target": dm_target,
+                            "game_context": (
+                                f"Time Wars round {round_num}. "
+                                f"My time: {p.time_remaining_sec}s. "
+                                f"Drain: {drain}s/tick. "
+                                f"Players left: {len(session.active_players())}."
+                            ),
+                        })
+                    if agent_cfgs:
+                        _tw_log(f"  COMM phase (LLM): {len(agent_cfgs)} agents, public+DM calls...")
+                        # ROB-1: retry up to 2 times on LLM failure; ROB-2: 90s timeout per attempt
+                        _comm_rd = None
+                        for _attempt in range(3):
+                            try:
+                                import signal as _signal
+                                import threading as _th
+
+                                _result_holder: list = []
+                                _err_holder: list = []
+
+                                def _run_dialog():
+                                    try:
+                                        _result_holder.append(generate_round_dialog_flat(
+                                            round_number=round_num,
+                                            agent_configs=agent_cfgs,
+                                            agent_names=agent_display,
+                                            verbose=True,
+                                        ))
+                                    except Exception as _e:
+                                        _err_holder.append(_e)
+
+                                _t = _th.Thread(target=_run_dialog, daemon=True)
+                                _t.start()
+                                _t.join(timeout=90)  # ROB-2: 90s timeout
+
+                                if _result_holder:
+                                    _comm_rd = _result_holder[0]
+                                    break
+                                elif _err_holder:
+                                    _tw_log(f"  COMM LLM attempt {_attempt+1} error: {_err_holder[0]}")
+                                else:
+                                    _tw_log(f"  COMM LLM attempt {_attempt+1} timed out (90s)")
+                                if _attempt < 2:
+                                    time.sleep(2 ** _attempt)  # backoff: 1s, 2s
+                            except Exception as _retry_err:
+                                _tw_log(f"  COMM retry wrapper error: {_retry_err}")
+                                break
+
+                        rd = _comm_rd
+                        if rd is None:
+                            _tw_log("  COMM phase skipped (all attempts failed/timed out)")
+                        round_messages = [m.to_dict() for m in rd.messages] if rd else []
+                        # Trust update from dialog tone
+                        _support_kws = ["підтримую", "допоможу", "за тебе", "союзник", "довіряю", "разом ми", "покладайся", "я з тобою"]
+                        for msg in (rd.messages if rd else []):
+                            msg_text = (getattr(msg, "text", "") or "").lower()
+                            if msg.is_deceptive:
+                                for p2 in session.active_players():
+                                    if p2.agent_id != msg.sender_id:
+                                        old = session.get_trust(p2.agent_id, msg.sender_id)
+                                        session.set_trust(p2.agent_id, msg.sender_id, max(0, old - 0.05))
+                            # Support mechanic: supportive public/DM messages boost trust
+                            elif any(kw in msg_text for kw in _support_kws):
+                                ch = getattr(msg, "channel", "public")
+                                trust_boost = 0.06 if ch.startswith("dm_") else 0.03
+                                target_id = ch.replace("dm_", "") if ch.startswith("dm_") else None
+                                for p2 in session.active_players():
+                                    if p2.agent_id == msg.sender_id:
+                                        continue
+                                    if target_id and p2.agent_id != target_id:
+                                        continue
+                                    old = session.get_trust(p2.agent_id, msg.sender_id)
+                                    session.set_trust(p2.agent_id, msg.sender_id, min(1.0, old + trust_boost))
+                        # Emit comm events to SSE stream
+                        for msg in round_messages:
+                            session.event_log.append({
+                                "event_type": "comm_message",
+                                "round_num": round_num,
+                                "tick": t,
+                                "sender_id": msg.get("sender", ""),
+                                "channel": msg.get("channel", "public"),
+                                "text": msg.get("text", ""),
+                                "sender_id_name": agent_display.get(msg.get("sender", ""), msg.get("sender", "")),
+                            })
+                except Exception as _comm_err:
+                    _tw_log(f"  COMM phase ERROR: {_comm_err}")
+                _tw_log(f"  COMM done in {time.perf_counter() - t_comm:.2f}s")
+
+                # ── ACTION phase: cooperate / steal / pass ────────────────
+                t_action = time.perf_counter()
                 for p in session.active_players():
-                    # Human player: wait up to 60s for action via /api/human-action
                     if has_human and p.agent_id == human_agent_id:
                         evt = threading.Event()
                         if session_id not in _human_pending:
@@ -283,16 +472,21 @@ def _run_game_in_thread(session_id: str) -> None:
                                 "action": human_act_raw.get("action", "pass"),
                                 "target_id": human_act_raw.get("target_id") or None,
                                 "code_index": None,
-                                "thought": "Гравець вирішує",
+                                "thought": "Player decides",
                                 "plan": human_act_raw.get("action", "pass"),
                                 "choice": human_act_raw.get("action", "pass"),
-                                "reason": "Рішення людини",
+                                "reason": "Human decision",
                             }
                         else:
                             act = {"action": "pass", "target_id": None, "code_index": None,
-                                   "thought": "Час вийшов", "plan": "Пас", "choice": "Пас", "reason": "Тайм-аут"}
+                                   "thought": "Timeout", "plan": "Pass", "choice": "Pass", "reason": "Timeout"}
                     else:
-                        act = get_agent_action_mock(session, p.agent_id, rng=rng)
+                        act = get_agent_action_mock(
+                            session, p.agent_id, rng=rng, last_messages=round_messages,
+                            agent_names=agent_display, agents_root=ROOT / "agents",
+                            round_num=round_num, total_rounds=max(20, duration // ticks_per_action),
+                            current_tick=t, ticks_per_action=ticks_per_action,
+                        )
 
                     log_player_intent(
                         session, p.agent_id, t,
@@ -305,8 +499,8 @@ def _run_game_in_thread(session_id: str) -> None:
                         apply_cooperate(session, p.agent_id, act["target_id"], t)
                     elif act["action"] == "steal" and act["target_id"]:
                         apply_steal(session, p.agent_id, act["target_id"], t, rng=rng)
-                    elif act["action"] == "use_code" and act["code_index"] is not None:
-                        apply_code_use(session, p.agent_id, act["code_index"], t, rng=rng)
+                _tw_log(f"  ACTION done in {time.perf_counter() - t_action:.2f}s | round total: {time.perf_counter() - t_round_start:.2f}s")
+                _flush_events_to_live(session_id, session)
 
             # Late-game storm
             if t == storm_after_ticks:
@@ -324,6 +518,7 @@ def _run_game_in_thread(session_id: str) -> None:
                 else:
                     winner = None
                 log_game_over(session, t, winner_id=winner)
+                _tw_log(f"Game over at tick {t} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
                 break
         else:
             # Hard cap reached — declare winner by most time remaining
@@ -331,13 +526,22 @@ def _run_game_in_thread(session_id: str) -> None:
             active = session.active_players()
             winner = max(active, key=lambda x: x.time_remaining_sec).agent_id if active else None
             log_game_over(session, duration, winner_id=winner)
+            _tw_log(f"Game hard cap at tick {duration} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
+
+        # Persist final trust back to agents' MEMORY.json
+        try:
+            save_trust_to_memory(session)
+        except Exception:
+            pass
 
         LOGS_DIR.mkdir(exist_ok=True)
         path = write_session_log(session, LOGS_DIR)
         html_path = generate_time_wars_html(path)
         _sessions_html[session_id] = f"/logs/{html_path.name}"
 
-        # Inject display names into events for frontend
+        # Flush any remaining events (e.g. log_game_over) for real-time SSE
+        _flush_events_to_live(session_id, session)
+        # Inject display names into events for frontend (also keep full store for backwards compat)
         agent_display = _load_agent_names()
         enriched = []
         for ev in session.event_log:
@@ -352,12 +556,15 @@ def _run_game_in_thread(session_id: str) -> None:
             enriched.append(e)
         _sessions_store[session_id] = enriched
         _sessions_status[session_id] = "done"
+        _tw_log(f"Game complete: {len(enriched)} events ready for SSE")
 
         # Persist to database
         _save_session_to_db(session_id, session, enriched, _sessions_html.get(session_id, ""))
 
     except Exception as exc:
         import traceback
+        _tw_log(f"Game thread ERROR for {session_id}: {exc}")
+        _tw_log(traceback.format_exc())
         _sessions_store[session_id] = [{"event_type": "error", "message": str(exc), "trace": traceback.format_exc()}]
         _sessions_status[session_id] = "error"
 
@@ -525,41 +732,49 @@ async def pending_action(session_id: str):
 
 @app.get("/api/game-events/{session_id}")
 async def game_events(session_id: str):
-    """SSE stream: wait for game to finish, then stream events with visual delays."""
+    """SSE stream: real-time events from _sessions_live_events, progress updates, then __stream_end__."""
+    _tw_log(f"SSE client connected for {session_id}")
+
     async def event_stream():
-        # Wait up to 30s for game to finish
-        for _ in range(300):
-            if _sessions_status.get(session_id) in ("done", "error"):
-                break
-            await asyncio.sleep(0.1)
+        # Stream events in real-time from _sessions_live_events (flushed each round)
+        yielded_count = 0
+        last_progress = {}
+        for i in range(1200):  # 1200 * 0.5s = 600s = 10 min
+            status = _sessions_status.get(session_id, "unknown")
+            live = _sessions_live_events.get(session_id, [])
 
-        events = _sessions_store.get(session_id, [])
-        if not events:
-            yield f"data: {json.dumps({'event_type': 'error', 'message': 'no events'})}\n\n"
-            return
-
-        # Group events by tick for display
-        tick_events: list[list[dict]] = [[]]
-        for ev in events:
-            et = ev.get("event_type", "")
-            if et in ("game_start", "role_assignment"):
-                tick_events[0].append(ev)
-            elif et == "round_start":
-                tick_events.append([ev])
-            else:
-                if tick_events:
-                    tick_events[-1].append(ev)
-                else:
-                    tick_events.append([ev])
-
-        for group in tick_events:
-            for ev in group:
+            # Yield any new events immediately (game_start arrives after first flush)
+            while yielded_count < len(live):
+                ev = live[yielded_count]
+                yielded_count += 1
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-            if any(e.get("event_type") in ("round_start", "game_over") for e in group):
-                delay = 0.9
+                et = ev.get("event_type", "")
+                if et in ("round_start", "game_over"):
+                    await asyncio.sleep(0.9)
+                else:
+                    await asyncio.sleep(0.05)
+
+            progress = _sessions_progress.get(session_id, {})
+            if progress != last_progress:
+                last_progress = dict(progress)
+                yield f"data: {json.dumps({'event_type': '__progress__', 'round': progress.get('round', 0), 'tick': progress.get('tick', 0), 'active': progress.get('active', 0)}, ensure_ascii=False)}\n\n"
+
+            if status in ("done", "error"):
+                _tw_log(f"SSE: game {status} for {session_id}")
+                break
+            await asyncio.sleep(0.5)
+
+        # Yield any remaining events (flushed when game ended)
+        live = _sessions_live_events.get(session_id, [])
+        while yielded_count < len(live):
+            ev = live[yielded_count]
+            yielded_count += 1
+            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+            et = ev.get("event_type", "")
+            if et in ("round_start", "game_over"):
+                await asyncio.sleep(0.9)
             else:
-                delay = 0.05
-            await asyncio.sleep(delay)
+                await asyncio.sleep(0.05)
 
         report = _sessions_html.get(session_id)
         yield f"data: {json.dumps({'event_type': '__stream_end__', 'reportPath': report}, ensure_ascii=False)}\n\n"
@@ -1010,6 +1225,15 @@ async def game_page(session: str = ""):
         return;
       }}
 
+      if (et === 'comm_message') {{
+        const sender = ev.sender_id_name || ev.sender_id || '?';
+        const ch = ev.channel || 'public';
+        const icon = ch === 'public' ? '💬' : '📩';
+        const channelLabel = ch === 'public' ? '' : ' (приватне)';
+        addEvent(`${{icon}} ${{sender}}${{channelLabel}}: «${{ev.text || ''}}»`, 'coop');
+        return;
+      }}
+
       if (et === 'game_over') {{
         const tick = ev.tick || tickTotal;
         getEl('tick-label').textContent = `Тік ${{tick}} / ${{tickTotal}}`;
@@ -1102,6 +1326,11 @@ async def game_page(session: str = ""):
     evtSource.onmessage = function(e) {{
       try {{
         const ev = JSON.parse(e.data);
+        if (ev.event_type === '__progress__') {{
+          const st = getEl('status');
+          if (st) st.textContent = 'Раунд ' + (ev.round || 0) + ' (тік ' + (ev.tick || 0) + ') · активних: ' + (ev.active || 0);
+          return;
+        }}
         if (ev.event_type === '__stream_end__') {{
           reportPath = ev.reportPath;
           const reportBtn = getEl('btn-report');

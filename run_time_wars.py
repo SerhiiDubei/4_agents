@@ -60,6 +60,7 @@ def main() -> int:
         tick,
         apply_cooperate,
         apply_steal,
+        apply_mana_per_round,
         apply_code_use,
         run_storm,
         run_crisis,
@@ -116,6 +117,7 @@ def main() -> int:
                 game_timer_sec,
                 build_situation_text(session),
             )
+            apply_mana_per_round(session, t)
             # Shop phase (once per round): each player may buy one code from available
             if codes_catalog:
                 for p in session.active_players():
@@ -125,7 +127,11 @@ def main() -> int:
                         if buy_code(session, p.agent_id, card["id"], codes_catalog):
                             log_code_buy(session, p.agent_id, card["id"], card.get("cost_mana", 0), t)
             for p in session.active_players():
-                act = get_agent_action_mock(session, p.agent_id, rng=rng)
+                act = get_agent_action_mock(
+                    session, p.agent_id, rng=rng,
+                    round_num=round_num, total_rounds=max(20, args.duration // action_interval),
+                    current_tick=t, ticks_per_action=action_interval,
+                )
                 log_player_intent(
                     session,
                     p.agent_id,
