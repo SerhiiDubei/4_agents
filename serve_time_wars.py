@@ -31,7 +31,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
-LOGS_DIR = ROOT / "logs"
+LOGS_ROOT = ROOT / "logs"           # root for static serving
+LOGS_DIR = LOGS_ROOT / "time_wars"  # time_wars JSONL + HTML lives here
+LOGS_ROOT.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 ROSTER_PATH = ROOT / "agents" / "roster.json"
 
@@ -200,14 +202,19 @@ def _get_sessions() -> list[dict]:
         final_times: dict[str, int] = go.get("final_times", {})
         winner_id: str = go.get("winner_id", "")
         scores_by_name = {agent_display.get(aid, aid): t for aid, t in final_times.items()}
+        survivor_count = sum(1 for t in final_times.values() if t > 0)
+        html_path = path.with_suffix(".html")
+        has_report = html_path.exists()
         sessions.append({
             "sessionId": session_id,
             "playedAt": f"{date_str} {time_str.replace('-', ':')}",
             "winner": agent_display.get(winner_id, winner_id),
             "finalTimes": scores_by_name,
             "roles": {agent_display.get(aid, aid): ROLE_NAMES.get(rid, rid) for aid, rid in parsed["roles"].items()},
-            "reportPath": f"/logs/{path.name.replace('.jsonl', '.html')}",
+            "reportPath": f"/logs/time_wars/{path.name.replace('.jsonl', '.html')}" if has_report else None,
             "tick": go.get("tick", 0),
+            "survivorCount": survivor_count,
+            "totalPlayers": len(final_times),
         })
     return sessions
 
@@ -537,7 +544,7 @@ def _run_game_in_thread(session_id: str) -> None:
         LOGS_DIR.mkdir(exist_ok=True)
         path = write_session_log(session, LOGS_DIR)
         html_path = generate_time_wars_html(path)
-        _sessions_html[session_id] = f"/logs/{html_path.name}"
+        _sessions_html[session_id] = f"/logs/time_wars/{html_path.name}"
 
         # Flush any remaining events (e.g. log_game_over) for real-time SSE
         _flush_events_to_live(session_id, session)
@@ -790,12 +797,13 @@ async def game_events(session_id: str):
 async def time_wars_summary():
     sessions = _get_sessions()
     agent_totals: dict[str, int] = {}
-    agent_names: list[str] = []
+    agent_appearances: dict[str, int] = {}  # how many sessions each agent appeared in
     for s in sessions:
-        if not agent_names and s["finalTimes"]:
-            agent_names = list(s["finalTimes"].keys())
         for name, val in s["finalTimes"].items():
             agent_totals[name] = agent_totals.get(name, 0) + val
+            agent_appearances[name] = agent_appearances.get(name, 0) + 1
+    # Sort agents by number of appearances (most frequent first)
+    agent_names = sorted(agent_appearances.keys(), key=lambda n: -agent_appearances[n])
     return JSONResponse({"sessions": sessions, "agentTotals": agent_totals, "agentNames": agent_names})
 
 
@@ -1356,33 +1364,50 @@ async def game_page(session: str = ""):
 @app.get("/results", response_class=HTMLResponse)
 async def results_page():
     sessions = _get_sessions()
-    agent_names: list[str] = []
+
+    # Collect ALL unique agent names across ALL sessions (fix: was only from first session)
     agent_totals: dict[str, int] = {}
+    agent_appearances: dict[str, int] = {}
+    agent_wins: dict[str, int] = {}
     for s in sessions:
-        if not agent_names and s["finalTimes"]:
-            agent_names = list(s["finalTimes"].keys())
         for name, val in s["finalTimes"].items():
             agent_totals[name] = agent_totals.get(name, 0) + val
+            agent_appearances[name] = agent_appearances.get(name, 0) + 1
+        if s["winner"]:
+            agent_wins[s["winner"]] = agent_wins.get(s["winner"], 0) + 1
+    agent_names = sorted(agent_appearances.keys(), key=lambda n: -agent_appearances[n])
+    agent_totals_compat = agent_totals  # alias for template
 
     def _row(s: dict) -> str:
         cells = "".join(
-            f'<td class="sec{"" if s["winner"] != n else " win"}">{s["finalTimes"].get(n, 0)}с</td>'
+            f'<td class="sec{"" if s["winner"] != n else " win"}">'
+            f'{"—" if n not in s["finalTimes"] else str(s["finalTimes"][n]) + "с"}'
+            f'</td>'
             for n in agent_names
         )
-        report = f'<a class="btn-sm btn-green" href="{s["reportPath"]}" target="_blank">Відкрити</a>'
+        survivor_info = f'{s.get("survivorCount", 0)}/{s.get("totalPlayers", 0)}'
+        report_btn = (
+            f'<a class="btn-sm btn-green" href="{s["reportPath"]}" target="_blank">Відкрити</a>'
+            if s.get("reportPath") else '<span style="color:#475569;font-size:.75rem">—</span>'
+        )
         return (
-            f'<tr>'
+            f'<tr data-winner="{s["winner"]}">'
             f'<td class="ts">{s["playedAt"]}</td>'
             f'<td class="num">{s["tick"]}</td>'
             f'<td class="win-cell">{s["winner"]}</td>'
+            f'<td class="surv">{survivor_info}</td>'
             f'{cells}'
-            f'<td>{report}</td>'
+            f'<td>{report_btn}</td>'
             f'</tr>'
         )
 
     total_row = "".join(f'<td class="sec">{agent_totals.get(n, 0)}с</td>' for n in agent_names)
     best_row = "".join(
         f'<td class="sec">{max((s["finalTimes"].get(n, 0) for s in sessions), default=0)}с</td>'
+        for n in agent_names
+    )
+    wins_row = "".join(
+        f'<td class="sec" style="color:#a78bfa">{agent_wins.get(n, 0)}</td>'
         for n in agent_names
     )
     header_agents = "".join(f'<th class="right">{n}</th>' for n in agent_names)
@@ -1400,27 +1425,42 @@ async def results_page():
   <style>
     {_CSS_BASE}
     body {{ padding: 32px 20px; }}
-    .page-header {{ display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }}
+    .page-header {{ display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }}
     h1 {{ font-size: 1.5rem; font-weight: 900; color: #4ade80; letter-spacing: .1em; }}
     .sub {{ color: #64748b; font-size: .9rem; margin-left: 4px; }}
     .actions {{ display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }}
-    table {{ width: 100%; border-collapse: collapse; background: #080f1c; border: 1px solid #1e3a5f; border-radius: 10px; overflow: hidden; font-size: .9rem; }}
+    .filter-bar {{ display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }}
+    .filter-bar input, .filter-bar select {{ background: #0a1628; border: 1px solid #1e3a5f; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: .85rem; }}
+    .filter-bar label {{ color: #64748b; font-size: .8rem; }}
+    .stats-bar {{ display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }}
+    .stat-chip {{ background: #0a1628; border: 1px solid #1e3a5f; border-radius: 8px; padding: 8px 16px; font-size: .78rem; color: #94a3b8; }}
+    .stat-chip strong {{ color: #4ade80; font-size: 1rem; display: block; }}
+    .table-wrap {{ overflow-x: auto; }}
+    table {{ width: 100%; border-collapse: collapse; background: #080f1c; border: 1px solid #1e3a5f; border-radius: 10px; overflow: hidden; font-size: .85rem; min-width: 600px; }}
     thead {{ background: #0a1628; }}
-    th {{ padding: 12px 12px; text-align: left; font-size: .72rem; letter-spacing: .1em; color: #4ade80; border-bottom: 1px solid #1e3a5f; text-transform: uppercase; font-weight: 700; }}
+    th {{ padding: 10px 10px; text-align: left; font-size: .68rem; letter-spacing: .08em; color: #4ade80; border-bottom: 1px solid #1e3a5f; text-transform: uppercase; font-weight: 700; white-space: nowrap; }}
     th.right {{ text-align: right; }}
-    td {{ padding: 10px 12px; border-bottom: 1px solid #0f1f35; }}
-    td.sec {{ text-align: right; color: #64748b; }}
+    td {{ padding: 8px 10px; border-bottom: 1px solid #0f1f35; white-space: nowrap; }}
+    td.sec {{ text-align: right; color: #475569; font-size: .8rem; }}
     td.sec.win {{ color: #fbbf24; font-weight: 700; }}
     td.win-cell {{ color: #fbbf24; font-weight: 700; }}
-    td.ts {{ color: #38bdf8; font-size: .8rem; white-space: nowrap; }}
-    td.num {{ color: #64748b; font-size: .85rem; }}
-    tr:hover {{ background: rgba(74,222,128,.03); }}
-    .total-row td {{ background: rgba(74,222,128,.07); color: #4ade80; font-weight: 700; font-size: .8rem; }}
-    .best-row td {{ background: #080f1c; color: #38bdf8; font-size: .8rem; }}
-    .btn-green {{ background: #16a34a; color: #fff; padding: 6px 14px; border-radius: 6px; font-size: .8rem; font-weight: 700; border: none; cursor: pointer; }}
+    td.ts {{ color: #38bdf8; font-size: .75rem; }}
+    td.num {{ color: #475569; font-size: .8rem; }}
+    td.surv {{ color: #94a3b8; font-size: .8rem; text-align: center; }}
+    tr:hover {{ background: rgba(74,222,128,.04); }}
+    tr.row-hidden {{ display: none; }}
+    .total-row td {{ background: rgba(74,222,128,.07); color: #4ade80; font-weight: 700; font-size: .78rem; }}
+    .best-row td {{ background: #080f1c; color: #38bdf8; font-size: .78rem; }}
+    .wins-row td {{ background: #080f1c; color: #a78bfa; font-size: .78rem; }}
+    .btn-green {{ background: #16a34a; color: #fff; padding: 5px 12px; border-radius: 6px; font-size: .78rem; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-block; }}
     .btn-green:hover {{ background: #15803d; }}
     code {{ background: #1e293b; padding: 2px 6px; border-radius: 4px; color: #38bdf8; font-size: .85em; }}
-    #run-status {{ font-size: .85rem; color: #4ade80; min-height: 20px; margin-top: 8px; }}
+    #run-status {{ font-size: .85rem; color: #4ade80; min-height: 20px; margin-bottom: 8px; }}
+    .page-btns {{ display: flex; gap: 6px; margin-top: 14px; align-items: center; flex-wrap: wrap; }}
+    .page-btns button {{ background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; }}
+    .page-btns button:hover {{ background: #273549; }}
+    .page-btns button.pg-active {{ background: #16a34a; color: #fff; border-color: #16a34a; }}
+    #page-info {{ color: #64748b; font-size: .8rem; margin-top: 6px; }}
   </style>
 </head>
 <body>
@@ -1434,39 +1474,102 @@ async def results_page():
     </div>
   </div>
   <div id="run-status"></div>
-  <table>
+
+  <div class="stats-bar">
+    <div class="stat-chip"><strong>{len(sessions)}</strong>ігор зіграно</div>
+    <div class="stat-chip"><strong>{max(agent_wins.values(), default=0)}</strong>макс перемог</div>
+    <div class="stat-chip"><strong>{len(agent_names)}</strong>унікальних гравців</div>
+    <div class="stat-chip"><strong>{max((s["tick"] for s in sessions), default=0)}</strong>макс тіків</div>
+  </div>
+
+  <div class="filter-bar">
+    <label>Пошук:</label>
+    <input type="text" id="search-input" placeholder="ім'я переможця..." oninput="applyFilter()">
+    <label style="margin-left:8px">Рядків:</label>
+    <select id="page-size" onchange="applyFilter()">
+      <option value="20">20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="9999">Всі</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+  <table id="results-table">
     <thead>
       <tr>
-        <th>Дата</th><th>Тіків</th><th>Переможець</th>
+        <th>Дата</th><th>Тіків</th><th>Переможець</th><th style="text-align:center">Вижили</th>
         {header_agents}
         <th>Звіт</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="results-body">
       {rows_html}
-      <tr class="total-row">
-        <td colspan="3">ЗАГАЛЬНИЙ ЧАС (сума)</td>
-        {total_row}<td></td>
+    </tbody>
+    <tfoot>
+      <tr class="wins-row">
+        <td colspan="4">ПЕРЕМОГИ</td>{wins_row}<td></td>
       </tr>
       <tr class="best-row">
-        <td colspan="3">РЕКОРД (макс за сесію)</td>
-        {best_row}<td></td>
+        <td colspan="4">РЕКОРД (макс)</td>{best_row}<td></td>
       </tr>
-    </tbody>
+      <tr class="total-row">
+        <td colspan="4">СУМА ЧАСУ</td>{total_row}<td></td>
+      </tr>
+    </tfoot>
   </table>
+  </div>
+  <div class="page-btns" id="page-btns"></div>
+  <div id="page-info"></div>
+
   <script>
+    var allRows = Array.from(document.querySelectorAll('#results-body tr'));
+    var filtered = allRows.slice();
+    var curPage = 1;
+
+    function applyFilter() {{
+      var q = document.getElementById('search-input').value.toLowerCase();
+      filtered = q
+        ? allRows.filter(function(r) {{ return r.textContent.toLowerCase().indexOf(q) >= 0; }})
+        : allRows.slice();
+      showPage(1);
+    }}
+
+    function showPage(page) {{
+      curPage = page;
+      var size = parseInt(document.getElementById('page-size').value);
+      var total = Math.ceil(filtered.length / size) || 1;
+      allRows.forEach(function(r) {{ r.classList.add('row-hidden'); }});
+      filtered.slice((page-1)*size, page*size).forEach(function(r) {{ r.classList.remove('row-hidden'); }});
+      var btns = document.getElementById('page-btns');
+      while (btns.firstChild) {{ btns.removeChild(btns.firstChild); }}
+      if (total > 1) {{
+        for (var i = 1; i <= total; i++) {{
+          var b = document.createElement('button');
+          b.textContent = String(i);
+          if (i === page) b.classList.add('pg-active');
+          (function(p) {{ b.addEventListener('click', function() {{ showPage(p); }}); }})(i);
+          btns.appendChild(b);
+        }}
+      }}
+      var info = document.getElementById('page-info');
+      info.textContent = filtered.length < allRows.length
+        ? ('Показано ' + filtered.length + ' з ' + allRows.length + ' сесій')
+        : (allRows.length + ' сесій');
+    }}
+
     async function runGame() {{
       document.getElementById('run-status').textContent = '⏳ Запускаю нову гру...';
       try {{
-        const r = await fetch('/api/start-game', {{ method: 'POST' }});
-        const d = await r.json();
-        if (d.sessionId) {{
-          window.location.href = '/game?session=' + d.sessionId;
-        }}
+        var r = await fetch('/api/start-game', {{ method: 'POST' }});
+        var d = await r.json();
+        if (d.sessionId) window.location.href = '/game?session=' + d.sessionId;
       }} catch(e) {{
         document.getElementById('run-status').textContent = '❌ ' + e.message;
       }}
     }}
+
+    showPage(1);
   </script>
 </body>
 </html>""")
@@ -1474,7 +1577,7 @@ async def results_page():
 
 # ── Static logs ────────────────────────────────────────────────────────────
 
-app.mount("/logs", StaticFiles(directory=str(LOGS_DIR)), name="logs")
+app.mount("/logs", StaticFiles(directory=str(LOGS_ROOT)), name="logs")
 
 
 # ── Entry point ────────────────────────────────────────────────────────────

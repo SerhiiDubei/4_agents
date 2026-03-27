@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / GAME MODES — Island &amp; Time Wars</title>
+<style>
+:root {
+  --bg: #0a0a0f; --bg2: #111118; --border: #2a2a3a;
+  --text: #c8c8e0; --dim: #5a5a7a; --accent: #7c6dfa;
+  --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
+  --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
+  --c-bug: #e05050;
+  --island: #c487f5; --tw: #f0a85a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  padding: 0 0 60px;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.title-block { display: flex; flex-direction: column; gap: 3px; }
+.title-main { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.title-sub { font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; }
+.navtabs { display: flex; gap: 8px; }
+.ntab {
+  padding: 7px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ntab:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── MODE TOGGLE TABS ── */
+.mode-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 22px 28px 10px;
+}
+.mode-btn {
+  padding: 10px 36px;
+  border: 2px solid var(--border);
+  background: var(--bg2);
+  color: var(--dim);
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 6px;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.mode-btn.island-btn { border-color: var(--island); }
+.mode-btn.tw-btn { border-color: var(--tw); }
+.mode-btn.island-btn.active { background: rgba(180,135,245,0.12); color: var(--island); box-shadow: 0 0 18px rgba(180,135,245,0.25); }
+.mode-btn.tw-btn.active { background: rgba(240,168,90,0.12); color: var(--tw); box-shadow: 0 0 18px rgba(240,168,90,0.25); }
+.mode-btn:not(.active) { opacity: 0.55; }
+.mode-btn:hover:not(.active) { opacity: 0.8; }
+
+/* ── COLUMNS ── */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 16px 28px 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.col-header {
+  text-align: center;
+  padding: 14px 12px 12px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: -1px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  position: relative;
+}
+.col-header.island { background: rgba(180,135,245,0.09); color: var(--island); border-color: rgba(180,135,245,0.35); }
+.col-header.tw { background: rgba(240,168,90,0.09); color: var(--tw); border-color: rgba(240,168,90,0.35); }
+.col-header .col-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+
+.col-body {
+  border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  background: var(--bg2);
+  padding: 20px 18px;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.col-body.island { border-color: rgba(180,135,245,0.35); }
+.col-body.tw { border-color: rgba(240,168,90,0.35); }
+
+/* Highlight effect when tab is active */
+.col-wrapper.highlight-island .col-body.island {
+  box-shadow: 0 0 28px rgba(180,135,245,0.18);
+}
+.col-wrapper.highlight-tw .col-body.tw {
+  box-shadow: 0 0 28px rgba(240,168,90,0.18);
+}
+
+/* ── FLOW STEPS ── */
+.flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: border-color 0.15s;
+}
+.flow-step:hover { border-color: rgba(255,255,255,0.12); }
+.step-num {
+  min-width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.island .step-num { background: rgba(180,135,245,0.18); color: var(--island); border: 1px solid rgba(180,135,245,0.4); }
+.tw .step-num { background: rgba(240,168,90,0.18); color: var(--tw); border: 1px solid rgba(240,168,90,0.4); }
+
+.step-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.step-content { flex: 1; }
+.step-title { font-size: 13px; font-weight: 700; color: #e0e0f8; margin-bottom: 3px; }
+.step-file { font-size: 10px; color: var(--accent); margin-bottom: 5px; font-style: italic; }
+.step-detail { font-size: 11px; color: var(--dim); line-height: 1.6; }
+.step-detail span { color: var(--text); }
+
+/* Arrow connector */
+.flow-arrow {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+  font-size: 16px;
+  color: var(--dim);
+  user-select: none;
+}
+.island-col .flow-arrow { color: rgba(180,135,245,0.45); }
+.tw-col .flow-arrow { color: rgba(240,168,90,0.45); }
+
+/* ── BUG BADGE ── */
+.bug-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(224,80,80,0.15);
+  border: 1px solid rgba(224,80,80,0.45);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  color: var(--c-bug);
+  font-weight: 700;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+/* ── PD MATRIX ── */
+.pd-matrix {
+  margin-top: 8px;
+  display: inline-block;
+  border: 1px solid rgba(180,135,245,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 10px;
+}
+.pd-matrix table { border-collapse: collapse; }
+.pd-matrix td {
+  padding: 4px 9px;
+  border: 1px solid rgba(180,135,245,0.15);
+  text-align: center;
+  white-space: nowrap;
+}
+.pd-header { background: rgba(180,135,245,0.12); color: var(--island); font-weight: 700; }
+.pd-cell { color: var(--c-data); }
+.pd-label { color: var(--island); font-weight: 700; }
+
+/* ── STATS BAR ── */
+.stats-bar {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.island .stats-bar { background: rgba(180,135,245,0.07); border: 1px solid rgba(180,135,245,0.25); }
+.tw .stats-bar { background: rgba(240,168,90,0.07); border: 1px solid rgba(240,168,90,0.25); }
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-val { font-size: 16px; font-weight: 700; }
+.island .stat-val { color: var(--island); }
+.tw .stat-val { color: var(--tw); }
+.stat-lbl { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-sep { width: 1px; background: var(--border); align-self: stretch; }
+.stats-file {
+  width: 100%;
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.stats-file span { color: var(--accent); }
+
+/* ── ROLES PANEL ── */
+.roles-section {
+  max-width: 1400px;
+  margin: 22px auto 0;
+  padding: 0 28px;
+}
+.roles-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--dim);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.role-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 14px;
+  transition: border-color 0.15s, transform 0.15s;
+  cursor: default;
+}
+.role-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.role-icon { font-size: 28px; margin-bottom: 8px; }
+.role-name { font-size: 13px; font-weight: 700; color: #e0e0f8; margin-bottom: 3px; }
+.role-ua { font-size: 12px; color: var(--accent); margin-bottom: 10px; font-style: italic; }
+.role-stats { display: flex; flex-direction: column; gap: 5px; }
+.role-stat-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.role-stat-key { color: var(--dim); min-width: 55px; }
+.role-stat-val { font-weight: 700; }
+.pos { color: var(--c-data); }
+.neg { color: var(--c-bug); }
+.role-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.role-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
+.role-bar.pos-bar { background: var(--c-data); }
+.role-bar.neg-bar { background: var(--c-bug); }
+
+/* ── SUB-STEP (indented) ── */
+.sub-steps { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.sub-step { font-size: 11px; color: var(--dim); padding-left: 8px; border-left: 2px solid var(--border); }
+.sub-step span { color: var(--text); }
+.sub-step .hi { color: var(--c-data); }
+.sub-step .warn { color: var(--tw); }
+.sub-step .err { color: var(--c-bug); }
+
+/* responsive */
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
+  .roles-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <div class="title-main">4 AGENTS</div>
+    <div class="title-sub">Game Modes — Island &amp; Time Wars</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<!-- MODE TOGGLE TABS -->
+<div class="mode-tabs">
+  <button class="mode-btn island-btn active" onclick="setMode('island')">🏝️ ISLAND MODE</button>
+  <button class="mode-btn tw-btn" onclick="setMode('tw')">⚔️ TIME WARS MODE</button>
+</div>
+
+<!-- COLUMNS -->
+<div class="columns" id="cols-wrapper">
+
+  <!-- LEFT: ISLAND -->
+  <div class="col-wrapper" id="wrap-island">
+    <div class="col-header island">
+      <span class="col-icon">🏝️</span>
+      ISLAND MODE
+    </div>
+    <div class="col-body island island-col">
+
+      <!-- Step 1 -->
+      <div class="flow-step">
+        <div class="step-num island">1</div>
+        <div class="step-icon">🗣️</div>
+        <div class="step-content">
+          <div class="step-title">Dialog Phase</div>
+          <div class="step-file">dialog_engine.py</div>
+          <div class="step-detail">Generates <span>public</span> + <span>DM messages</span> for each round</div>
+          <div class="sub-steps">
+            <div class="sub-step">LLM call: <span>one per speaker</span> (urgency-based selection)</div>
+            <div class="sub-step">Input: <span>SOUL.md</span> + <span>STATES.md</span> + round context</div>
+            <div class="sub-step">Output: structured message objects → round log</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
+      <!-- Step 2 -->
+      <div class="flow-step">
+        <div class="step-num island">2</div>
+        <div class="step-icon">🧠</div>
+        <div class="step-content">
+          <div class="step-title">Reasoning Phase</div>
+          <div class="step-file">reasoning.py</div>
+          <div class="step-detail">Pre-decision LLM thought for <span>each agent</span></div>
+          <div class="sub-steps">
+            <div class="sub-step">Reads dialog log + personal state</div>
+            <div class="sub-step">Produces internal reasoning token stream</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
+      <!-- Step 3 -->
+      <div class="flow-step">
+        <div class="step-num island">3</div>
+        <div class="step-icon">⚡</div>
+        <div class="step-content">
+          <div class="step-title">Decision Phase</div>
+          <div class="step-file">decision_engine.py</div>
+          <div class="step-detail">Softmax over cooperation levels</div>
+          <div class="sub-steps">
+            <div class="sub-step">Levels: <span class="hi">0.0 · 0.33 · 0.66 · 1.0</span></div>
+            <div class="sub-step">Weighted by mood, trust, fear, tension</div>
+          </div>
+          <div class="bug-badge">🐛 BUG CRIT-1 — softmax temp not calibrated</div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
+      <!-- Step 4 -->
+      <div class="flow-step">
+        <div class="step-num island">4</div>
+        <div class="step-icon">💰</div>
+        <div class="step-content">
+          <div class="step-title">Payoff Phase</div>
+          <div class="step-file">payoff_matrix.py</div>
+          <div class="step-detail">Prisoner's Dilemma payoff matrix applied</div>
+          <div class="pd-matrix">
+            <table>
+              <tr>
+                <td class="pd-header"></td>
+                <td class="pd-header">Cooperate</td>
+                <td class="pd-header">Betray</td>
+              </tr>
+              <tr>
+                <td class="pd-label">Cooperate</td>
+                <td class="pd-cell">R=5, R=5</td>
+                <td class="pd-cell">S=0.5, T=7</td>
+              </tr>
+              <tr>
+                <td class="pd-label">Betray</td>
+                <td class="pd-cell">T=7, S=0.5</td>
+                <td class="pd-cell">P=2, P=2</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
+      <!-- Step 5 -->
+      <div class="flow-step">
+        <div class="step-num island">5</div>
+        <div class="step-icon">🔄</div>
+        <div class="step-content">
+          <div class="step-title">State Update</div>
+          <div class="step-file">state_machine.py</div>
+          <div class="step-detail">Emotional state variables updated</div>
+          <div class="sub-steps">
+            <div class="sub-step">Fields: <span>tension · fear · mood · trust</span></div>
+            <div class="sub-step">Clamped to <span class="hi">[0.0 – 1.0]</span> after each round</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
+      <!-- Step 6 -->
+      <div class="flow-step">
+        <div class="step-num island">6</div>
+        <div class="step-icon">💭</div>
+        <div class="step-content">
+          <div class="step-title">Reflection</div>
+          <div class="step-file">reflection.py</div>
+          <div class="step-detail">Post-round LLM note written to memory</div>
+          <div class="sub-steps">
+            <div class="sub-step">Output: entry appended to <span>MEMORY.json</span></div>
+            <div class="sub-step">Used as context in subsequent rounds</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-bar island">
+        <div class="stat-item">
+          <div class="stat-val">17</div>
+          <div class="stat-lbl">Agents</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-val">10</div>
+          <div class="stat-lbl">Rounds</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-val">~1:40</div>
+          <div class="stat-lbl">per Round</div>
+        </div>
+        <div class="stats-file">Entry point: <span>simulation/game_engine.py</span></div>
+      </div>
+
+    </div><!-- /col-body island -->
+  </div><!-- /wrap-island -->
+
+  <!-- RIGHT: TIME WARS -->
+  <div class="col-wrapper" id="wrap-tw">
+    <div class="col-header tw">
+      <span class="col-icon">⚔️</span>
+      TIME WARS MODE
+    </div>
+    <div class="col-body tw tw-col">
+
+      <!-- Step 1 -->
+      <div class="flow-step">
+        <div class="step-num tw">1</div>
+        <div class="step-icon">⏱️</div>
+        <div class="step-content">
+          <div class="step-title">Drain Phase</div>
+          <div class="step-file">game_modes/time_wars/loop.py</div>
+          <div class="step-detail">Each player loses <span>time_remaining</span> each tick</div>
+          <div class="sub-steps">
+            <div class="sub-step">Drain rate: <span>varies by role assignment</span></div>
+            <div class="sub-step">Eliminated when time_remaining <span class="warn">≤ 0</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow tw-col">↓</div>
+
+      <!-- Step 2 -->
+      <div class="flow-step">
+        <div class="step-num tw">2</div>
+        <div class="step-icon">🎯</div>
+        <div class="step-content">
+          <div class="step-title">Action Phase</div>
+          <div class="step-file">agent_context.py + decision</div>
+          <div class="step-detail">Agent chooses one action per tick</div>
+          <div class="sub-steps">
+            <div class="sub-step">Actions: <span>COOPERATE</span> / <span class="warn">STEAL</span> / <span>PASS</span></div>
+          </div>
+          <div class="bug-badge">🐛 BUG CRIT-2 — last_messages not passed to LLM</div>
+          <div class="bug-badge">🐛 BUG CRIT-3 — SOUL.md missing from agent context</div>
+        </div>
+      </div>
+      <div class="flow-arrow tw-col">↓</div>
+
+      <!-- Step 3 -->
+      <div class="flow-step">
+        <div class="step-num tw">3</div>
+        <div class="step-icon">🤝</div>
+        <div class="step-content">
+          <div class="step-title">Cooperate Resolution</div>
+          <div class="step-detail">Mutual cooperation reward applied</div>
+          <div class="sub-steps">
+            <div class="sub-step">Both players: <span class="hi">+30s</span> time_remaining</div>
+            <div class="sub-step">Both players: <span class="hi">+5 mana</span></div>
+            <div class="sub-step">trust delta: <span class="hi">+0.2</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow tw-col">↓</div>
+
+      <!-- Step 4 -->
+      <div class="flow-step">
+        <div class="step-num tw">4</div>
+        <div class="step-icon">🎲</div>
+        <div class="step-content">
+          <div class="step-title">Steal Resolution</div>
+          <div class="step-detail">d20 roll + skill modifiers determine outcome</div>
+          <div class="sub-steps">
+            <div class="sub-step">SUCCESS: steal <span class="hi">20–60s</span> from target</div>
+            <div class="sub-step">PARTIAL: steal <span class="warn">5–15s</span> from target</div>
+            <div class="sub-step">FAIL: lose <span class="err">10s</span> self</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow tw-col">↓</div>
+
+      <!-- Step 5 -->
+      <div class="flow-step">
+        <div class="step-num tw">5</div>
+        <div class="step-icon">🃏</div>
+        <div class="step-content">
+          <div class="step-title">Code Phase</div>
+          <div class="step-detail">Play code cards from hand</div>
+          <div class="sub-steps">
+            <div class="sub-step">Classes: <span>C</span> / <span>B</span> / <span class="warn">A</span> / <span class="hi">S</span></div>
+            <div class="sub-step">Effects: <span>shield · steal boost · time gain · etc.</span></div>
+            <div class="sub-step">Cards consumed on use</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow tw-col">↓</div>
+
+      <!-- Step 6 -->
+      <div class="flow-step">
+        <div class="step-num tw">6</div>
+        <div class="step-icon">📝</div>
+        <div class="step-content">
+          <div class="step-title">Event Log</div>
+          <div class="step-detail">Structured event written to SSE stream</div>
+          <div class="sub-steps">
+            <div class="sub-step">Fields: <span>type · actor · target · time_delta</span></div>
+            <div class="sub-step">Fields: <span>outcome · roll</span></div>
+            <div class="sub-step">Streamed via <span class="warn">SSE → Port 5174</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-bar tw">
+        <div class="stat-item">
+          <div class="stat-val">5174</div>
+          <div class="stat-lbl">Port</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-val">SQLite</div>
+          <div class="stat-lbl">Storage</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-val">SSE</div>
+          <div class="stat-lbl">Streaming</div>
+        </div>
+        <div class="stats-file">Entry point: <span>game_modes/time_wars/loop.py</span></div>
+      </div>
+
+    </div><!-- /col-body tw -->
+  </div><!-- /wrap-tw -->
+
+</div><!-- /columns -->
+
+<!-- ROLES SECTION -->
+<div class="roles-section">
+  <div class="roles-title">Agent Roles — Time Wars</div>
+  <div class="roles-grid">
+
+    <div class="role-card">
+      <div class="role-icon">🐍</div>
+      <div class="role-name">role_snake</div>
+      <div class="role-ua">Крадій часу</div>
+      <div class="role-stats">
+        <div class="role-stat-row">
+          <div class="role-stat-key">coop</div>
+          <div class="role-stat-val neg">−25</div>
+          <div class="role-bar-wrap"><div class="role-bar neg-bar" style="width:25%"></div></div>
+        </div>
+        <div class="role-stat-row">
+          <div class="role-stat-key">dec</div>
+          <div class="role-stat-val pos">+30</div>
+          <div class="role-bar-wrap"><div class="role-bar pos-bar" style="width:30%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-icon">🎲</div>
+      <div class="role-name">role_gambler</div>
+      <div class="role-ua">Азартний гравець</div>
+      <div class="role-stats">
+        <div class="role-stat-row">
+          <div class="role-stat-key">risk</div>
+          <div class="role-stat-val pos">+40</div>
+          <div class="role-bar-wrap"><div class="role-bar pos-bar" style="width:40%"></div></div>
+        </div>
+        <div class="role-stat-row">
+          <div class="role-stat-key">horizon</div>
+          <div class="role-stat-val neg">−20</div>
+          <div class="role-bar-wrap"><div class="role-bar neg-bar" style="width:20%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-icon">🏦</div>
+      <div class="role-name">role_banker</div>
+      <div class="role-ua">Стратег-ощадник</div>
+      <div class="role-stats">
+        <div class="role-stat-row">
+          <div class="role-stat-key">horizon</div>
+          <div class="role-stat-val pos">+25</div>
+          <div class="role-bar-wrap"><div class="role-bar pos-bar" style="width:25%"></div></div>
+        </div>
+        <div class="role-stat-row">
+          <div class="role-stat-key">risk</div>
+          <div class="role-stat-val neg">−20</div>
+          <div class="role-bar-wrap"><div class="role-bar neg-bar" style="width:20%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-icon">🕊️</div>
+      <div class="role-name">role_peacekeeper</div>
+      <div class="role-ua">Миротворець</div>
+      <div class="role-stats">
+        <div class="role-stat-row">
+          <div class="role-stat-key">coop</div>
+          <div class="role-stat-val pos">+30</div>
+          <div class="role-bar-wrap"><div class="role-bar pos-bar" style="width:30%"></div></div>
+        </div>
+        <div class="role-stat-row">
+          <div class="role-stat-key">dec</div>
+          <div class="role-stat-val neg">−15</div>
+          <div class="role-bar-wrap"><div class="role-bar neg-bar" style="width:15%"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function setMode(mode) {
+  var islandBtn = document.querySelector('.island-btn');
+  var twBtn = document.querySelector('.tw-btn');
+  var wrapIsland = document.getElementById('wrap-island');
+  var wrapTw = document.getElementById('wrap-tw');
+
+  if (mode === 'island') {
+    islandBtn.classList.add('active');
+    twBtn.classList.remove('active');
+    wrapIsland.classList.add('highlight-island');
+    wrapIsland.classList.remove('highlight-tw');
+    wrapTw.classList.remove('highlight-island');
+    wrapTw.classList.remove('highlight-tw');
+    wrapIsland.style.opacity = '1';
+    wrapTw.style.opacity = '0.55';
+  } else {
+    twBtn.classList.add('active');
+    islandBtn.classList.remove('active');
+    wrapTw.classList.add('highlight-tw');
+    wrapTw.classList.remove('highlight-island');
+    wrapIsland.classList.remove('highlight-tw');
+    wrapIsland.classList.remove('highlight-island');
+    wrapTw.style.opacity = '1';
+    wrapIsland.style.opacity = '0.55';
+  }
+}
+
+// initialize
+setMode('island');
+// start with both visible
+document.getElementById('wrap-island').style.opacity = '1';
+document.getElementById('wrap-tw').style.opacity = '0.55';
+</script>
+
+</body>
+</html>

@@ -684,7 +684,8 @@ def main():
     parser = argparse.ArgumentParser(description="Island — Live Simulation")
     parser.add_argument("--rounds", type=int, default=20, help="Number of rounds (default: 20)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
-    parser.add_argument("--html", action="store_true", help="Export HTML + JSON log after simulation")
+    parser.add_argument("--html", action="store_true", default=True, help="Export HTML + JSON log after simulation (default: True)")
+    parser.add_argument("--no-html", action="store_false", dest="html", help="Disable HTML/JSON export")
     parser.add_argument("--verbose", action="store_true", help="Print per-LLM-call timing for each agent and phase")
     parser.add_argument("--name", type=str, default="", help="Control name for log file (e.g. storytell_test)")
     parser.add_argument("--setup", type=str, default="", help="Story setup preset: mars = колонізація Марса")
@@ -954,12 +955,12 @@ def main():
     if args.html:
         from export_game_log import export_to_html
         from datetime import datetime as _dt
-        logs_dir = ROOT / "logs"
-        logs_dir.mkdir(exist_ok=True)
+        logs_dir = ROOT / "logs" / "island"
+        logs_dir.mkdir(parents=True, exist_ok=True)
 
-        # Filename: game_YYYY-MM-DD_HH-MM-SS_<name>.json/html
+        # Filename: game_YYYY-MM-DD_HH-MM-SS_<name>.json/html (name required for /api/games-summary regex)
         ts = _dt.now().strftime("%Y-%m-%d_%H-%M-%S")
-        name_part = f"_{args.name}" if args.name else ""
+        name_part = f"_{args.name}" if args.name else "_island"
         log_basename = f"game_{ts}{name_part}"
 
         # Build extended log with reflections and conclusions

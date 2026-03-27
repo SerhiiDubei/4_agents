@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / PIPELINE LAYER — Decision Flow</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #0a0a0f; --bg2: #111118; --border: #2a2a3a;
+  --text: #c8c8e0; --dim: #5a5a7a; --accent: #7c6dfa;
+  --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
+  --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
+  --c-bug: #e05050;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; }
+
+header {
+  padding:20px 36px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:16px;
+}
+.logo { font-size:18px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
+.sub { font-size:10px; color:var(--dim); margin-top:2px; }
+.navtabs { margin-left:auto; display:flex; gap:6px; }
+.ntab {
+  font-size:10px; padding:5px 12px;
+  background:rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:4px; color:var(--dim); text-decoration:none; transition:all .15s;
+}
+.ntab:hover { color:var(--text); border-color:var(--c-pipeline); }
+
+.page { display:grid; grid-template-columns:220px 1fr 300px; min-height:calc(100vh - 65px); gap:0; }
+
+/* ---- LEFT: role overlays ---- */
+.side-left {
+  border-right:1px solid var(--border);
+  padding:22px 16px; background:var(--bg2);
+}
+.side-title {
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--dim); margin-bottom:16px;
+}
+.role-card {
+  background:rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:6px; padding:10px 12px; margin-bottom:8px;
+}
+.role-name { font-size:11px; font-weight:bold; margin-bottom:6px; }
+.role-mod { font-size:10px; color:var(--dim); margin-bottom:2px; display:flex; justify-content:space-between; }
+.pos { color:var(--c-data); }
+.neg { color:var(--c-bug); }
+
+/* ---- CENTER: pipeline diagram ---- */
+.pipe-center {
+  padding:24px 28px; display:flex; flex-direction:column; align-items:center; overflow-y:auto;
+}
+.pipe-label {
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--dim); margin-bottom:22px; align-self:flex-start;
+}
+
+.stage-row { display:flex; flex-direction:column; align-items:center; width:100%; max-width:460px; }
+
+.stage {
+  width:100%; border:1px solid var(--border);
+  border-radius:8px; padding:14px 16px; cursor:pointer;
+  transition:all .18s; position:relative; background:var(--bg2);
+  user-select:none;
+}
+.stage:hover { transform:translateY(-1px); filter:brightness(1.1); }
+.stage.active { box-shadow:0 0 0 2px var(--c-pipeline); }
+.stage.s-data  { border-color:var(--c-data);  }
+.stage.s-data.active  { box-shadow:0 0 0 2px var(--c-data); }
+.stage.s-pipe  { border-color:var(--c-pipeline); }
+.stage.s-pipe.active  { box-shadow:0 0 0 2px var(--c-pipeline); }
+.stage.s-game  { border-color:var(--c-game); }
+.stage.s-game.active  { box-shadow:0 0 0 2px var(--c-game); }
+.stage.s-bug   { border-color:var(--c-bug) !important; box-shadow:0 0 8px rgba(224,80,80,.15); }
+.stage.s-bug.active   { box-shadow:0 0 0 2px var(--c-bug), 0 0 12px rgba(224,80,80,.25); }
+
+.stage-tag {
+  font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  margin-bottom:4px;
+}
+.stage-name { font-size:13px; font-weight:bold; margin-bottom:4px; }
+.stage-desc { font-size:10px; color:var(--dim); }
+.bug-badge {
+  position:absolute; top:-8px; right:10px;
+  background:var(--c-bug); color:#fff; font-size:10px; font-weight:bold;
+  width:18px; height:18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.bug-label {
+  position:absolute; top:-8px; left:10px;
+  background:rgba(224,80,80,.15); border:1px solid var(--c-bug);
+  color:var(--c-bug); font-size:9px; padding:1px 7px; border-radius:10px;
+  letter-spacing:1px;
+}
+
+/* Arrow connector */
+.arrow-conn {
+  display:flex; flex-direction:column; align-items:center;
+  margin:0; padding:4px 0;
+}
+.arrow-line {
+  width:2px; height:22px; background:linear-gradient(to bottom, var(--border), var(--dim));
+}
+.arrow-head {
+  width:0; height:0;
+  border-left:6px solid transparent; border-right:6px solid transparent;
+  border-top:8px solid var(--dim);
+}
+.arrow-label { font-size:9px; color:var(--dim); margin-top:2px; }
+
+/* ---- RIGHT: detail panel ---- */
+.side-right {
+  border-left:1px solid var(--border);
+  padding:22px 18px; background:var(--bg2); overflow-y:auto;
+}
+.detail-placeholder {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; height:100%; color:var(--dim); font-size:11px;
+  text-align:center; gap:8px;
+}
+.detail-placeholder .icon { font-size:28px; opacity:.3; }
+
+.detail-panel { display:none; }
+.detail-panel.shown { display:block; }
+
+.dp-title { font-size:13px; font-weight:bold; margin-bottom:4px; }
+.dp-tag { font-size:9px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:14px; }
+.dp-section { margin-bottom:14px; }
+.dp-section-hdr { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px; }
+.dp-item { font-size:10px; padding:5px 8px; background:rgba(255,255,255,.03); border-radius:4px; margin-bottom:3px; display:flex; justify-content:space-between; gap:8px; }
+.dp-key { color:var(--dim); }
+.dp-val { color:var(--text); text-align:right; }
+.dp-bug-box {
+  background:rgba(224,80,80,.08); border:1px dashed var(--c-bug);
+  border-radius:6px; padding:10px 12px; margin-bottom:10px;
+}
+.dp-bug-id { font-size:10px; color:var(--c-bug); font-weight:bold; margin-bottom:4px; }
+.dp-bug-desc { font-size:10px; color:var(--dim); line-height:1.5; }
+.dp-code {
+  background:#080810; border:1px solid var(--border); border-radius:5px;
+  padding:8px 10px; font-size:10px; color:var(--c-pipeline);
+  line-height:1.6; margin-bottom:8px; overflow-x:auto; white-space:pre;
+}
+.dp-code .kw { color:var(--accent); }
+.dp-code .val { color:var(--c-data); }
+.dp-code .bug-line { color:var(--c-bug); }
+.action-bar {
+  display:flex; flex-direction:column; gap:4px; margin-top:4px;
+}
+.action-item {
+  display:flex; align-items:center; gap:8px; padding:5px 8px;
+  background:rgba(255,255,255,.03); border-radius:4px;
+}
+.action-prob {
+  height:6px; border-radius:3px; background:var(--c-pipeline);
+  transition:width .3s;
+}
+.action-val { font-size:10px; color:var(--dim); min-width:28px; }
+.action-name { font-size:10px; flex:1; }
+.action-pct { font-size:10px; color:var(--c-data); min-width:32px; text-align:right; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">PIPELINE LAYER — Decision Flow</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- LEFT: Role overlays -->
+  <div class="side-left">
+    <div class="side-title">Role Core Overlays</div>
+
+    <div class="role-card">
+      <div class="role-name" style="color:var(--c-bug)">role_snake</div>
+      <div class="role-mod"><span class="dp-key">cooperation_bias</span><span class="neg">−25</span></div>
+      <div class="role-mod"><span class="dp-key">deception_tendency</span><span class="pos">+30</span></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-name" style="color:var(--c-server)">role_gambler</div>
+      <div class="role-mod"><span class="dp-key">risk_appetite</span><span class="pos">+40</span></div>
+      <div class="role-mod"><span class="dp-key">strategic_horizon</span><span class="neg">−20</span></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-name" style="color:var(--c-frontend)">role_banker</div>
+      <div class="role-mod"><span class="dp-key">strategic_horizon</span><span class="pos">+25</span></div>
+      <div class="role-mod"><span class="dp-key">risk_appetite</span><span class="neg">−20</span></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-name" style="color:var(--c-data)">role_peacekeeper</div>
+      <div class="role-mod"><span class="dp-key">cooperation_bias</span><span class="pos">+30</span></div>
+      <div class="role-mod"><span class="dp-key">deception_tendency</span><span class="neg">−15</span></div>
+    </div>
+
+    <div style="margin-top:20px; padding:10px; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:5px; font-size:9px; color:var(--dim); line-height:1.6;">
+      Role modifiers are applied as additive offsets to CORE.json values before LLM context assembly. Values are clamped to [0, 100].
+    </div>
+  </div>
+
+  <!-- CENTER: Pipeline diagram -->
+  <div class="pipe-center">
+    <div class="pipe-label">Decision Flow Pipeline — click a stage to inspect</div>
+
+    <div class="stage-row">
+
+      <!-- Stage 1: CORE.json -->
+      <div class="stage s-data" id="s0" onclick="selectStage(0)">
+        <div class="stage-tag" style="color:var(--c-data)">INPUT</div>
+        <div class="stage-name">CORE.json</div>
+        <div class="stage-desc">Agent identity parameters — stable across games</div>
+      </div>
+
+      <div class="arrow-conn">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">params</div>
+      </div>
+
+      <!-- Stage 2: agent_context.py — BUG CRIT-3 -->
+      <div class="stage s-pipe s-bug" id="s1" onclick="selectStage(1)">
+        <div class="bug-label">CRIT-3</div>
+        <div class="bug-badge">!</div>
+        <div class="stage-tag" style="color:var(--c-pipeline)">CONTEXT ASSEMBLY</div>
+        <div class="stage-name">agent_context.py</div>
+        <div class="stage-desc">Merges identity + role + history into LLM context dict</div>
+      </div>
+
+      <div class="arrow-conn">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">context dict</div>
+      </div>
+
+      <!-- Stage 3: reasoning.py -->
+      <div class="stage s-pipe" id="s2" onclick="selectStage(2)">
+        <div class="stage-tag" style="color:var(--c-pipeline)">PRE-DECISION</div>
+        <div class="stage-name">reasoning.py</div>
+        <div class="stage-desc">LLM call — generates reasoning text before deciding</div>
+      </div>
+
+      <div class="arrow-conn">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">reasoning text</div>
+      </div>
+
+      <!-- Stage 4: decision_engine.py — BUG CRIT-1 -->
+      <div class="stage s-pipe s-bug" id="s3" onclick="selectStage(3)">
+        <div class="bug-label">CRIT-1</div>
+        <div class="bug-badge">!</div>
+        <div class="stage-tag" style="color:var(--c-pipeline)">DECISION ENGINE</div>
+        <div class="stage-name">decision_engine.py</div>
+        <div class="stage-desc">Scores actions via _action_scores() → softmax → sample</div>
+      </div>
+
+      <div class="arrow-conn">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">action float</div>
+      </div>
+
+      <!-- Stage 5: OUTPUT -->
+      <div class="stage s-game" id="s4" onclick="selectStage(4)">
+        <div class="stage-tag" style="color:var(--c-game)">OUTPUT</div>
+        <div class="stage-name">Action → payoff_matrix</div>
+        <div class="stage-desc">0.0 BETRAY · 0.33 PARTIAL BETRAY · 0.66 PARTIAL COOP · 1.0 COOPERATE</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: Detail panels (pre-rendered, toggled by JS) -->
+  <div class="side-right" id="detail-pane">
+
+    <div class="detail-placeholder" id="dp-placeholder">
+      <div class="icon">◈</div>
+      <div>Click a pipeline stage<br>to inspect its inputs,<br>outputs, and bugs.</div>
+    </div>
+
+    <!-- Panel 0: CORE.json -->
+    <div class="detail-panel" id="dp-0">
+      <div class="dp-title">CORE.json</div>
+      <div class="dp-tag" style="color:var(--c-data)">INPUT — Agent Identity</div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Parameters</div>
+        <div class="dp-item"><span class="dp-key">cooperation_bias</span><span class="dp-val" style="color:var(--c-data)">float [0–100]</span></div>
+        <div class="dp-item"><span class="dp-key">deception_tendency</span><span class="dp-val" style="color:var(--c-data)">float [0–100]</span></div>
+        <div class="dp-item"><span class="dp-key">strategic_horizon</span><span class="dp-val" style="color:var(--c-data)">float [0–100]</span></div>
+        <div class="dp-item"><span class="dp-key">risk_appetite</span><span class="dp-val" style="color:var(--c-data)">float [0–100]</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Notes</div>
+        <div style="font-size:10px; color:var(--dim); line-height:1.6;">
+          CORE.json is the agent's "soul parameters" — generated once and persisted. Role overlays are applied as additive offsets at context assembly time; this file is never mutated.
+        </div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Stability</div>
+        <div class="dp-item"><span class="dp-key">mutated between games?</span><span class="dp-val" style="color:var(--c-data)">NO</span></div>
+        <div class="dp-item"><span class="dp-key">mutated within game?</span><span class="dp-val" style="color:var(--c-data)">NO</span></div>
+        <div class="dp-item"><span class="dp-key">per-agent?</span><span class="dp-val" style="color:var(--c-data)">YES</span></div>
+      </div>
+    </div>
+
+    <!-- Panel 1: agent_context.py -->
+    <div class="detail-panel" id="dp-1">
+      <div class="dp-title">agent_context.py</div>
+      <div class="dp-tag" style="color:var(--c-pipeline)">CONTEXT ASSEMBLY</div>
+      <div class="dp-bug-box">
+        <div class="dp-bug-id">CRIT-3: SOUL.md NOT INJECTED</div>
+        <div class="dp-bug-desc">
+          SOUL.md (agent backstory / personality narrative) is listed as an input source but the file path is never read. The merge_context() call receives an empty string for soul_text. LLM has no access to agent narrative identity.
+        </div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Expected Inputs</div>
+        <div class="dp-item"><span class="dp-key">CORE.json</span><span class="dp-val" style="color:var(--c-data)">✓ injected</span></div>
+        <div class="dp-item"><span class="dp-key">role assignment</span><span class="dp-val" style="color:var(--c-data)">✓ injected</span></div>
+        <div class="dp-item"><span class="dp-key">SOUL.md</span><span class="dp-val" style="color:var(--c-bug)">✗ missing</span></div>
+        <div class="dp-item"><span class="dp-key">STATES.md</span><span class="dp-val" style="color:var(--c-data)">✓ injected</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Output</div>
+        <div style="font-size:10px; color:var(--dim); line-height:1.6;">
+          Returns a merged context dict passed directly to the LLM prompt template. Missing SOUL.md means agents reason without narrative identity — all strategic personality is reduced to raw numeric CORE params.
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 2: reasoning.py -->
+    <div class="detail-panel" id="dp-2">
+      <div class="dp-title">reasoning.py</div>
+      <div class="dp-tag" style="color:var(--c-pipeline)">PRE-DECISION LLM CALL</div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Purpose</div>
+        <div style="font-size:10px; color:var(--dim); line-height:1.6;">
+          Performs a dedicated LLM inference step to generate reasoning text before the decision is made. Allows the agent to "think aloud" — the output is passed as additional context to decision_engine.py.
+        </div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Inputs</div>
+        <div class="dp-item"><span class="dp-key">context dict</span><span class="dp-val">from agent_context.py</span></div>
+        <div class="dp-item"><span class="dp-key">round history</span><span class="dp-val">prev actions + scores</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Output</div>
+        <div class="dp-item"><span class="dp-key">reasoning_text</span><span class="dp-val" style="color:var(--c-pipeline)">str (LLM response)</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Status</div>
+        <div class="dp-item"><span class="dp-key">bugs?</span><span class="dp-val" style="color:var(--c-data)">none known</span></div>
+        <div class="dp-item"><span class="dp-key">LLM calls?</span><span class="dp-val" style="color:var(--c-pipeline)">1 per agent per round</span></div>
+      </div>
+    </div>
+
+    <!-- Panel 3: decision_engine.py -->
+    <div class="detail-panel" id="dp-3">
+      <div class="dp-title">decision_engine.py</div>
+      <div class="dp-tag" style="color:var(--c-pipeline)">DECISION ENGINE</div>
+      <div class="dp-bug-box">
+        <div class="dp-bug-id">CRIT-1: strategic_horizon PENALTY CLAMPS ALL TO 0.66</div>
+        <div class="dp-bug-desc">
+          _action_scores() applies a fixed penalty when strategic_horizon is above threshold, regardless of role or context. The softmax collapses — action 0.66 (PARTIAL COOP) dominates for all agents, killing behavioral diversity.
+        </div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">_action_scores() — Affected Logic</div>
+        <div class="dp-code"><span class="kw">def</span> _action_scores(core, reasoning):
+  scores = [<span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>]
+  <span class="bug-line"># BUG: horizon penalty not gated on role</span>
+  <span class="bug-line">if core[<span class="val">"strategic_horizon"</span>] &gt; 40:</span>
+  <span class="bug-line">    scores[0] -= 999  # locks out 0.0</span>
+  <span class="bug-line">    scores[1] -= 999  # locks out 0.33</span>
+  <span class="bug-line">    scores[3] -= 999  # locks out 1.0</span>
+  return softmax(scores)</div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Resulting Action Distribution</div>
+        <div class="action-bar">
+          <div class="action-item">
+            <div class="action-val">0.0</div>
+            <div style="flex:1">
+              <div style="font-size:10px; margin-bottom:3px; color:var(--c-bug)">BETRAY</div>
+              <div style="background:rgba(255,255,255,.06); border-radius:3px; height:6px;"><div class="action-prob" style="width:1%; background:var(--c-bug);"></div></div>
+            </div>
+            <div class="action-pct" style="color:var(--c-bug)">~0%</div>
+          </div>
+          <div class="action-item">
+            <div class="action-val">0.33</div>
+            <div style="flex:1">
+              <div style="font-size:10px; margin-bottom:3px;">PARTIAL BETRAY</div>
+              <div style="background:rgba(255,255,255,.06); border-radius:3px; height:6px;"><div class="action-prob" style="width:3%;"></div></div>
+            </div>
+            <div class="action-pct">~2%</div>
+          </div>
+          <div class="action-item" style="background:rgba(224,80,80,.07);">
+            <div class="action-val" style="color:var(--c-bug)">0.66</div>
+            <div style="flex:1">
+              <div style="font-size:10px; margin-bottom:3px; color:var(--c-bug)">PARTIAL COOP ← ALL AGENTS</div>
+              <div style="background:rgba(255,255,255,.06); border-radius:3px; height:6px;"><div class="action-prob" style="width:96%; background:var(--c-bug);"></div></div>
+            </div>
+            <div class="action-pct" style="color:var(--c-bug)">~96%</div>
+          </div>
+          <div class="action-item">
+            <div class="action-val">1.0</div>
+            <div style="flex:1">
+              <div style="font-size:10px; margin-bottom:3px; color:var(--c-data)">COOPERATE</div>
+              <div style="background:rgba(255,255,255,.06); border-radius:3px; height:6px;"><div class="action-prob" style="width:2%; background:var(--c-data);"></div></div>
+            </div>
+            <div class="action-pct" style="color:var(--c-data)">~2%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 4: Action Output -->
+    <div class="detail-panel" id="dp-4">
+      <div class="dp-title">Action → payoff_matrix</div>
+      <div class="dp-tag" style="color:var(--c-game)">OUTPUT</div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Action Levels</div>
+        <div class="dp-item"><span class="dp-key">0.0</span><span class="dp-val" style="color:var(--c-bug)">BETRAY — max personal gain, zero cooperation</span></div>
+        <div class="dp-item"><span class="dp-key">0.33</span><span class="dp-val">PARTIAL BETRAY — defect-leaning mixed</span></div>
+        <div class="dp-item"><span class="dp-key">0.66</span><span class="dp-val" style="color:var(--c-pipeline)">PARTIAL COOP — coop-leaning mixed</span></div>
+        <div class="dp-item"><span class="dp-key">1.0</span><span class="dp-val" style="color:var(--c-data)">COOPERATE — max mutual gain</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Data Flow</div>
+        <div style="font-size:10px; color:var(--dim); line-height:1.6;">
+          The sampled action float is passed to payoff_matrix along with all other agents' actions for that round. Payoff matrix computes scores based on pairwise action combinations. Result feeds back into round history for next context assembly.
+        </div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Downstream</div>
+        <div class="dp-item"><span class="dp-key">payoff_matrix.py</span><span class="dp-val" style="color:var(--c-game)">score calc</span></div>
+        <div class="dp-item"><span class="dp-key">event_log</span><span class="dp-val">action recorded</span></div>
+        <div class="dp-item"><span class="dp-key">STATES.md</span><span class="dp-val">trust updated</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var activeStage = null;
+
+function selectStage(idx) {
+  // Deactivate all stages
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById('s' + i);
+    if (el) el.classList.remove('active');
+  }
+  // Hide all panels
+  var panels = document.querySelectorAll('.detail-panel');
+  for (var p = 0; p < panels.length; p++) {
+    panels[p].classList.remove('shown');
+  }
+  // Show placeholder or panel
+  var placeholder = document.getElementById('dp-placeholder');
+  if (activeStage === idx) {
+    placeholder.style.display = 'flex';
+    activeStage = null;
+    return;
+  }
+  placeholder.style.display = 'none';
+  var stage = document.getElementById('s' + idx);
+  if (stage) stage.classList.add('active');
+  var panel = document.getElementById('dp-' + idx);
+  if (panel) panel.classList.add('shown');
+  activeStage = idx;
+}
+</script>
+</body>
+</html>

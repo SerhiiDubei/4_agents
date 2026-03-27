@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / DATA LAYER — Agent Identity Explorer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0a0a0f; --bg2:#111118; --border:#2a2a3a;
+  --text:#c8c8e0; --dim:#5a5a7a; --accent:#7c6dfa;
+  --c-data:#4dbb80; --c-pipeline:#5b9bd5; --c-game:#b06ee0;
+  --c-server:#e0944a; --c-frontend:#4dbba0; --c-story:#b0b060;
+  --c-bug:#e05050;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; display:flex; flex-direction:column; }
+
+header { padding:18px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-shrink:0; }
+.logo { font-size:18px; font-weight:bold; color:var(--c-data); letter-spacing:2px; }
+.sub { font-size:10px; color:var(--dim); margin-top:2px; }
+.navtabs { margin-left:auto; display:flex; gap:6px; }
+.ntab { font-size:10px; padding:5px 12px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:4px; color:var(--dim); text-decoration:none; transition:all .15s; }
+.ntab:hover { color:var(--text); border-color:var(--c-data); }
+
+.layout { display:grid; grid-template-columns:250px 1fr 260px; flex:1; min-height:0; overflow:hidden; }
+
+/* LEFT PANEL */
+.left-panel { border-right:1px solid var(--border); overflow-y:auto; padding:12px 8px; }
+.panel-label { font-size:9px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--border); margin-bottom:10px; }
+.agent-card { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:5px; cursor:pointer; border:1px solid transparent; transition:all .12s; margin-bottom:3px; }
+.agent-card:hover { background:rgba(255,255,255,.04); border-color:var(--border); }
+.agent-card.selected { background:rgba(77,187,128,.08); border-color:var(--c-data); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot-green { background:#4dbb80; box-shadow:0 0 6px #4dbb8088; }
+.dot-yellow { background:#b0b060; box-shadow:0 0 6px #b0b06088; }
+.dot-red { background:#e05050; box-shadow:0 0 6px #e0505088; }
+.card-name { font-size:11px; font-weight:bold; flex:1; }
+.card-arch { font-size:9px; color:var(--dim); }
+
+/* CENTER PANEL */
+.center-panel { overflow-y:auto; padding:24px 28px; }
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--dim); text-align:center; gap:10px; }
+.empty-icon { font-size:40px; opacity:.3; }
+.empty-text { font-size:11px; letter-spacing:2px; text-transform:uppercase; }
+
+.profile-panel { display:none; }
+.profile-panel.visible { display:block; }
+
+.profile-header { margin-bottom:24px; }
+.profile-name { font-size:26px; font-weight:bold; color:var(--c-data); margin-bottom:4px; }
+.profile-id { font-size:11px; color:var(--dim); font-family:'Courier New',monospace; }
+.arch-badge { display:inline-block; margin-top:10px; padding:4px 12px; border-radius:12px; font-size:10px; font-weight:bold; letter-spacing:1px; }
+
+.section-title { font-size:9px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin:20px 0 12px; }
+
+.bar-row { margin-bottom:12px; }
+.bar-label { display:flex; justify-content:space-between; margin-bottom:4px; }
+.bar-key { font-size:10px; color:var(--text); }
+.bar-val { font-size:10px; color:var(--c-data); font-weight:bold; }
+.bar-track { height:8px; background:rgba(255,255,255,.05); border-radius:4px; border:1px solid var(--border); overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; width:0%; transition:width .6s cubic-bezier(.4,0,.2,1); }
+.bar-coop { background:linear-gradient(90deg,#3a9966,#4dbb80); }
+.bar-dec  { background:linear-gradient(90deg,#9e3030,#e05050); }
+.bar-hor  { background:linear-gradient(90deg,#2a6088,#5b9bd5); }
+.bar-risk { background:linear-gradient(90deg,#8a4a00,#e0944a); }
+
+.file-tree { margin-top:4px; }
+.tree-dir { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); margin-bottom:6px; }
+.tree-dir span { color:var(--c-data); }
+.tree-item { display:flex; align-items:center; gap:8px; padding:7px 10px 7px 22px; border-radius:4px; background:rgba(255,255,255,.02); border:1px solid var(--border); margin-bottom:4px; }
+.tree-icon { font-size:13px; width:18px; text-align:center; }
+.tree-name { font-size:11px; font-weight:bold; flex:1; }
+.tree-hint { font-size:9px; color:var(--dim); }
+
+/* RIGHT PANEL */
+.right-panel { border-left:1px solid var(--border); overflow-y:auto; padding:16px 14px; }
+.info-section { margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border); }
+.info-section:last-child { border-bottom:none; }
+.info-filename { font-size:11px; font-weight:bold; color:var(--c-data); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.info-desc { font-size:10px; color:var(--dim); line-height:1.6; }
+.info-tag { display:inline-block; margin-top:5px; padding:2px 7px; background:rgba(77,187,128,.1); border:1px solid rgba(77,187,128,.25); border-radius:3px; font-size:9px; color:var(--c-data); }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">DATA LAYER — Agent Identity Explorer</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: agent card list (populated by JS) -->
+  <div class="left-panel">
+    <div class="panel-label">17 Agents</div>
+    <div id="agent-list"></div>
+  </div>
+
+  <!-- CENTER: profile panels pre-rendered as hidden divs, plus empty state -->
+  <div class="center-panel" id="center">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◈</div>
+      <div class="empty-text">Select an agent to inspect</div>
+    </div>
+
+    <!-- Profile panels will be injected here by JS using createElement -->
+    <div id="profile-container"></div>
+  </div>
+
+  <!-- RIGHT: static file type info, always visible -->
+  <div class="right-panel">
+    <div class="panel-label">File Types</div>
+
+    <div class="info-section">
+      <div class="info-filename"><span>📄</span> SOUL.md</div>
+      <div class="info-desc">Narrative identity written in second-person Ukrainian. 8 sections covering background, motivations, speech patterns, relationships, and secrets. Used to prime LLM system prompts.</div>
+      <span class="info-tag">~2–4 KB</span>
+      <span class="info-tag">Markdown</span>
+    </div>
+
+    <div class="info-section">
+      <div class="info-filename"><span>⚙️</span> CORE.json</div>
+      <div class="info-desc">Four numeric personality parameters (0–100): cooperation_bias, deception_tendency, strategic_horizon, risk_appetite. These seed the decision engine scoring and are overlaid by role modifiers at runtime.</div>
+      <span class="info-tag">~200 B</span>
+      <span class="info-tag">JSON</span>
+    </div>
+
+    <div class="info-section">
+      <div class="info-filename"><span>🗂️</span> STATES.md</div>
+      <div class="info-desc">Finite-state machine definitions for the agent. Lists named emotional/strategic states (e.g. HOSTILE, COOPERATIVE, PARANOID) with transition triggers and behavioral modifiers.</div>
+      <span class="info-tag">~1–2 KB</span>
+      <span class="info-tag">Markdown</span>
+    </div>
+
+    <div class="info-section">
+      <div class="info-filename"><span>🧠</span> MEMORY.json</div>
+      <div class="info-desc">Persistent episodic memory store. Tracks per-opponent interaction history, betrayal/cooperation counts, last-seen tick, and emotional valence. Loaded by memory.py at each decision point.</div>
+      <span class="info-tag">~1–8 KB</span>
+      <span class="info-tag">JSON</span>
+    </div>
+
+    <div style="margin-top:20px; padding:10px; background:rgba(77,187,128,.05); border:1px solid rgba(77,187,128,.15); border-radius:5px;">
+      <div style="font-size:9px; color:var(--c-data); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">Runtime Flow</div>
+      <div style="font-size:9px; color:var(--dim); line-height:1.8;">
+        CORE.json → decision engine<br>
+        SOUL.md → LLM system prompt<br>
+        MEMORY.json → context window<br>
+        STATES.md → state machine<br>
+        + role overlay (ROLE_CORE_OVERLAYS)
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var AGENTS = [
+  {name:'Вождь', id:'synth_g', coop:58, dec:30, horizon:65, risk:40},
+  {name:'Алєг', id:'synth_c', coop:40, dec:98, horizon:85, risk:70},
+  {name:'Роман Романюк', id:'synth_d', coop:62, dec:35, horizon:55, risk:30},
+  {name:'Марта', id:'synth_h', coop:35, dec:85, horizon:70, risk:75},
+  {name:'Павло', id:'synth_i', coop:68, dec:15, horizon:60, risk:25},
+  {name:'Вова', id:'synth_j', coop:70, dec:10, horizon:75, risk:20},
+  {name:'Ліля', id:'synth_k', coop:55, dec:30, horizon:50, risk:35},
+  {name:'Артурчик', id:'synth_l', coop:45, dec:50, horizon:40, risk:60},
+  {name:'Чорна Кішка', id:'synth_m', coop:52, dec:55, horizon:60, risk:65},
+  {name:'Сергій', id:'synth_n', coop:65, dec:20, horizon:70, risk:30},
+  {name:'Тайлер Дерден', id:'synth_e', coop:35, dec:55, horizon:65, risk:80},
+  {name:'Катерина Марсова', id:'synth_f', coop:72, dec:25, horizon:80, risk:45},
+  {name:'Новий персонаж', id:'65c37', coop:70, dec:30, horizon:80, risk:55},
+  {name:'Хесус', id:'jesus', coop:60, dec:72, horizon:40, risk:65},
+  {name:'Дімончик', id:'dimn', coop:62, dec:38, horizon:55, risk:50},
+  {name:'Микита', id:'mykyta', coop:58, dec:32, horizon:85, risk:45},
+  {name:'Наталка', id:'natalka', coop:68, dec:35, horizon:60, risk:40}
+];
+
+function getArchetype(a) {
+  if (a.dec >= 65 && a.coop < 50) return {label:'Зрадник', color:'#e05050', bg:'rgba(224,80,80,.12)'};
+  if (a.coop >= 65 && a.dec < 40) return {label:'Союзник', color:'#4dbb80', bg:'rgba(77,187,128,.12)'};
+  if (a.dec >= 65 && a.coop >= 55) return {label:'Маніпулятор', color:'#b06ee0', bg:'rgba(176,110,224,.12)'};
+  if (a.risk >= 70) return {label:'Авантюрист', color:'#e0944a', bg:'rgba(224,148,74,.12)'};
+  if (a.horizon >= 75 && a.dec < 45) return {label:'Стратег', color:'#5b9bd5', bg:'rgba(91,155,213,.12)'};
+  if (a.coop >= 60 && a.risk < 35) return {label:'Миротворець', color:'#4dbba0', bg:'rgba(77,187,160,.12)'};
+  return {label:'Нейтральний', color:'#5a5a7a', bg:'rgba(90,90,122,.12)'};
+}
+
+function getDotClass(coop) {
+  if (coop >= 65) return 'dot dot-green';
+  if (coop >= 45) return 'dot dot-yellow';
+  return 'dot dot-red';
+}
+
+var currentPanel = null;
+
+// Build agent list cards
+var listEl = document.getElementById('agent-list');
+AGENTS.forEach(function(agent, idx) {
+  var arch = getArchetype(agent);
+  var card = document.createElement('div');
+  card.className = 'agent-card';
+  card.setAttribute('data-idx', idx);
+
+  var dot = document.createElement('div');
+  dot.className = getDotClass(agent.coop);
+  card.appendChild(dot);
+
+  var info = document.createElement('div');
+  info.style.flex = '1';
+  info.style.minWidth = '0';
+
+  var nameEl = document.createElement('div');
+  nameEl.className = 'card-name';
+  nameEl.textContent = agent.name;
+  info.appendChild(nameEl);
+
+  var archEl = document.createElement('div');
+  archEl.className = 'card-arch';
+  archEl.textContent = arch.label;
+  archEl.style.color = arch.color;
+  info.appendChild(archEl);
+
+  card.appendChild(info);
+  card.addEventListener('click', function() { selectAgent(idx); });
+  listEl.appendChild(card);
+});
+
+// Build profile panels for all agents
+var container = document.getElementById('profile-container');
+var panels = [];
+
+AGENTS.forEach(function(agent, idx) {
+  var arch = getArchetype(agent);
+
+  var panel = document.createElement('div');
+  panel.className = 'profile-panel';
+
+  // Header
+  var hdr = document.createElement('div');
+  hdr.className = 'profile-header';
+
+  var nameEl = document.createElement('div');
+  nameEl.className = 'profile-name';
+  nameEl.textContent = agent.name;
+  hdr.appendChild(nameEl);
+
+  var idEl = document.createElement('div');
+  idEl.className = 'profile-id';
+  idEl.textContent = 'agents/' + agent.id + '/';
+  hdr.appendChild(idEl);
+
+  var badge = document.createElement('div');
+  badge.className = 'arch-badge';
+  badge.textContent = arch.label;
+  badge.style.color = arch.color;
+  badge.style.background = arch.bg;
+  badge.style.border = '1px solid ' + arch.color + '44';
+  hdr.appendChild(badge);
+  panel.appendChild(hdr);
+
+  // CORE bars section
+  var barsTitle = document.createElement('div');
+  barsTitle.className = 'section-title';
+  barsTitle.textContent = 'CORE Parameters';
+  panel.appendChild(barsTitle);
+
+  var barsData = [
+    {key:'cooperation_bias', label:'Cooperation', val:agent.coop, cls:'bar-coop'},
+    {key:'deception_tendency', label:'Deception', val:agent.dec, cls:'bar-dec'},
+    {key:'strategic_horizon', label:'Horizon', val:agent.horizon, cls:'bar-hor'},
+    {key:'risk_appetite', label:'Risk', val:agent.risk, cls:'bar-risk'}
+  ];
+
+  var barRefs = [];
+  barsData.forEach(function(b) {
+    var row = document.createElement('div');
+    row.className = 'bar-row';
+
+    var lbl = document.createElement('div');
+    lbl.className = 'bar-label';
+
+    var keySpan = document.createElement('span');
+    keySpan.className = 'bar-key';
+    keySpan.textContent = b.label;
+    lbl.appendChild(keySpan);
+
+    var valSpan = document.createElement('span');
+    valSpan.className = 'bar-val';
+    valSpan.textContent = b.val;
+    lbl.appendChild(valSpan);
+
+    row.appendChild(lbl);
+
+    var track = document.createElement('div');
+    track.className = 'bar-track';
+
+    var fill = document.createElement('div');
+    fill.className = 'bar-fill ' + b.cls;
+    fill.style.width = '0%';
+    fill.setAttribute('data-target', b.val + '%');
+    track.appendChild(fill);
+    row.appendChild(track);
+
+    panel.appendChild(row);
+    barRefs.push(fill);
+  });
+  panel._barRefs = barRefs;
+  panel._barData = barsData;
+
+  // File tree section
+  var treeTitle = document.createElement('div');
+  treeTitle.className = 'section-title';
+  treeTitle.textContent = 'Identity Files';
+  panel.appendChild(treeTitle);
+
+  var treeDir = document.createElement('div');
+  treeDir.className = 'tree-dir';
+  var dirSpan = document.createElement('span');
+  dirSpan.textContent = '📁 agents/' + agent.id + '/';
+  treeDir.appendChild(dirSpan);
+  panel.appendChild(treeDir);
+
+  var files = [
+    {icon:'📄', name:'SOUL.md', hint:'narrative identity · 2nd-person UA'},
+    {icon:'⚙️', name:'CORE.json', hint:'4 params · 0–100 scale'},
+    {icon:'🗂️', name:'STATES.md', hint:'FSM definitions · transition rules'},
+    {icon:'🧠', name:'MEMORY.json', hint:'episodic store · per-opponent'},
+  ];
+  files.forEach(function(f) {
+    var item = document.createElement('div');
+    item.className = 'tree-item';
+
+    var iconEl = document.createElement('div');
+    iconEl.className = 'tree-icon';
+    iconEl.textContent = f.icon;
+    item.appendChild(iconEl);
+
+    var nameEl2 = document.createElement('div');
+    nameEl2.className = 'tree-name';
+    nameEl2.textContent = f.name;
+    item.appendChild(nameEl2);
+
+    var hintEl = document.createElement('div');
+    hintEl.className = 'tree-hint';
+    hintEl.textContent = f.hint;
+    item.appendChild(hintEl);
+
+    panel.appendChild(item);
+  });
+
+  container.appendChild(panel);
+  panels.push(panel);
+});
+
+function selectAgent(idx) {
+  // Update card selection
+  var cards = document.querySelectorAll('.agent-card');
+  cards.forEach(function(c, i) {
+    c.classList.toggle('selected', i === idx);
+  });
+
+  // Hide empty state
+  document.getElementById('empty-state').style.display = 'none';
+
+  // Hide all panels
+  panels.forEach(function(p) { p.classList.remove('visible'); });
+
+  // Show selected panel
+  var panel = panels[idx];
+  panel.classList.add('visible');
+
+  // Animate bars after a short delay
+  setTimeout(function() {
+    panel._barRefs.forEach(function(fill, i) {
+      fill.style.width = panel._barData[i].val + '%';
+    });
+  }, 60);
+
+  currentPanel = idx;
+}
+</script>
+</body>
+</html>

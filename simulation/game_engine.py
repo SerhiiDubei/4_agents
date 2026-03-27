@@ -303,665 +303,666 @@ def run_simulation(
     except Exception:
         pass
 
-    for round_num in range(1, total_rounds + 1):
+    try:
+        for round_num in range(1, total_rounds + 1):
+            # --- DM rotation ---
+            dm_rotation = _dm_rotation(agent_ids, round_num)
 
-        # --- DM rotation ---
-        dm_rotation = _dm_rotation(agent_ids, round_num)
+            if on_progress:
+                on_progress(f"round:{round_num}:{total_rounds}:dialog_start")
 
-        if on_progress:
-            on_progress(f"round:{round_num}:{total_rounds}:dialog_start")
-
-        # --- Storytell: per-agent LLM situations (500+ chars each) ---
-        round_situation = ""
-        situations_per_agent: Dict[str, str] = {}
-        round_event = None
-        participants_per_agent: Dict[str, List[str]] = {}
-        round_event_dict: dict = {}
-        if story_params:
-            try:
-                from storytell import get_round_event, get_participants_for_event, generate_situation_llm
-                round_event = get_round_event(
-                    round_num, total_rounds, story_params, agent_ids, result.agent_names
-                )
-                for agent in agents:
-                    parts = get_participants_for_event(
-                        round_event, agent_ids, agent.agent_id,
-                        seed=story_params.seed,
+            # --- Storytell: per-agent LLM situations (500+ chars each) ---
+            round_situation = ""
+            situations_per_agent: Dict[str, str] = {}
+            round_event = None
+            participants_per_agent: Dict[str, List[str]] = {}
+            round_event_dict: dict = {}
+            if story_params:
+                try:
+                    from storytell import get_round_event, get_participants_for_event, generate_situation_llm
+                    round_event = get_round_event(
+                        round_num, total_rounds, story_params, agent_ids, result.agent_names
                     )
-                    participants_per_agent[agent.agent_id] = parts
-                round_event_dict = {
-                    "template": round_event.template,
-                    "involved_count": round_event.involved_count,
-                    "formatted_per_agent": {
-                        aid: round_event.format(
-                            agent_names=result.agent_names,
-                            focus_agent=aid,
-                            participants=participants_per_agent.get(aid, []),
+                    for agent in agents:
+                        parts = get_participants_for_event(
+                            round_event, agent_ids, agent.agent_id,
+                            seed=story_params.seed,
                         )
-                        for aid in agent_ids
-                    },
-                }
-                prev_rounds_summary = _build_story_context_from_rounds(
-                    result.rounds, result.agent_names, max_chars=700
-                )
-                roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
-                agent_profiles = {}
-                if roster_path.exists():
-                    roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
-                    for a in roster_data.get("agents", []):
-                        aid = a.get("id")
-                        if aid in agent_ids and a.get("profile"):
-                            agent_profiles[aid] = dict(a["profile"])
-                # Enrich bio from agents/{id}/BIO.md if present
-                for aid in list(agent_profiles.keys()):
-                    bio_path = AGENTS_DIR / aid / "BIO.md"
-                    if bio_path.exists():
-                        agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
-                import asyncio as _asyncio
-                import sys as _sys
-
-                def _gen_sit(agent):
-                    try:
-                        return agent.agent_id, generate_situation_llm(
-                            agent_id=agent.agent_id,
-                            round_num=round_num,
-                            total_rounds=total_rounds,
-                            story_params=story_params,
-                            round_event=round_event,
-                            agent_names=result.agent_names,
-                            prev_rounds_summary=prev_rounds_summary,
-                            agent_profiles=agent_profiles,
-                        )
-                    except Exception as _e:
-                        if verbose:
-                            print(f"    [sit-gen] {agent.agent_id} ERROR: {_e}", file=_sys.stderr, flush=True)
-                        return agent.agent_id, ""
-
-                _loop = _asyncio.get_event_loop()
-                try:
-                    if _loop.is_closed():
-                        raise RuntimeError("closed")
-                except RuntimeError:
-                    _loop = _asyncio.new_event_loop()
-                    _asyncio.set_event_loop(_loop)
-                sit_gen_results = _loop.run_until_complete(
-                    _asyncio.gather(*[_asyncio.to_thread(_gen_sit, a) for a in agents])
-                )
-                for aid, text in sit_gen_results:
-                    situations_per_agent[aid] = text
-                if situations_per_agent:
-                    round_situation = next(iter(situations_per_agent.values()), "")
-            except Exception:
-                pass
-
-        # --- Situation reflections (each agent reacts to their situation before dialog) ---
-        situation_reflections: Dict[str, str] = {}
-        if situations_per_agent and use_dialog:
-            try:
-                import sys as _sys
-                from pipeline.reflection import reflect_on_situation
-                if verbose:
-                    print(f"  [r{round_num}] situation reflections (parallel)...", file=_sys.stderr, flush=True)
-                import asyncio as _asyncio
-                import time as _time
-
-                def _run_sit_reflect(agent):
-                    _name = result.agent_names.get(agent.agent_id, agent.agent_id)
-                    _t0 = _time.time()
-                    if verbose:
-                        print(f"    [sit]  {_name}...", file=_sys.stderr, flush=True)
-                    try:
-                        text = reflect_on_situation(
-                            agent_id=agent.agent_id,
-                            soul_md=agent.soul_md,
-                            situation_text=situations_per_agent.get(agent.agent_id, ""),
-                            round_num=round_num,
-                            agent_names=result.agent_names,
-                            model=agent.core.get("model", model),
-                        )
-                        if verbose:
-                            print(f"    [sit]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
-                        return agent.agent_id, text
-                    except Exception as _e:
-                        if verbose:
-                            print(f"    [sit]  {_name} ERROR: {_e}", file=_sys.stderr, flush=True)
-                        return agent.agent_id, ""
-
-                _loop = _asyncio.get_event_loop()
-                try:
-                    if _loop.is_closed():
-                        raise RuntimeError("closed")
-                except RuntimeError:
-                    _loop = _asyncio.new_event_loop()
-                    _asyncio.set_event_loop(_loop)
-                sit_results = _loop.run_until_complete(
-                    _asyncio.gather(*[_asyncio.to_thread(_run_sit_reflect, a) for a in agents])
-                )
-                for aid, text in sit_results:
-                    situation_reflections[aid] = text
-            except Exception:
-                pass
-
-        # --- Dialog phase ---
-        round_dialog = None
-        if use_dialog:
-            agent_configs = []
-            for agent in agents:
-                vis = visible_actions(
-                    observer_id=agent.agent_id,
-                    round_number=round_num - 1,
-                    all_actions=action_log.get(round_num - 1, {}),
-                    reveal_tracker=reveal_tracker,
-                    visibility_mode="mixed",
-                )
-                last_round = agent.memory.last_round() if agent.memory else None
-                mem_sum = agent.memory.summary() if agent.memory else {}
-                from pipeline.memory import memory_summary_to_narrative
-                bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
-                bio_text = (bio_path.read_text(encoding="utf-8").strip()[:550]) if bio_path.exists() else ""
-                cfg = {
-                    "agent_id": agent.agent_id,
-                    "soul_md": agent.soul_md,
-                    "states_md": agent.states.to_md() if agent.states else "",
-                    "memory_summary": mem_sum,
-                    "memory_narrative": memory_summary_to_narrative(mem_sum, agent.agent_id, result.agent_names),
-                    "bio": bio_text,
-                    "deception_tendency": agent.core.get("deception_tendency", 50),
-                    "cooperation_bias": agent.core.get("cooperation_bias", 50),
-                    "total_rounds": total_rounds,
-                    "visible_history": vis,
-                    "dm_target": dm_rotation.get(agent.agent_id),
-                    "model": agent.core.get("model", model),
-                    "last_round_summary": {
-                        "payoff": last_round.payoff_delta,
-                        "received": last_round.actions_received,
-                        "given": last_round.actions_given,
-                    } if last_round else None,
-                }
-                if story_params:
-                    cfg["situation_text"] = situations_per_agent.get(agent.agent_id, "")
-                    cfg["situation_reflection"] = situation_reflections.get(agent.agent_id, "")
-                    cfg["story_context"] = story_params.to_context_str()
-                    cfg["round_event_formatted"] = round_event_dict.get("formatted_per_agent", {}).get(agent.agent_id, "")
-                    cfg["event_participants"] = participants_per_agent.get(agent.agent_id, [])
-                agent_configs.append(cfg)
-            for _dialog_attempt in range(2):
-                try:
-                    from simulation.dialog_engine import generate_round_dialog_flat
-                    round_dialog = generate_round_dialog_flat(
-                        round_number=round_num,
-                        agent_configs=agent_configs,
-                        model=model,
-                        agent_names=result.agent_names,
-                        verbose=verbose,
+                        participants_per_agent[agent.agent_id] = parts
+                    round_event_dict = {
+                        "template": round_event.template,
+                        "involved_count": round_event.involved_count,
+                        "formatted_per_agent": {
+                            aid: round_event.format(
+                                agent_names=result.agent_names,
+                                focus_agent=aid,
+                                participants=participants_per_agent.get(aid, []),
+                            )
+                            for aid in agent_ids
+                        },
+                    }
+                    prev_rounds_summary = _build_story_context_from_rounds(
+                        result.rounds, result.agent_names, max_chars=700
                     )
-                    break
-                except Exception as _dialog_err:
+                    roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
+                    agent_profiles = {}
+                    if roster_path.exists():
+                        roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
+                        for a in roster_data.get("agents", []):
+                            aid = a.get("id")
+                            if aid in agent_ids and a.get("profile"):
+                                agent_profiles[aid] = dict(a["profile"])
+                    # Enrich bio from agents/{id}/BIO.md if present
+                    for aid in list(agent_profiles.keys()):
+                        bio_path = AGENTS_DIR / aid / "BIO.md"
+                        if bio_path.exists():
+                            agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+                    import asyncio as _asyncio
                     import sys as _sys
-                    print(
-                        f"  [dialog] r{round_num} attempt {_dialog_attempt + 1}/2: {_dialog_err}",
-                        file=_sys.stderr, flush=True,
+
+                    def _gen_sit(agent):
+                        try:
+                            return agent.agent_id, generate_situation_llm(
+                                agent_id=agent.agent_id,
+                                round_num=round_num,
+                                total_rounds=total_rounds,
+                                story_params=story_params,
+                                round_event=round_event,
+                                agent_names=result.agent_names,
+                                prev_rounds_summary=prev_rounds_summary,
+                                agent_profiles=agent_profiles,
+                            )
+                        except Exception as _e:
+                            if verbose:
+                                print(f"    [sit-gen] {agent.agent_id} ERROR: {_e}", file=_sys.stderr, flush=True)
+                            return agent.agent_id, ""
+
+                    _loop = _asyncio.get_event_loop()
+                    try:
+                        if _loop.is_closed():
+                            raise RuntimeError("closed")
+                    except RuntimeError:
+                        _loop = _asyncio.new_event_loop()
+                        _asyncio.set_event_loop(_loop)
+                    sit_gen_results = _loop.run_until_complete(
+                        _asyncio.gather(*[_asyncio.to_thread(_gen_sit, a) for a in agents])
                     )
-                    if _dialog_attempt == 0:
-                        import time as _time
-                        _time.sleep(2)
-                    else:
-                        round_dialog = None
+                    for aid, text in sit_gen_results:
+                        situations_per_agent[aid] = text
+                    if situations_per_agent:
+                        round_situation = next(iter(situations_per_agent.values()), "")
+                except Exception:
+                    pass
 
-        if on_progress:
-            on_progress(f"round:{round_num}:{total_rounds}:dialog_done")
+            # --- Situation reflections (each agent reacts to their situation before dialog) ---
+            situation_reflections: Dict[str, str] = {}
+            if situations_per_agent and use_dialog:
+                try:
+                    import sys as _sys
+                    from pipeline.reflection import reflect_on_situation
+                    if verbose:
+                        print(f"  [r{round_num}] situation reflections (parallel)...", file=_sys.stderr, flush=True)
+                    import asyncio as _asyncio
+                    import time as _time
 
-        # --- Pre-decision reasoning (structured: thought + per-target intents)
-        # Run all agents' reasoning in parallel to reduce latency
-        from pipeline.reasoning import ReasoningResult, generate_reasoning
-        import asyncio
+                    def _run_sit_reflect(agent):
+                        _name = result.agent_names.get(agent.agent_id, agent.agent_id)
+                        _t0 = _time.time()
+                        if verbose:
+                            print(f"    [sit]  {_name}...", file=_sys.stderr, flush=True)
+                        try:
+                            text = reflect_on_situation(
+                                agent_id=agent.agent_id,
+                                soul_md=agent.soul_md,
+                                situation_text=situations_per_agent.get(agent.agent_id, ""),
+                                round_num=round_num,
+                                agent_names=result.agent_names,
+                                model=agent.core.get("model", model),
+                            )
+                            if verbose:
+                                print(f"    [sit]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
+                            return agent.agent_id, text
+                        except Exception as _e:
+                            if verbose:
+                                print(f"    [sit]  {_name} ERROR: {_e}", file=_sys.stderr, flush=True)
+                            return agent.agent_id, ""
 
-        import time as _time
-        import sys as _sys
+                    _loop = _asyncio.get_event_loop()
+                    try:
+                        if _loop.is_closed():
+                            raise RuntimeError("closed")
+                    except RuntimeError:
+                        _loop = _asyncio.new_event_loop()
+                        _asyncio.set_event_loop(_loop)
+                    sit_results = _loop.run_until_complete(
+                        _asyncio.gather(*[_asyncio.to_thread(_run_sit_reflect, a) for a in agents])
+                    )
+                    for aid, text in sit_results:
+                        situation_reflections[aid] = text
+                except Exception:
+                    pass
 
-        if verbose:
-            print(f"  [r{round_num}] reasoning (parallel)...", file=_sys.stderr, flush=True)
-
-        async def _reason_one(agent):
-            _t0 = _time.time()
-            _name = result.agent_names.get(agent.agent_id, agent.agent_id)
-            if verbose:
-                print(f"    [rsn]  {_name}...", file=_sys.stderr, flush=True)
-            try:
-                last_round = agent.memory.last_round() if agent.memory else None
-                peer_ids = [a.agent_id for a in agents if a.agent_id != agent.agent_id]
-
-                # Build dialog_heard: prefix DM messages with "dm:" so reasoning.py
-                # can separate public from private context
-                dialog_heard: dict = {}
-                if round_dialog:
-                    for m in round_dialog.visible_to(agent.agent_id):
-                        if m.sender_id == agent.agent_id:
-                            continue
-                        if m.channel.startswith("dm_"):
-                            dialog_heard[f"dm:{m.sender_id}"] = m.text
+            # --- Dialog phase ---
+            round_dialog = None
+            if use_dialog:
+                agent_configs = []
+                for agent in agents:
+                    vis = visible_actions(
+                        observer_id=agent.agent_id,
+                        round_number=round_num - 1,
+                        all_actions=action_log.get(round_num - 1, {}),
+                        reveal_tracker=reveal_tracker,
+                        visibility_mode="mixed",
+                    )
+                    last_round = agent.memory.last_round() if agent.memory else None
+                    mem_sum = agent.memory.summary() if agent.memory else {}
+                    from pipeline.memory import memory_summary_to_narrative
+                    bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
+                    bio_text = (bio_path.read_text(encoding="utf-8").strip()[:550]) if bio_path.exists() else ""
+                    cfg = {
+                        "agent_id": agent.agent_id,
+                        "soul_md": agent.soul_md,
+                        "states_md": agent.states.to_md() if agent.states else "",
+                        "memory_summary": mem_sum,
+                        "memory_narrative": memory_summary_to_narrative(mem_sum, agent.agent_id, result.agent_names),
+                        "bio": bio_text,
+                        "deception_tendency": agent.core.get("deception_tendency", 50),
+                        "cooperation_bias": agent.core.get("cooperation_bias", 50),
+                        "total_rounds": total_rounds,
+                        "visible_history": vis,
+                        "dm_target": dm_rotation.get(agent.agent_id),
+                        "model": agent.core.get("model", model),
+                        "last_round_summary": {
+                            "payoff": last_round.payoff_delta,
+                            "received": last_round.actions_received,
+                            "given": last_round.actions_given,
+                        } if last_round else None,
+                    }
+                    if story_params:
+                        cfg["situation_text"] = situations_per_agent.get(agent.agent_id, "")
+                        cfg["situation_reflection"] = situation_reflections.get(agent.agent_id, "")
+                        cfg["story_context"] = story_params.to_context_str()
+                        cfg["round_event_formatted"] = round_event_dict.get("formatted_per_agent", {}).get(agent.agent_id, "")
+                        cfg["event_participants"] = participants_per_agent.get(agent.agent_id, [])
+                    agent_configs.append(cfg)
+                for _dialog_attempt in range(2):
+                    try:
+                        from simulation.dialog_engine import generate_round_dialog_flat
+                        round_dialog = generate_round_dialog_flat(
+                            round_number=round_num,
+                            agent_configs=agent_configs,
+                            model=model,
+                            agent_names=result.agent_names,
+                            verbose=verbose,
+                        )
+                        break
+                    except Exception as _dialog_err:
+                        import sys as _sys
+                        print(
+                            f"  [dialog] r{round_num} attempt {_dialog_attempt + 1}/2: {_dialog_err}",
+                            file=_sys.stderr, flush=True,
+                        )
+                        if _dialog_attempt == 0:
+                            import time as _time
+                            _time.sleep(2)
                         else:
-                            dialog_heard[m.sender_id] = m.text
+                            round_dialog = None
 
+            if on_progress:
+                on_progress(f"round:{round_num}:{total_rounds}:dialog_done")
+
+            # --- Pre-decision reasoning (structured: thought + per-target intents)
+            # Run all agents' reasoning in parallel to reduce latency
+            from pipeline.reasoning import ReasoningResult, generate_reasoning
+            import asyncio
+
+            import time as _time
+            import sys as _sys
+
+            if verbose:
+                print(f"  [r{round_num}] reasoning (parallel)...", file=_sys.stderr, flush=True)
+
+            async def _reason_one(agent):
+                _t0 = _time.time()
+                _name = result.agent_names.get(agent.agent_id, agent.agent_id)
+                if verbose:
+                    print(f"    [rsn]  {_name}...", file=_sys.stderr, flush=True)
+                try:
+                    last_round = agent.memory.last_round() if agent.memory else None
+                    peer_ids = [a.agent_id for a in agents if a.agent_id != agent.agent_id]
+
+                    # Build dialog_heard: prefix DM messages with "dm:" so reasoning.py
+                    # can separate public from private context
+                    dialog_heard: dict = {}
+                    if round_dialog:
+                        for m in round_dialog.visible_to(agent.agent_id):
+                            if m.sender_id == agent.agent_id:
+                                continue
+                            if m.channel.startswith("dm_"):
+                                dialog_heard[f"dm:{m.sender_id}"] = m.text
+                            else:
+                                dialog_heard[m.sender_id] = m.text
+
+                    trust = {}
+                    if agent.states and hasattr(agent.states, "trust"):
+                        trust = {k: v for k, v in agent.states.trust.items()}
+
+                    last_reflection = ""
+                    if last_round and last_round.notes:
+                        last_reflection = last_round.notes
+                    mem_summary = agent.memory.summary() if agent.memory else {}
+                    from pipeline.memory import memory_summary_to_narrative
+                    memory_narrative = memory_summary_to_narrative(mem_summary, agent.agent_id, result.agent_names)
+                    _bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
+                    bio_text = (_bio_path.read_text(encoding="utf-8").strip()[:500]) if _bio_path.exists() else ""
+
+                    story_ctx = story_params.to_context_str() if story_params else ""
+                    sit_text = (situations_per_agent.get(agent.agent_id, "") or "")[:400]
+                    ev_text = round_event_dict.get("formatted_per_agent", {}).get(agent.agent_id, "")
+                    ev_parts = participants_per_agent.get(agent.agent_id, [])
+
+                    reasoning_out = await asyncio.to_thread(
+                        generate_reasoning,
+                        agent_id=agent.agent_id,
+                        soul_md=agent.soul_md,
+                        round_number=round_num,
+                        total_rounds=total_rounds,
+                        peer_ids=peer_ids,
+                        last_round_summary={
+                            "received": last_round.actions_received,
+                            "given": last_round.actions_given,
+                        } if last_round else None,
+                        dialog_heard=dialog_heard,
+                        trust_scores=trust,
+                        last_reflection=last_reflection,
+                        last_conclusion=mem_summary.get("last_conclusion", ""),
+                        memory_narrative=memory_narrative,
+                        bio=bio_text,
+                        model=agent.core.get("model", model),
+                        agent_names=result.agent_names,
+                        story_context=story_ctx,
+                        situation_text=sit_text,
+                        round_event_text=ev_text,
+                        event_participants=ev_parts,
+                    )
+                    if verbose:
+                        print(f"    [rsn]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
+                    return agent.agent_id, reasoning_out
+                except Exception as _reason_err:
+                    print(f"  [reasoning] {_name} r{round_num}: {_reason_err}", file=_sys.stderr, flush=True)
+                    return agent.agent_id, None
+
+            async def _run_all_reasoning():
+                tasks = [_reason_one(a) for a in agents]
+                return await asyncio.gather(*tasks)
+
+            agent_reasoning: Dict[str, ReasoningResult] = {}
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            reasoning_results = loop.run_until_complete(_run_all_reasoning())
+            for aid, r_out in reasoning_results:
+                if r_out is not None:
+                    agent_reasoning[aid] = r_out
+
+            if on_progress:
+                on_progress(f"round:{round_num}:{total_rounds}:reasoning_done")
+
+            # --- Decision phase ---
+            round_actions: Dict[str, Dict[str, Dict[str, float]]] = {}
+
+            for agent in agents:
+                core_params = CoreParams.from_dict(agent.core)
+
+                # Build trust scores from states
                 trust = {}
                 if agent.states and hasattr(agent.states, "trust"):
                     trust = {k: v for k, v in agent.states.trust.items()}
 
-                last_reflection = ""
-                if last_round and last_round.notes:
-                    last_reflection = last_round.notes
-                mem_summary = agent.memory.summary() if agent.memory else {}
-                from pipeline.memory import memory_summary_to_narrative
-                memory_narrative = memory_summary_to_narrative(mem_summary, agent.agent_id, result.agent_names)
-                _bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
-                bio_text = (_bio_path.read_text(encoding="utf-8").strip()[:500]) if _bio_path.exists() else ""
+                # Build observed actions from last round (cooperation only for context)
+                observed = {}
+                if round_num > 1:
+                    prev_actions = action_log.get(round_num - 1, {})
+                    for other in agents:
+                        if other.agent_id == agent.agent_id:
+                            continue
+                        obs_val = get_action_for_dim(
+                            prev_actions, other.agent_id, agent.agent_id, "cooperation"
+                        )
+                        observed[other.agent_id] = obs_val
 
-                story_ctx = story_params.to_context_str() if story_params else ""
-                sit_text = (situations_per_agent.get(agent.agent_id, "") or "")[:400]
-                ev_text = round_event_dict.get("formatted_per_agent", {}).get(agent.agent_id, "")
-                ev_parts = participants_per_agent.get(agent.agent_id, [])
-
-                reasoning_out = await asyncio.to_thread(
-                    generate_reasoning,
-                    agent_id=agent.agent_id,
-                    soul_md=agent.soul_md,
-                    round_number=round_num,
-                    total_rounds=total_rounds,
-                    peer_ids=peer_ids,
-                    last_round_summary={
-                        "received": last_round.actions_received,
-                        "given": last_round.actions_given,
-                    } if last_round else None,
-                    dialog_heard=dialog_heard,
-                    trust_scores=trust,
-                    last_reflection=last_reflection,
-                    last_conclusion=mem_summary.get("last_conclusion", ""),
-                    memory_narrative=memory_narrative,
-                    bio=bio_text,
-                    model=agent.core.get("model", model),
-                    agent_names=result.agent_names,
-                    story_context=story_ctx,
-                    situation_text=sit_text,
-                    round_event_text=ev_text,
-                    event_participants=ev_parts,
+                # Choose action toward each other agent (per dimension)
+                agent_actions: Dict[str, Dict[str, float]] = {}
+                last_payoff = (
+                    agent.memory.last_round().payoff_delta
+                    if agent.memory and agent.memory.last_round() else 0.0
                 )
-                if verbose:
-                    print(f"    [rsn]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
-                return agent.agent_id, reasoning_out
-            except Exception as _reason_err:
-                print(f"  [reasoning] {_name} r{round_num}: {_reason_err}", file=_sys.stderr, flush=True)
-                return agent.agent_id, None
+                reasoning_result = agent_reasoning.get(agent.agent_id)
+                llm_intents = reasoning_result.intents if reasoning_result else {}
 
-        async def _run_all_reasoning():
-            tasks = [_reason_one(a) for a in agents]
-            return await asyncio.gather(*tasks)
-
-        agent_reasoning: Dict[str, ReasoningResult] = {}
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        reasoning_results = loop.run_until_complete(_run_all_reasoning())
-        for aid, r_out in reasoning_results:
-            if r_out is not None:
-                agent_reasoning[aid] = r_out
-
-        if on_progress:
-            on_progress(f"round:{round_num}:{total_rounds}:reasoning_done")
-
-        # --- Decision phase ---
-        round_actions: Dict[str, Dict[str, Dict[str, float]]] = {}
-
-        for agent in agents:
-            core_params = CoreParams.from_dict(agent.core)
-
-            # Build trust scores from states
-            trust = {}
-            if agent.states and hasattr(agent.states, "trust"):
-                trust = {k: v for k, v in agent.states.trust.items()}
-
-            # Build observed actions from last round (cooperation only for context)
-            observed = {}
-            if round_num > 1:
-                prev_actions = action_log.get(round_num - 1, {})
                 for other in agents:
                     if other.agent_id == agent.agent_id:
                         continue
-                    obs_val = get_action_for_dim(
-                        prev_actions, other.agent_id, agent.agent_id, "cooperation"
+
+                    per_target_context = AgentContext(
+                        round_number=round_num,
+                        total_rounds=total_rounds,
+                        trust_scores={other.agent_id: trust.get(other.agent_id, 0.5)},
+                        observed_actions={other.agent_id: observed.get(other.agent_id, 0.5)} if observed else {},
+                        current_score=cumulative_scores[agent.agent_id],
+                        betrayals_received=(
+                            agent.memory.betrayals_by(other.agent_id) if agent.memory else 0
+                        ),
+                        cooperations_received=(
+                            agent.memory.cooperations_by(other.agent_id) if agent.memory else 0
+                        ),
+                        last_round_payoff=last_payoff,
                     )
-                    observed[other.agent_id] = obs_val
 
-            # Choose action toward each other agent (per dimension)
-            agent_actions: Dict[str, Dict[str, float]] = {}
-            last_payoff = (
-                agent.memory.last_round().payoff_delta
-                if agent.memory and agent.memory.last_round() else 0.0
-            )
-            reasoning_result = agent_reasoning.get(agent.agent_id)
-            llm_intents = reasoning_result.intents if reasoning_result else {}
+                    llm_intent = llm_intents.get(other.agent_id)
+                    dim_actions: Dict[str, float] = {}
 
-            for other in agents:
-                if other.agent_id == agent.agent_id:
-                    continue
-
-                per_target_context = AgentContext(
-                    round_number=round_num,
-                    total_rounds=total_rounds,
-                    trust_scores={other.agent_id: trust.get(other.agent_id, 0.5)},
-                    observed_actions={other.agent_id: observed.get(other.agent_id, 0.5)} if observed else {},
-                    current_score=cumulative_scores[agent.agent_id],
-                    betrayals_received=(
-                        agent.memory.betrayals_by(other.agent_id) if agent.memory else 0
-                    ),
-                    cooperations_received=(
-                        agent.memory.cooperations_by(other.agent_id) if agent.memory else 0
-                    ),
-                    last_round_payoff=last_payoff,
-                )
-
-                llm_intent = llm_intents.get(other.agent_id)
-                dim_actions: Dict[str, float] = {}
-
-                if llm_intent is not None:
-                    # LLM gave one value (legacy) -> cooperation; other dims from CORE
-                    if isinstance(llm_intent, (int, float)):
-                        dim_actions["cooperation"] = float(llm_intent)
-                        for dim_id in get_dimension_ids():
-                            if dim_id != "cooperation":
-                                res = choose_action(core_params, per_target_context, dim_id=dim_id)
-                                dim_actions[dim_id] = res.action
+                    if llm_intent is not None:
+                        # LLM gave one value (legacy) -> cooperation; other dims from CORE
+                        if isinstance(llm_intent, (int, float)):
+                            dim_actions["cooperation"] = float(llm_intent)
+                            for dim_id in get_dimension_ids():
+                                if dim_id != "cooperation":
+                                    res = choose_action(core_params, per_target_context, dim_id=dim_id)
+                                    dim_actions[dim_id] = res.action
+                        else:
+                            # LLM gave dict per dim
+                            for dim_id in get_dimension_ids():
+                                dim_actions[dim_id] = float(
+                                    llm_intent.get(dim_id)
+                                    if isinstance(llm_intent.get(dim_id), (int, float))
+                                    else choose_action(core_params, per_target_context, dim_id=dim_id).action
+                                )
                     else:
-                        # LLM gave dict per dim
-                        for dim_id in get_dimension_ids():
-                            dim_actions[dim_id] = float(
-                                llm_intent.get(dim_id)
-                                if isinstance(llm_intent.get(dim_id), (int, float))
-                                else choose_action(core_params, per_target_context, dim_id=dim_id).action
-                            )
-                else:
-                    # Fallback: CORE math for all dimensions
-                    dim_actions = choose_actions(core_params, per_target_context)
+                        # Fallback: CORE math for all dimensions
+                        dim_actions = choose_actions(core_params, per_target_context)
 
-                agent_actions[other.agent_id] = dim_actions
+                    agent_actions[other.agent_id] = dim_actions
 
-            round_actions[agent.agent_id] = agent_actions
+                round_actions[agent.agent_id] = agent_actions
 
-        action_log[round_num] = round_actions
+            action_log[round_num] = round_actions
 
-        if on_progress:
-            on_progress(f"round:{round_num}:{total_rounds}:decisions_done")
+            if on_progress:
+                on_progress(f"round:{round_num}:{total_rounds}:decisions_done")
 
-        # --- Payoff phase ---
-        payoffs = calculate_round_payoffs(round_number=round_num, actions=round_actions)
-        for agent_id, payoff in payoffs.total.items():
-            cumulative_scores[agent_id] = round(cumulative_scores[agent_id] + payoff, 4)
+            # --- Payoff phase ---
+            payoffs = calculate_round_payoffs(round_number=round_num, actions=round_actions)
+            for agent_id, payoff in payoffs.total.items():
+                cumulative_scores[agent_id] = round(cumulative_scores[agent_id] + payoff, 4)
 
-        # --- Storytell: consequences after payoffs ---
-        round_consequences = ""
-        round_narrative = ""
-        if story_params:
-            try:
-                from storytell import generate_consequences
-                payoffs_summary = payoffs.total if hasattr(payoffs, "total") else {}
-                round_consequences = generate_consequences(
-                    round_num, round_actions, payoffs_summary, story_params, result.agent_names
-                )
-            except Exception:
-                pass
-
-            # --- Storytell: широкий опис раунду (що відбулося для кожного і всіх) ---
-            try:
-                from storytell import generate_round_narrative
-                roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
-                agent_profiles = {}
-                if roster_path.exists():
-                    roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
-                    for a in roster_data.get("agents", []):
-                        aid = a.get("id")
-                        if aid in agent_ids and a.get("profile"):
-                            agent_profiles[aid] = dict(a["profile"])
-                for aid in list(agent_profiles.keys()):
-                    bio_path = AGENTS_DIR / aid / "BIO.md"
-                    if bio_path.exists():
-                        agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
-                prev_narr = " ".join(
-                    r.round_narrative for r in result.rounds[-2:] if getattr(r, "round_narrative", "")
-                )[:500]
-                round_narrative = generate_round_narrative(
-                    round_num=round_num,
-                    total_rounds=total_rounds,
-                    actions=round_actions,
-                    payoffs=payoffs.total if hasattr(payoffs, "total") else {},
-                    story_params=story_params,
-                    agent_names=result.agent_names,
-                    round_event_template=round_event_dict.get("template", ""),
-                    prev_rounds_narrative=prev_narr,
-                    agent_profiles=agent_profiles,
-                )
-            except Exception:
-                pass
-
-        # --- Reveal window ---
-        round_reveals = []
-        if reveal_requests and round_num in reveal_requests:
-            for revealer_id, target_id in reveal_requests[round_num].items():
-                record = reveal_tracker.use_reveal(
-                    revealer_id=revealer_id,
-                    target_id=target_id,
-                    round_number=round_num,
-                    action_log=action_log,
-                    all_agent_ids=agent_ids,
-                )
-                if record:
-                    round_reveals.append(record)
-                    # Apply trust delta privately to the revealer only
-                    revealer_agent = next(
-                        (a for a in agents if a.agent_id == revealer_id), None
+            # --- Storytell: consequences after payoffs ---
+            round_consequences = ""
+            round_narrative = ""
+            if story_params:
+                try:
+                    from storytell import generate_consequences
+                    payoffs_summary = payoffs.total if hasattr(payoffs, "total") else {}
+                    round_consequences = generate_consequences(
+                        round_num, round_actions, payoffs_summary, story_params, result.agent_names
                     )
-                    if revealer_agent and record.trust_delta_applied != 0.0:
-                        current_trust = revealer_agent.states.trust.get(target_id, 0.5)
-                        new_trust = max(0.0, min(1.0, current_trust + record.trust_delta_applied))
-                        revealer_agent.states.trust[target_id] = round(new_trust, 4)
+                except Exception:
+                    pass
 
-        # --- State update ---
-        # Collect LLM-generated fields per agent for RoundResult (must happen before archive_game clears memory)
-        round_notes: Dict[str, str] = {}
-        round_reasoning_snapshot: Dict[str, str] = {}
+                # --- Storytell: широкий опис раунду (що відбулося для кожного і всіх) ---
+                try:
+                    from storytell import generate_round_narrative
+                    roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
+                    agent_profiles = {}
+                    if roster_path.exists():
+                        roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
+                        for a in roster_data.get("agents", []):
+                            aid = a.get("id")
+                            if aid in agent_ids and a.get("profile"):
+                                agent_profiles[aid] = dict(a["profile"])
+                    for aid in list(agent_profiles.keys()):
+                        bio_path = AGENTS_DIR / aid / "BIO.md"
+                        if bio_path.exists():
+                            agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+                    prev_narr = " ".join(
+                        r.round_narrative for r in result.rounds[-2:] if getattr(r, "round_narrative", "")
+                    )[:500]
+                    round_narrative = generate_round_narrative(
+                        round_num=round_num,
+                        total_rounds=total_rounds,
+                        actions=round_actions,
+                        payoffs=payoffs.total if hasattr(payoffs, "total") else {},
+                        story_params=story_params,
+                        agent_names=result.agent_names,
+                        round_event_template=round_event_dict.get("template", ""),
+                        prev_rounds_narrative=prev_narr,
+                        agent_profiles=agent_profiles,
+                    )
+                except Exception:
+                    pass
 
-        dialog_signals: Dict[str, Dict[str, str]] = {}
-        if round_dialog:
-            # Use talk_signals from stepped dialog (real transition outcomes)
-            if hasattr(round_dialog, "talk_signals") and round_dialog.talk_signals:
-                for listener_id, signal in round_dialog.talk_signals.items():
-                    if listener_id not in dialog_signals:
-                        dialog_signals[listener_id] = {}
-                    # Find who most recently signalled this listener
-                    for msg in reversed(round_dialog.public_messages()):
-                        if msg.sender_id != listener_id:
-                            dialog_signals[listener_id][msg.sender_id] = signal
-                            break
-            else:
-                # Fallback: infer from is_deceptive flag
-                for msg in round_dialog.public_messages():
-                    signal = "deceptive" if msg.is_deceptive else "cooperative" if random.random() > 0.5 else "neutral"
-                    for other_id in agent_ids:
-                        if other_id != msg.sender_id:
-                            if other_id not in dialog_signals:
-                                dialog_signals[other_id] = {}
-                            dialog_signals[other_id][msg.sender_id] = signal
-
-        state_snapshots = {}
-        # Build per-agent state + memory objects (sync, fast — no LLM)
-        agent_round_mems: Dict[str, object] = {}
-        for agent in agents:
-            payoff_delta = payoffs.total.get(agent.agent_id, 0.0)
-
-            outcome = RoundOutcome(
-                received_actions={
-                    other.agent_id: dict(round_actions.get(other.agent_id, {}).get(agent.agent_id, {"cooperation": 0.5}))
-                    for other in agents if other.agent_id != agent.agent_id
-                },
-                revealed_betrayal=False,
-                was_exposed=False,
-                payoff_delta=payoff_delta,
-                dialog_signals=dialog_signals.get(agent.agent_id, {}),
-            )
-
-            new_state = update_states(
-                agent.states,
-                outcome,
-                core_cooperation_bias=agent.core.get("cooperation_bias", 50),
-            )
-            agent.states = new_state
-            state_snapshots[agent.agent_id] = new_state.to_dict()
-
-            round_mem = RoundMemory(
-                round_number=round_num,
-                actions_given=round_actions.get(agent.agent_id, {}),
-                actions_received=outcome.received_actions,
-                dialog_heard={
-                    m.sender_id: m.text
-                    for m in (round_dialog.visible_to(agent.agent_id) if round_dialog else [])
-                },
-                payoff_delta=payoff_delta,
-                total_score=cumulative_scores[agent.agent_id],
-                mood=new_state.mood,
-                reveal_used=next(
-                    (r.target_id for r in round_reveals if r.revealer_id == agent.agent_id), None
-                ),
-                was_revealed_by=None,
-                reasoning=agent_reasoning.get(agent.agent_id, ""),
-            )
-            agent.memory.record_round(round_mem)
-            agent_round_mems[agent.agent_id] = round_mem
-
-        # Post-round reflections — parallel LLM calls (non-critical)
-        from pipeline.reflection import reflect_on_round as _reflect_fn, log_reflection_error as _log_reflection_error
-
-        if verbose:
-            print(f"  [r{round_num}] reflections (parallel)...", file=_sys.stderr, flush=True)
-
-        def _run_reflect_one(agent):
-            _name = result.agent_names.get(agent.agent_id, agent.agent_id)
-            _t0 = _time.time()
-            if verbose:
-                print(f"    [ref]  {_name}...", file=_sys.stderr, flush=True)
-            try:
-                notes = _reflect_fn(
-                    agent_id=agent.agent_id,
-                    soul_md=agent.soul_md,
-                    round_mem=agent_round_mems[agent.agent_id],
-                    model=agent.core.get("model", model),
-                    agent_names=result.agent_names,
-                    situation_text=situations_per_agent.get(agent.agent_id, round_situation),
-                )
-                if verbose:
-                    print(f"    [ref]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
-                return agent.agent_id, notes
-            except Exception as _reflect_err:
-                print(f"  [reflect/round] {_name} r{round_num}: {_reflect_err}", file=_sys.stderr, flush=True)
-                _log_reflection_error(agent.agent_id, f"round r{round_num}", _reflect_err)
-                return agent.agent_id, ""
-
-        async def _gather_reflections():
-            return await asyncio.gather(
-                *[asyncio.to_thread(_run_reflect_one, a) for a in agents]
-            )
-
-        reflect_results = loop.run_until_complete(_gather_reflections())
-        for aid, notes in reflect_results:
-            agent_round_mems[aid].notes = notes
-
-        # Snapshot reasoning + notes for RoundResult
-        for agent in agents:
-            round_mem = agent_round_mems[agent.agent_id]
-            round_notes[agent.agent_id] = round_mem.notes
-            r_result = agent_reasoning.get(agent.agent_id)
-            if r_result:
-                round_mem.reasoning = r_result.thought
-                round_reasoning_snapshot[agent.agent_id] = r_result.to_dict()
-            else:
-                round_reasoning_snapshot[agent.agent_id] = {"thought": round_mem.reasoning, "intents": {}}
-
-        # --- Record round ---
-        round_result = RoundResult(
-            round_number=round_num,
-            actions=round_actions,
-            payoffs=payoffs,
-            dialog=round_dialog,
-            reveals=round_reveals,
-            state_snapshots=state_snapshots,
-            notes=round_notes,
-            reasonings=round_reasoning_snapshot,
-            situation=round_situation,
-            situations_per_agent=situations_per_agent,
-            consequences=round_consequences,
-            situation_reflections=situation_reflections,
-            round_event=round_event_dict,
-            participants_per_agent=participants_per_agent,
-            round_narrative=round_narrative,
-        )
-        result.rounds.append(round_result)
-
-        if on_progress:
-            on_progress(f"round:{round_num}:{total_rounds}:complete")
-
-
-    result.final_scores = cumulative_scores
-    result.action_log = action_log
-    result.winner = max(cumulative_scores, key=cumulative_scores.get)
-
-    # --- Archive game in each agent's memory for cross-game persistence ---
-    for agent in agents:
-        if agent.memory:
-            agent_dir = AGENTS_DIR / agent.agent_id
-            has_disk = agent_dir.exists()
-
-            # Collect recent rounds BEFORE archive_game clears them (real agents)
-            recent_for_conclusion = [r.to_dict() for r in agent.memory.rounds[-5:]]
-
-            # Only clear rounds when saving to disk (real agents with persistent storage)
-            agent.memory.archive_game(
-                game_id=result.simulation_id,
-                winner=result.winner,
-                clear_rounds=has_disk,
-            )
-            if has_disk:
-                from pipeline.memory import save_memory
-                from pipeline.state_machine import save_states
-                save_memory(agent.memory, agent_dir)
-                save_states(agent.states, agent_dir, display_name=agent.name)
-
-            # Post-game conclusion — fills game_history[-1]["conclusion"] (non-critical)
-            if agent.memory.game_history:
-                import time as _time
-                from pipeline.reflection import reflect_on_game, log_reflection_error as _log_reflection_error
-                conclusion = None
-                for attempt in range(2):  # initial + 1 retry
-                    try:
-                        conclusion = reflect_on_game(
-                            agent_id=agent.agent_id,
-                            soul_md=agent.soul_md,
-                            game_summary=agent.memory.game_history[-1],
-                            recent_rounds=recent_for_conclusion,
-                            model=agent.core.get("model", model),
-                            agent_names=result.agent_names,
+            # --- Reveal window ---
+            round_reveals = []
+            if reveal_requests and round_num in reveal_requests:
+                for revealer_id, target_id in reveal_requests[round_num].items():
+                    record = reveal_tracker.use_reveal(
+                        revealer_id=revealer_id,
+                        target_id=target_id,
+                        round_number=round_num,
+                        action_log=action_log,
+                        all_agent_ids=agent_ids,
+                    )
+                    if record:
+                        round_reveals.append(record)
+                        # Apply trust delta privately to the revealer only
+                        revealer_agent = next(
+                            (a for a in agents if a.agent_id == revealer_id), None
                         )
-                        break
-                    except Exception as _game_reflect_err:
-                        import sys as _sys
-                        print(f"  [reflect/game] {agent.agent_id}: {_game_reflect_err}", file=_sys.stderr, flush=True)
-                        _log_reflection_error(agent.agent_id, f"game {result.simulation_id}", _game_reflect_err)
-                        if attempt == 0:
-                            _time.sleep(2)
-                if conclusion is not None:
-                    agent.memory.game_history[-1]["conclusion"] = conclusion
-                    if has_disk:
-                        from pipeline.memory import save_memory
-                        save_memory(agent.memory, agent_dir)
+                        if revealer_agent and record.trust_delta_applied != 0.0:
+                            current_trust = revealer_agent.states.trust.get(target_id, 0.5)
+                            new_trust = max(0.0, min(1.0, current_trust + record.trust_delta_applied))
+                            revealer_agent.states.trust[target_id] = round(new_trust, 4)
+
+            # --- State update ---
+            # Collect LLM-generated fields per agent for RoundResult (must happen before archive_game clears memory)
+            round_notes: Dict[str, str] = {}
+            round_reasoning_snapshot: Dict[str, str] = {}
+
+            dialog_signals: Dict[str, Dict[str, str]] = {}
+            if round_dialog:
+                # Use talk_signals from stepped dialog (real transition outcomes)
+                if hasattr(round_dialog, "talk_signals") and round_dialog.talk_signals:
+                    for listener_id, signal in round_dialog.talk_signals.items():
+                        if listener_id not in dialog_signals:
+                            dialog_signals[listener_id] = {}
+                        # Find who most recently signalled this listener
+                        for msg in reversed(round_dialog.public_messages()):
+                            if msg.sender_id != listener_id:
+                                dialog_signals[listener_id][msg.sender_id] = signal
+                                break
+                else:
+                    # Fallback: infer from is_deceptive flag
+                    for msg in round_dialog.public_messages():
+                        signal = "deceptive" if msg.is_deceptive else "cooperative" if random.random() > 0.5 else "neutral"
+                        for other_id in agent_ids:
+                            if other_id != msg.sender_id:
+                                if other_id not in dialog_signals:
+                                    dialog_signals[other_id] = {}
+                                dialog_signals[other_id][msg.sender_id] = signal
+
+            state_snapshots = {}
+            # Build per-agent state + memory objects (sync, fast — no LLM)
+            agent_round_mems: Dict[str, object] = {}
+            for agent in agents:
+                payoff_delta = payoffs.total.get(agent.agent_id, 0.0)
+
+                outcome = RoundOutcome(
+                    received_actions={
+                        other.agent_id: dict(round_actions.get(other.agent_id, {}).get(agent.agent_id, {"cooperation": 0.5}))
+                        for other in agents if other.agent_id != agent.agent_id
+                    },
+                    revealed_betrayal=False,
+                    was_exposed=False,
+                    payoff_delta=payoff_delta,
+                    dialog_signals=dialog_signals.get(agent.agent_id, {}),
+                )
+
+                new_state = update_states(
+                    agent.states,
+                    outcome,
+                    core_cooperation_bias=agent.core.get("cooperation_bias", 50),
+                )
+                agent.states = new_state
+                state_snapshots[agent.agent_id] = new_state.to_dict()
+
+                round_mem = RoundMemory(
+                    round_number=round_num,
+                    actions_given=round_actions.get(agent.agent_id, {}),
+                    actions_received=outcome.received_actions,
+                    dialog_heard={
+                        m.sender_id: m.text
+                        for m in (round_dialog.visible_to(agent.agent_id) if round_dialog else [])
+                    },
+                    payoff_delta=payoff_delta,
+                    total_score=cumulative_scores[agent.agent_id],
+                    mood=new_state.mood,
+                    reveal_used=next(
+                        (r.target_id for r in round_reveals if r.revealer_id == agent.agent_id), None
+                    ),
+                    was_revealed_by=None,
+                    reasoning=agent_reasoning.get(agent.agent_id, ""),
+                )
+                agent.memory.record_round(round_mem)
+                agent_round_mems[agent.agent_id] = round_mem
+
+            # Post-round reflections — parallel LLM calls (non-critical)
+            from pipeline.reflection import reflect_on_round as _reflect_fn, log_reflection_error as _log_reflection_error
+
+            if verbose:
+                print(f"  [r{round_num}] reflections (parallel)...", file=_sys.stderr, flush=True)
+
+            def _run_reflect_one(agent):
+                _name = result.agent_names.get(agent.agent_id, agent.agent_id)
+                _t0 = _time.time()
+                if verbose:
+                    print(f"    [ref]  {_name}...", file=_sys.stderr, flush=True)
+                try:
+                    notes = _reflect_fn(
+                        agent_id=agent.agent_id,
+                        soul_md=agent.soul_md,
+                        round_mem=agent_round_mems[agent.agent_id],
+                        model=agent.core.get("model", model),
+                        agent_names=result.agent_names,
+                        situation_text=situations_per_agent.get(agent.agent_id, round_situation),
+                    )
+                    if verbose:
+                        print(f"    [ref]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
+                    return agent.agent_id, notes
+                except Exception as _reflect_err:
+                    print(f"  [reflect/round] {_name} r{round_num}: {_reflect_err}", file=_sys.stderr, flush=True)
+                    _log_reflection_error(agent.agent_id, f"round r{round_num}", _reflect_err)
+                    return agent.agent_id, ""
+
+            async def _gather_reflections():
+                return await asyncio.gather(
+                    *[asyncio.to_thread(_run_reflect_one, a) for a in agents]
+                )
+
+            reflect_results = loop.run_until_complete(_gather_reflections())
+            for aid, notes in reflect_results:
+                agent_round_mems[aid].notes = notes
+
+            # Snapshot reasoning + notes for RoundResult
+            for agent in agents:
+                round_mem = agent_round_mems[agent.agent_id]
+                round_notes[agent.agent_id] = round_mem.notes
+                r_result = agent_reasoning.get(agent.agent_id)
+                if r_result:
+                    round_mem.reasoning = r_result.thought
+                    round_reasoning_snapshot[agent.agent_id] = r_result.to_dict()
+                else:
+                    round_reasoning_snapshot[agent.agent_id] = {"thought": round_mem.reasoning, "intents": {}}
+
+            # --- Record round ---
+            round_result = RoundResult(
+                round_number=round_num,
+                actions=round_actions,
+                payoffs=payoffs,
+                dialog=round_dialog,
+                reveals=round_reveals,
+                state_snapshots=state_snapshots,
+                notes=round_notes,
+                reasonings=round_reasoning_snapshot,
+                situation=round_situation,
+                situations_per_agent=situations_per_agent,
+                consequences=round_consequences,
+                situation_reflections=situation_reflections,
+                round_event=round_event_dict,
+                participants_per_agent=participants_per_agent,
+                round_narrative=round_narrative,
+            )
+            result.rounds.append(round_result)
+
+            if on_progress:
+                on_progress(f"round:{round_num}:{total_rounds}:complete")
+
+    finally:
+        # Always archive and save — even on interrupt/crash. "Якщо лог добавився — він в історії"
+        result.final_scores = cumulative_scores
+        result.action_log = action_log
+        result.winner = max(cumulative_scores, key=cumulative_scores.get) if cumulative_scores else (agent_ids[0] if agent_ids else "")
+
+        # --- Archive game in each agent's memory for cross-game persistence ---
+        for agent in agents:
+            if agent.memory:
+                agent_dir = AGENTS_DIR / agent.agent_id
+                has_disk = agent_dir.exists()
+
+                # Collect recent rounds BEFORE archive_game clears them (real agents)
+                recent_for_conclusion = [r.to_dict() for r in agent.memory.rounds[-5:]]
+
+                # Only clear rounds when saving to disk (real agents with persistent storage)
+                agent.memory.archive_game(
+                    game_id=result.simulation_id,
+                    winner=result.winner,
+                    clear_rounds=has_disk,
+                )
+                if has_disk:
+                    from pipeline.memory import save_memory
+                    from pipeline.state_machine import save_states
+                    save_memory(agent.memory, agent_dir)
+                    save_states(agent.states, agent_dir, display_name=agent.name)
+
+                # Post-game conclusion — fills game_history[-1]["conclusion"] (non-critical)
+                if agent.memory.game_history:
+                    import time as _time
+                    from pipeline.reflection import reflect_on_game, log_reflection_error as _log_reflection_error
+                    conclusion = None
+                    for attempt in range(2):  # initial + 1 retry
+                        try:
+                            conclusion = reflect_on_game(
+                                agent_id=agent.agent_id,
+                                soul_md=agent.soul_md,
+                                game_summary=agent.memory.game_history[-1],
+                                recent_rounds=recent_for_conclusion,
+                                model=agent.core.get("model", model),
+                                agent_names=result.agent_names,
+                            )
+                            break
+                        except Exception as _game_reflect_err:
+                            import sys as _sys
+                            print(f"  [reflect/game] {agent.agent_id}: {_game_reflect_err}", file=_sys.stderr, flush=True)
+                            _log_reflection_error(agent.agent_id, f"game {result.simulation_id}", _game_reflect_err)
+                            if attempt == 0:
+                                _time.sleep(2)
+                    if conclusion is not None:
+                        agent.memory.game_history[-1]["conclusion"] = conclusion
+                        if has_disk:
+                            from pipeline.memory import save_memory
+                            save_memory(agent.memory, agent_dir)
 
     return result
 

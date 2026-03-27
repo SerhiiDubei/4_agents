@@ -1,0 +1,27 @@
+---
+description: REFACTOR AUDIT — зберегти при рефакторингу. Ключові ідеї та ризики.
+globs: server/main.py, **/GamesResultsView.tsx, **/LeaderboardView.tsx, deploy.py, start_servers.py
+alwaysApply: false
+---
+
+# Refactor Audit — Не зламати при рефакторингу
+
+При рефакторингу перевір `REFACTOR_AUDIT.md` та знайди всі `IDEA` / `IDEA [REFACTOR: ЗБЕРЕГТИ]` у коді.
+
+## Критичні ідеї
+
+1. **agent_avg_per_round** (server/main.py): нормалізація до 100 = середній по грі. Ігри мають різні шкали (17 vs 28 vs 70). Не замінювати на total/rounds без нормалізації.
+
+2. **Таблиці (GamesResultsView, LeaderboardView)**: `min-w-max` (GamesResults), `tabular-nums`, `font-pixel`, `whitespace-nowrap` на числових комірках. Без цього колонки зливаються.
+
+3. **deploy.py**: єдиний скрипт deploy. Викликає start_servers.py (8000 + 5174).
+
+4. **averageScore** (GamesResultsView): пріоритет agentAvgPerRound з API. Fallback — legacy.
+
+5. **LeaderboardView.sort**: за agentAvgPerRound (нормалізований). Чесно для різної кількості ігор.
+
+## Перед рефакторингом
+
+- `grep -r "IDEA"` — пройтися по всіх позначених місцях
+- Прочитати REFACTOR_AUDIT.md
+- Після змін: `python deploy.py` і перевірка

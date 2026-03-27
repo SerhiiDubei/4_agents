@@ -137,7 +137,7 @@ export const TimeWarsResultsView: React.FC<{ onBack?: () => void }> = ({ onBack 
                         })}
                         <td className="py-2 px-2 md:px-4">
                           <a
-                            href={s.reportPath}
+                            href={typeof window !== 'undefined' ? `${window.location.origin}${s.reportPath}` : s.reportPath}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-pixel text-xs text-emerald-400 border border-emerald-400/70 px-2 py-1 hover:bg-emerald-400/20 transition-colors"

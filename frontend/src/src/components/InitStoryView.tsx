@@ -37,7 +37,7 @@ export const InitStoryView: React.FC<InitStoryViewProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative z-10 bg-game-black">
-      <div className="max-w-3xl w-full space-y-8">
+      <div className="max-w-3xl w-full mx-auto space-y-8">
         <div className="min-h-[280px] flex flex-col justify-center space-y-6">
           <AnimatePresence>
             {displayLines.map(
@@ -69,6 +69,7 @@ export const InitStoryView: React.FC<InitStoryViewProps> = ({
 
         <AnimatePresence>
           {showContinue && (
+            <div className="flex justify-center">
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -83,6 +84,7 @@ export const InitStoryView: React.FC<InitStoryViewProps> = ({
             >
               [ ДАЛІ — ДО ПИТАНЬ ]
             </motion.button>
+            </div>
           )}
         </AnimatePresence>
       </div>

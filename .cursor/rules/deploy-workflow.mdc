@@ -1,0 +1,35 @@
+---
+description: Deploy workflow — збірка фронтенду та перезапуск серверів
+globs: deploy.py, start_servers.py, serve_time_wars.py, server/main.py
+alwaysApply: false
+---
+
+# Deploy Workflow
+
+## Скрипт deploy.py
+
+Для збірки фронтенду та перезапуску серверів використовуй:
+
+```bash
+python deploy.py              # повний deploy: збірка + перезапуск обох серверів
+python deploy.py --build      # тільки збірка фронтенду
+python deploy.py --restart    # тільки перезапуск серверів (без збірки)
+python deploy.py --no-build   # те саме що --restart
+```
+
+## Що робить deploy
+
+1. **Збірка** — `npm run build` у `frontend/` → артефакти в `static/dist/`
+2. **Звільнення портів** — 8000 (Main API), 5174 (Time Wars)
+3. **Запуск** — `start_servers.py` (Main API + Time Wars)
+
+## Сервери після deploy
+
+- **Main API** → http://localhost:8000
+- **Time Wars** → http://localhost:5174
+
+## Коли використовувати
+
+- Після змін у фронтенді → `deploy.py` або `deploy.py --build` + `deploy.py --restart`
+- Після змін у бекенді → `deploy.py --restart`
+- Повний перезапуск → `deploy.py`

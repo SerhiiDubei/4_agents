@@ -1,6 +1,8 @@
 """
 start_servers.py — Launch both servers simultaneously.
 
+IDEA [REFACTOR: ЗБЕРЕГТИ]: Main 8000 + Time Wars 5174. deploy.py викликає цей скрипт.
+
 Usage:
   python start_servers.py
 

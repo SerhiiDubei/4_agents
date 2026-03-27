@@ -156,7 +156,7 @@ export const InitOpenPhase: React.FC = () => {
             transition={{ duration: 1 }}
             className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative z-10"
           >
-            <div className="max-w-3xl w-full space-y-12">
+            <div className="max-w-3xl w-full mx-auto space-y-12">
               <div className="font-dialog text-2xl md:text-3xl text-game-lightGray leading-relaxed">
                 Ти створиш персонажа для симуляції Island. Спочатку — історія. Потім — сім відкритих питань.
               </div>
@@ -166,7 +166,7 @@ export const InitOpenPhase: React.FC = () => {
               {error && (
                 <div className="font-pixel text-game-red text-sm">{error}</div>
               )}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center items-center mt-12 w-full">
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

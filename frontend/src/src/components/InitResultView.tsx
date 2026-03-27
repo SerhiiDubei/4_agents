@@ -106,7 +106,7 @@ export const InitResultView: React.FC<InitResultViewProps> = ({
           ))}
         </motion.div>
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4 justify-center">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -145,12 +145,14 @@ export const InitResultView: React.FC<InitResultViewProps> = ({
             <pre className="font-dialog text-xl text-game-lightGray leading-relaxed whitespace-pre-wrap bg-game-darkPurple/60 border border-game-cyan/30 p-6 rounded-sm mb-8">
               {soulMd}
             </pre>
-            <button
-              onClick={() => setShowSoul(false)}
-              className="font-pixel text-game-pink border border-game-pink px-8 py-4 hover:bg-game-pink/10 transition-colors text-sm tracking-widest"
-            >
-              [ ЗАКРИТИ ]
-            </button>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowSoul(false)}
+                className="font-pixel text-game-pink border border-game-pink px-8 py-4 hover:bg-game-pink/10 transition-colors text-sm tracking-widest"
+              >
+                [ ЗАКРИТИ ]
+              </button>
+            </div>
           </div>
         </motion.div>
       )}

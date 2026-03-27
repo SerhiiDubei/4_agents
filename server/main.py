@@ -1575,19 +1575,23 @@ async def api_list_agents() -> Dict[str, Any]:
 # Games summary (for UI results table)
 # ---------------------------------------------------------------------------
 
-LOGS_DIR = _PROJECT_ROOT / "logs"
+LOGS_DIR = _PROJECT_ROOT / "logs" / "island"
 
 _GAMES_SUMMARY_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_game_(\d+)\.json")
 _GAMES_CUSTOM_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_(.+)\.json")
+_GAMES_BARE_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.json")
 _TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jsonl")
 
 
 def _match_island_game(path: Path) -> re.Match | None:
-    """Match game_*.json: game_DATE_TIME_game_N.json or game_DATE_TIME_customname.json."""
+    """Match game_*.json: game_DATE_TIME_game_N.json, game_DATE_TIME_customname.json, or bare game_DATE_TIME.json."""
     m = _GAMES_SUMMARY_PATTERN.match(path.name)
     if m:
         return m
-    return _GAMES_CUSTOM_PATTERN.match(path.name)  # e.g. jesus_6players
+    m = _GAMES_CUSTOM_PATTERN.match(path.name)  # e.g. jesus_6players
+    if m:
+        return m
+    return _GAMES_BARE_PATTERN.match(path.name)  # legacy: game_2026-03-15_21-09-54.json
 
 
 def _island_game_sort_key(path: Path, m: re.Match) -> tuple:
@@ -1610,7 +1614,8 @@ async def games_count() -> dict[str, int]:
 @app.get("/api/games-summary")
 async def games_summary() -> dict[str, Any]:
     """Return summary of game_*.json logs: games grouped by run, + total score per agent.
-    All agents from roster are included in the table (even with 0 games/score)."""
+    All agents from roster are included in the table (even with 0 games/score).
+    IDEA: agentAvgPerRound — нормалізований (100=середній). AgentTotals/Rounds — сирі."""
     # Pre-load ALL agents from roster — table shows everyone, not just those who played
     roster_names: dict[str, str] = {}
     roster_path = _PROJECT_ROOT / "agents" / "roster.json"
@@ -1636,7 +1641,7 @@ async def games_summary() -> dict[str, Any]:
     games: list[dict[str, Any]] = []
     runs_order: list[dict[str, Any]] = []
     seen_run: dict[str, dict[str, Any]] = {}
-    # Initialize with ALL roster agents at 0 — so table shows everyone
+    # IDEA: Всі агенти з roster у таблиці (навіть 0 ігор). names з roster, не з games.
     agent_totals: dict[str, float] = {name: 0.0 for name in all_display_names}
     agent_games: dict[str, int] = {name: 0 for name in all_display_names}
     agent_rounds: dict[str, int] = {name: 0 for name in all_display_names}
@@ -1650,7 +1655,11 @@ async def games_summary() -> dict[str, Any]:
         if not m:
             continue
         date_str, time_str = m.group(1), m.group(2)
-        game_display = int(m.group(3)) if m.group(3).isdigit() else m.group(3)
+        try:
+            g3 = m.group(3)
+            game_display = int(g3) if g3.isdigit() else g3
+        except IndexError:
+            game_display = 1  # bare pattern: game_DATE_TIME.json has no suffix
         run_id = f"{date_str}_{time_str}"
         if run_id not in seen_run:
             time_display_run = time_str.replace("-", ":")
@@ -1694,9 +1703,10 @@ async def games_summary() -> dict[str, Any]:
     for r in runs_order:
         n = r["gameCount"]
         r["runTitle"] = f"3×7 (3 ігри)" if n == 3 else f"7 ігор" if n == 7 else f"{n} ігор"
-    # Середній бал: кожну гру нормалізуємо до єдиної шкали (бо ігри мають різні шкали: 17 vs 28 vs 70 бал/раунд).
-    # Для кожної гри: game_avg = середнє(бал/раунд), scale = 100/game_avg. agent_norm = (бал/раунд)*scale.
-    # Потім усереднюємо agent_norm за кількістю ігор. 100 = середній по грі.
+    # IDEA [REFACTOR: ЗБЕРЕГТИ]: Середній бал — нормалізація до єдиної шкали.
+    # Ігри мають різні шкали (17 vs 28 vs 70 бал/раунд). Кожну гру нормалізуємо:
+    # game_avg = середнє(бал/раунд), scale = 100/game_avg, agent_norm = (бал/раунд)*scale.
+    # Усереднюємо agent_norm за кількістю ігор. 100 = середній по грі.
     agent_avg_per_round: dict[str, float] = {}
     for name in agent_totals:
         per_game_sum = 0.0

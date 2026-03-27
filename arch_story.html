@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / STORYTELL LAYER — Narrative Pipeline</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #0a0a0f; --bg2: #111118; --border: #2a2a3a;
+  --text: #c8c8e0; --dim: #5a5a7a; --accent: #7c6dfa;
+  --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
+  --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
+  --c-bug: #e05050;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; }
+
+header {
+  padding:20px 36px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:16px;
+}
+.logo { font-size:18px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
+.sub { font-size:10px; color:var(--dim); margin-top:2px; }
+.navtabs { margin-left:auto; display:flex; gap:6px; }
+.ntab {
+  font-size:10px; padding:5px 12px;
+  background:rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:4px; color:var(--dim); text-decoration:none; transition:all .15s;
+}
+.ntab:hover { color:var(--text); border-color:var(--c-story); }
+
+/* ---- Main layout ---- */
+.main { padding:28px 36px; }
+
+.circuit-label {
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--dim); margin-bottom:22px;
+}
+
+/* ---- Three-column circuit board ---- */
+.circuit {
+  display:grid;
+  grid-template-columns:1fr 180px 1fr;
+  gap:0;
+  align-items:stretch;
+  margin-bottom:28px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+}
+
+/* LEFT section */
+.circuit-left {
+  padding:22px 20px;
+  background:rgba(176,176,96,.04);
+  border-right:none;
+  opacity:0.72;
+}
+.circuit-right {
+  padding:22px 20px;
+  background:rgba(177,110,224,.04);
+  border-left:none;
+}
+
+.sect-title {
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  margin-bottom:16px; padding-bottom:6px; border-bottom:1px solid var(--border);
+}
+
+/* Module cards */
+.mod-card {
+  border-radius:7px; padding:11px 13px; margin-bottom:6px; position:relative;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+}
+.mod-path {
+  font-size:9px; color:var(--dim); margin-bottom:3px; letter-spacing:1px;
+}
+.mod-name {
+  font-size:12px; font-weight:bold; margin-bottom:3px;
+}
+.mod-desc {
+  font-size:10px; color:var(--dim); line-height:1.5;
+}
+.mod-out {
+  margin-top:7px; font-size:9px;
+  display:flex; align-items:center; gap:5px;
+}
+.mod-out-label { color:var(--dim); }
+.mod-out-val { padding:2px 7px; border-radius:3px; letter-spacing:1px; }
+
+/* Internal connector lines */
+.int-conn {
+  display:flex; align-items:center; margin:0 0 6px 18px; gap:0;
+}
+.int-line {
+  width:2px; height:16px; margin-left:22px;
+}
+.int-dot {
+  width:6px; height:6px; border-radius:50%; margin-left:19px;
+}
+
+/* ---- CENTER: THE GAP ---- */
+@keyframes pulse-red {
+  0%   { box-shadow:0 0 0 rgba(224,80,80,0); border-color:rgba(224,80,80,.3); opacity:.7; }
+  50%  { box-shadow:0 0 22px rgba(224,80,80,.55), 0 0 6px rgba(224,80,80,.3); border-color:rgba(224,80,80,.9); opacity:1; }
+  100% { box-shadow:0 0 0 rgba(224,80,80,0); border-color:rgba(224,80,80,.3); opacity:.7; }
+}
+
+@keyframes blink-text {
+  0%, 100% { opacity:1; }
+  50% { opacity:0.35; }
+}
+
+.circuit-center {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px 12px;
+  border-left:1px solid var(--border);
+  border-right:1px solid var(--border);
+  background:rgba(224,80,80,.03);
+  position:relative;
+  min-height:300px;
+}
+
+.gap-box {
+  width:100%;
+  border:2px dashed rgba(224,80,80,.4);
+  border-radius:8px;
+  padding:16px 10px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  animation: pulse-red 2.4s ease-in-out infinite;
+}
+
+.gap-icon {
+  font-size:28px;
+  animation: blink-text 2.4s ease-in-out infinite;
+}
+
+.gap-title {
+  font-size:10px; font-weight:bold; color:var(--c-bug);
+  letter-spacing:2px; text-align:center;
+  animation: blink-text 2.4s ease-in-out infinite;
+}
+
+.gap-bug-id {
+  font-size:9px; background:rgba(224,80,80,.15); border:1px solid var(--c-bug);
+  color:var(--c-bug); border-radius:10px; padding:2px 10px;
+  letter-spacing:1px;
+}
+
+.gap-what {
+  margin-top:6px; font-size:9px; color:var(--dim);
+  text-align:center; line-height:1.6;
+}
+
+.gap-missing {
+  width:100%; margin-top:8px;
+  background:rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:5px; padding:8px 10px;
+}
+.gap-miss-hdr {
+  font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim);
+  margin-bottom:5px;
+}
+.gap-miss-line {
+  font-size:9px; color:var(--c-bug); line-height:1.7;
+  font-family:'Courier New',monospace;
+}
+
+/* Horizontal connector lines on both sides of gap */
+.h-conn-left {
+  position:absolute; left:0; top:50%; width:12px; height:2px;
+  background:linear-gradient(to right, var(--c-story), transparent);
+}
+.h-conn-right {
+  position:absolute; right:0; top:50%; width:12px; height:2px;
+  background:linear-gradient(to left, var(--c-game), transparent);
+}
+
+/* Story module colors */
+.left-mod { border-color:rgba(176,176,96,.35); }
+.left-mod .mod-name { color:var(--c-story); }
+.right-mod { border-color:rgba(177,110,224,.35); }
+.right-mod .mod-name { color:var(--c-game); }
+
+.int-line-story { background:var(--c-story); }
+.int-dot-story { background:var(--c-story); }
+.int-line-game { background:var(--c-game); }
+.int-dot-game { background:var(--c-game); }
+
+/* ---- BOTTOM: unlock cards ---- */
+.unlock-section {
+  margin-top:4px;
+}
+.unlock-label {
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--dim); margin-bottom:14px;
+}
+.unlock-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+}
+.unlock-card {
+  background:rgba(255,255,255,.025); border:1px solid var(--border);
+  border-radius:7px; padding:14px 14px;
+  transition:all .18s; cursor:default;
+  opacity:.55;
+}
+.unlock-card:hover { opacity:.85; transform:translateY(-2px); border-color:var(--c-story); }
+.unlock-num {
+  font-size:22px; font-weight:bold; color:var(--c-story);
+  opacity:.4; margin-bottom:6px;
+}
+.unlock-title {
+  font-size:11px; font-weight:bold; color:var(--c-story);
+  margin-bottom:6px; line-height:1.3;
+}
+.unlock-desc {
+  font-size:9px; color:var(--dim); line-height:1.6;
+}
+.unlock-icon {
+  font-size:16px; margin-bottom:8px;
+}
+
+/* data flow arrows inside sections */
+.flow-row {
+  display:flex; align-items:center; gap:8px; font-size:9px;
+  color:var(--dim); margin-top:10px; padding:6px 8px;
+  background:rgba(255,255,255,.02); border-radius:4px;
+}
+.flow-arrow { color:var(--c-pipeline); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">STORYTELL LAYER — Narrative Pipeline</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<div class="main">
+  <div class="circuit-label">Broken circuit — storytell/ is internally functional but never connected to game loop</div>
+
+  <div class="circuit">
+
+    <!-- LEFT: storytell/ modules -->
+    <div class="circuit-left">
+      <div class="sect-title" style="color:var(--c-story)">storytell/ — What it CAN do</div>
+
+      <div class="mod-card left-mod">
+        <div class="mod-path">storytell/story_generator.py</div>
+        <div class="mod-name">story_generator.py</div>
+        <div class="mod-desc">Initializes narrative context from agent identities and game setup. Builds story scaffolding — factions, character arcs, initial stakes.</div>
+        <div class="mod-out">
+          <span class="mod-out-label">out →</span>
+          <span class="mod-out-val" style="background:rgba(176,176,96,.1); color:var(--c-story);">story_context</span>
+        </div>
+      </div>
+
+      <div class="int-conn"><div class="int-line int-line-story"></div></div>
+      <div class="int-conn"><div class="int-dot int-dot-story"></div></div>
+
+      <div class="mod-card left-mod">
+        <div class="mod-path">storytell/round_narrative.py</div>
+        <div class="mod-name">round_narrative.py</div>
+        <div class="mod-desc">Generates per-round story beats from game events. LLM call transforms raw action data (who betrayed whom, scores) into narrative prose.</div>
+        <div class="mod-out">
+          <span class="mod-out-label">out →</span>
+          <span class="mod-out-val" style="background:rgba(176,176,96,.1); color:var(--c-story);">narrative_text</span>
+        </div>
+      </div>
+
+      <div class="int-conn"><div class="int-line int-line-story"></div></div>
+      <div class="int-conn"><div class="int-dot int-dot-story"></div></div>
+
+      <div class="mod-card left-mod">
+        <div class="mod-path">storytell/consequences.py</div>
+        <div class="mod-name">consequences.py</div>
+        <div class="mod-desc">Tracks narrative consequences of actions across rounds. Builds betrayal graphs, grudge tracking, and reputation arcs that feed back into later story beats.</div>
+        <div class="mod-out">
+          <span class="mod-out-label">out →</span>
+          <span class="mod-out-val" style="background:rgba(176,176,96,.1); color:var(--c-story);">consequence_state</span>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <span style="color:var(--c-story)">story_generator</span>
+        <span class="flow-arrow">→</span>
+        <span style="color:var(--c-story)">round_narrative</span>
+        <span class="flow-arrow">→</span>
+        <span style="color:var(--c-story)">consequences</span>
+        <span class="flow-arrow" style="color:var(--dim)">→</span>
+        <span style="color:var(--c-bug)">⚡ OPEN WIRE</span>
+      </div>
+    </div>
+
+    <!-- CENTER: THE GAP -->
+    <div class="circuit-center">
+      <div class="h-conn-left"></div>
+      <div class="h-conn-right"></div>
+
+      <div class="gap-box">
+        <div class="gap-icon">⚡</div>
+        <div class="gap-title">DISCONNECTED</div>
+        <div class="gap-bug-id">CRIT-4: NOT CALLED</div>
+        <div class="gap-what">
+          loop.py never<br>imports or calls<br>storytell modules
+        </div>
+        <div class="gap-missing">
+          <div class="gap-miss-hdr">Missing in loop.py</div>
+          <div class="gap-miss-line">import round_narrative</div>
+          <div class="gap-miss-line">round_narrative</div>
+          <div class="gap-miss-line">  .generate(events)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: game loop needs -->
+    <div class="circuit-right">
+      <div class="sect-title" style="color:var(--c-game)">game loop/ — What it NEEDS</div>
+
+      <div class="mod-card right-mod">
+        <div class="mod-path">game_loop/loop.py</div>
+        <div class="mod-name">loop.py</div>
+        <div class="mod-desc">Main game tick loop. After each tick resolves agent actions, it should request a narrative for the round's events — but the call is absent.</div>
+        <div class="mod-out">
+          <span class="mod-out-label">needs →</span>
+          <span class="mod-out-val" style="background:rgba(177,110,224,.1); color:var(--c-game);">narrative after tick</span>
+        </div>
+      </div>
+
+      <div class="int-conn"><div class="int-line int-line-game"></div></div>
+      <div class="int-conn"><div class="int-dot int-dot-game"></div></div>
+
+      <div class="mod-card right-mod">
+        <div class="mod-path">game_loop/game_engine.py</div>
+        <div class="mod-name">game_engine.py</div>
+        <div class="mod-desc">Orchestrates full game rounds — collects all agent actions, resolves payoffs, updates state. The round summary is the natural point to inject narrative output.</div>
+        <div class="mod-out">
+          <span class="mod-out-label">needs →</span>
+          <span class="mod-out-val" style="background:rgba(177,110,224,.1); color:var(--c-game);">narrative after round</span>
+        </div>
+      </div>
+
+      <div class="int-conn"><div class="int-line int-line-game"></div></div>
+      <div class="int-conn"><div class="int-dot int-dot-game"></div></div>
+
+      <div class="mod-card right-mod" style="border-color:rgba(177,110,224,.2);">
+        <div class="mod-path">— data that would flow —</div>
+        <div class="mod-name" style="font-size:11px; color:var(--dim);">round_events</div>
+        <div class="mod-desc" style="margin-top:4px; display:flex; flex-direction:column; gap:3px;">
+          <div style="display:flex; justify-content:space-between; font-size:10px;">
+            <span style="color:var(--dim)">round_events</span><span style="color:var(--c-game)">→ narrative_text</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:10px;">
+            <span style="color:var(--dim)">narrative_text</span><span style="color:var(--c-game)">→ event_log</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:10px;">
+            <span style="color:var(--dim)">consequence_state</span><span style="color:var(--c-game)">→ agent context</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <span style="color:var(--c-bug)">OPEN WIRE →</span>
+        <span style="color:var(--c-game)">loop.py</span>
+        <span class="flow-arrow">→</span>
+        <span style="color:var(--c-game)">game_engine</span>
+        <span class="flow-arrow">→</span>
+        <span style="color:var(--c-game)">event_log</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM: Unlock section -->
+  <div class="unlock-section">
+    <div class="unlock-label">What would be unlocked if storytell/ were connected</div>
+    <div class="unlock-grid">
+
+      <div class="unlock-card">
+        <div class="unlock-icon">📖</div>
+        <div class="unlock-num">01</div>
+        <div class="unlock-title">Per-Round Narrative Generation</div>
+        <div class="unlock-desc">Each game round produces an LLM-written story beat. Actions become events in a living narrative — betrayals, alliances, turning points described in prose.</div>
+      </div>
+
+      <div class="unlock-card">
+        <div class="unlock-icon">⚔</div>
+        <div class="unlock-num">02</div>
+        <div class="unlock-title">Consequence Tracking</div>
+        <div class="unlock-desc">consequences.py tracks betrayals across rounds, building grudge graphs and reputation arcs. Agents can develop narrative revenge plots influencing future decisions.</div>
+      </div>
+
+      <div class="unlock-card">
+        <div class="unlock-icon">💬</div>
+        <div class="unlock-num">03</div>
+        <div class="unlock-title">Story Context in Agent Dialogs</div>
+        <div class="unlock-desc">Narrative state feeds back into agent_context.py — agents reason not just from numeric CORE params but from their story position: betrayed ally, rising power, desperate underdog.</div>
+      </div>
+
+      <div class="unlock-card">
+        <div class="unlock-icon">🗂</div>
+        <div class="unlock-num">04</div>
+        <div class="unlock-title">Exportable Game Story / Replay</div>
+        <div class="unlock-desc">Full game narrative becomes exportable — a readable story of the simulation run. Enables rich post-game analysis, shareable replays, and human-readable audit trails.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

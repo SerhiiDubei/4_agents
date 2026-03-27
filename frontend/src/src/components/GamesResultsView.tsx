@@ -24,6 +24,9 @@ export interface GamesSummaryResponse {
   runs: RunSummary[];
   agentTotals: Record<string, number>;
   agentNames: string[];
+  /** IDEA: API віддає нормалізований середній (100=середній по грі). Потрібен для GamesResultsView. */
+  agentRoundsPlayed?: Record<string, number>;
+  agentAvgPerRound?: Record<string, number>;
 }
 
 export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
@@ -71,11 +74,16 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
     );
   }
 
-  const { games, agentTotals, agentNames } = data;
+  const { games, agentTotals, agentNames, agentRoundsPlayed = {}, agentAvgPerRound = {} } = data;
   const columns = agentNames.length > 0 ? agentNames : [...new Set(games.flatMap((g) => Object.keys(g.scores)))];
   const totalRounds = games.reduce((sum, g) => sum + (g.rounds || 0), 0);
-  const averageScore = (name: string) =>
-    totalRounds > 0 ? (agentTotals[name] ?? 0) / totalRounds : 0;
+  /* IDEA [REFACTOR: ЗБЕРЕГТИ]: Використовуй agentAvgPerRound з API (нормалізований). Fallback — тільки для legacy. */
+  const averageScore = (name: string) => {
+    const avg = agentAvgPerRound[name];
+    if (avg != null) return avg;
+    const rnd = agentRoundsPlayed[name] ?? 0;
+    return rnd > 0 ? (agentTotals[name] ?? 0) / rnd : 0;
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-game-black relative z-10">
@@ -94,7 +102,8 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
             </div>
 
             <div className="overflow-x-auto rounded-sm border border-game-cyan/50 box-glow-cyan bg-game-darkPurple/40 backdrop-blur-sm">
-              <table className="w-full border-collapse">
+              {/* IDEA: min-w-max + whitespace-nowrap на числах — без цього колонки зливаються */}
+              <table className="w-full border-collapse min-w-max">
                 <thead>
                   <tr>
                     <th className="font-pixel text-xs text-game-cyan py-3 px-2 md:px-4 border-b border-game-cyan/30 text-left">
@@ -112,7 +121,7 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
                     {columns.map((name) => (
                       <th
                         key={name}
-                        className="font-pixel text-xs text-game-lightGray py-3 px-2 md:px-4 border-b border-game-cyan/30 text-right"
+                        className="font-pixel text-xs text-game-lightGray py-3 px-2 md:px-4 border-b border-game-cyan/30 text-right whitespace-nowrap"
                       >
                         {name}
                       </th>
@@ -137,14 +146,15 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
                       <td className="font-pixel text-xs text-game-pink py-2 px-2 md:px-4">{row.game}</td>
                       <td className="font-dialog text-game-lightGray py-2 px-2 md:px-4">{row.rounds}</td>
                       <td className="font-dialog text-game-gold py-2 px-2 md:px-4 font-bold">{row.winner}</td>
+                      {/* IDEA: tabular-nums + font-pixel + whitespace-nowrap — без цього числа зливаються в колонках */}
                       {columns.map((name) => (
-                        <td key={name} className="font-dialog text-game-lightGray py-2 px-2 md:px-4 text-right">
+                        <td key={name} className="font-pixel text-game-lightGray py-2 px-2 md:px-4 text-right tabular-nums whitespace-nowrap">
                           {(row.scores[name] ?? 0).toFixed(2)}
                         </td>
                       ))}
                       <td className="py-2 px-2 md:px-4">
                         <a
-                          href={row.reportPath}
+                          href={typeof window !== 'undefined' ? `${window.location.origin}${row.reportPath}` : row.reportPath}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-pixel text-xs text-game-cyan border border-game-cyan/70 px-2 py-1 hover:bg-game-cyan/20 transition-colors"
@@ -159,7 +169,7 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
                       ЗАГАЛЬНИЙ БАЛ (усі ігри)
                     </td>
                     {columns.map((name) => (
-                      <td key={name} className="font-pixel text-xs text-game-gold py-3 px-2 md:px-4 text-right">
+                      <td key={name} className="font-pixel text-xs text-game-gold py-3 px-2 md:px-4 text-right tabular-nums whitespace-nowrap">
                         {(agentTotals[name] ?? 0).toFixed(2)}
                       </td>
                     ))}
@@ -167,10 +177,10 @@ export const GamesResultsView: React.FC<{ onBack?: () => void }> = ({ onBack }) 
                   </tr>
                   <tr className="bg-game-darkPurple/80 border-t border-game-cyan/30">
                     <td colSpan={4} className="font-pixel text-xs text-game-cyan py-3 px-2 md:px-4">
-                      СЕРЕДНІЙ БАЛ (балів ÷ раундів)
+                      СЕРЕДНІЙ БАЛ (норм. 100=середній, усереднено за ігри)
                     </td>
                     {columns.map((name) => (
-                      <td key={name} className="font-pixel text-xs text-game-cyan py-3 px-2 md:px-4 text-right">
+                      <td key={name} className="font-pixel text-xs text-game-cyan py-3 px-2 md:px-4 text-right tabular-nums whitespace-nowrap">
                         {averageScore(name).toFixed(2)}
                       </td>
                     ))}

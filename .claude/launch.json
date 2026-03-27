@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Main API (FastAPI)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "Time Wars Server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["serve_time_wars.py", "--port", "5174"],
+      "port": 5174
+    },
+    {
+      "name": "Frontend (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "Arch Viewer",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8090"],
+      "port": 8090
+    }
+  ]
+}
