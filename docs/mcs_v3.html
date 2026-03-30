@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCS v3 — NPC Anatomy</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #060b18; color: #c9d4e8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; }
+
+header { height: 52px; padding: 0 24px; background: #07101f; border-bottom: 1px solid #141f35; display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 13px; font-weight: 700; color: #fff; }
+.logo em { font-style: normal; color: #34d399; }
+.badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #0a1e18; color: #34d399; border: 1px solid #1a5a40; letter-spacing: .06em; text-transform: uppercase; }
+.nav-links { margin-left: auto; display: flex; gap: 8px; }
+.nav-link { font-size: 10px; color: #2a4d7a; text-decoration: none; border: 1px solid #141f35; padding: 4px 12px; border-radius: 5px; }
+.nav-link:hover { color: #4f9eff; border-color: #1a2d4a; }
+
+.page { padding: 24px 32px; max-width: 1140px; }
+.sec-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #1e3a5a; margin-bottom: 12px; }
+
+/* ─── TOOLTIP ─── */
+[data-tip] { position: relative; cursor: help; border-bottom: 1px dashed #2a4060; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: #0d1a2d; border: 1px solid #1a2d4a; border-radius: 6px;
+  padding: 6px 10px; font-size: 10px; color: #8ab8d8; white-space: nowrap;
+  pointer-events: none; z-index: 100; line-height: 1.5; max-width: 280px; white-space: normal;
+}
+
+/* ─── MAIN GRID ─── */
+.main-grid { display: grid; grid-template-columns: 270px 1fr; gap: 16px; align-items: start; }
+
+/* ─── LEFT STACK ─── */
+.stack { display: flex; flex-direction: column; gap: 3px; }
+.lbtn { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid #0d1a2d; background: #070f1e; cursor: pointer; transition: all .18s; width: 100%; text-align: left; }
+.lbtn:hover { border-color: var(--lc); background: #0a1628; }
+.lbtn.active { border-color: var(--lc); background: #050c1a; }
+.l-num { font-size: 9px; font-weight: 700; font-family: monospace; color: var(--lc); min-width: 22px; }
+.l-name { font-size: 11px; font-weight: 700; color: #c9d4e8; flex: 1; }
+.lbtn.active .l-name { color: var(--lc); }
+.l-file { font-size: 8px; color: #2a4060; font-family: monospace; }
+.ltag { font-size: 7px; padding: 1px 6px; border-radius: 3px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; flex-shrink: 0; }
+.t-done    { background: #0d1e10; color: #4ade80; border: 1px solid #1a4a22; }
+.t-planned { background: #1a1008; color: #fbbf24; border: 1px solid #4a3010; }
+.t-missing { background: #1a0808; color: #f87171; border: 1px solid #4a1a1a; }
+.l-arrow { display: flex; justify-content: center; height: 14px; align-items: center; gap: 4px; }
+.l-arrow span { font-size: 10px; color: #1a2d4a; }
+.l-arrow em { font-size: 7px; color: #1a2d4a; font-style: normal; }
+
+.self-btn { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px dashed #2a0808; background: #080404; cursor: pointer; transition: all .18s; width: 100%; text-align: left; margin-top: 10px; }
+.self-btn:hover { border-color: #f8717166; }
+.self-btn.active { border-color: #f87171; background: #0d0505; }
+.self-btn .l-name { color: #8a4040; }
+.self-btn.active .l-name { color: #f87171; }
+
+.legend { margin-top: 14px; padding: 10px 12px; background: #070f1e; border: 1px solid #0d1a2d; border-radius: 8px; display: flex; flex-direction: column; gap: 5px; }
+.leg-title { font-size: 8px; color: #1e3a5a; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 2px; }
+.leg-row { display: flex; align-items: center; gap: 8px; }
+.leg-text { font-size: 9px; color: #3a5a7a; }
+
+/* ─── DETAIL PANEL ─── */
+.dp { background: #070f1e; border: 1px solid #0d1a2d; border-radius: 12px; overflow: hidden; min-height: 480px; }
+.dp-placeholder { display: flex; align-items: center; justify-content: center; min-height: 480px; flex-direction: column; gap: 8px; color: #1e3a5a; font-size: 12px; }
+
+.d-panel { display: none; flex-direction: column; }
+.d-panel.visible { display: flex; }
+
+.dp-head { padding: 14px 20px; border-bottom: 1px solid #0d1a2d; display: flex; align-items: center; gap: 12px; }
+.dp-icon { font-size: 20px; }
+.dp-title { font-size: 15px; font-weight: 700; }
+.dp-subtitle { font-size: 10px; color: #3a5a7a; margin-top: 2px; }
+.dp-status { margin-left: auto; flex-shrink: 0; }
+
+/* tabs */
+.dp-tabs { display: flex; gap: 2px; padding: 8px 20px 0; border-bottom: 1px solid #0d1a2d; background: #050c1a; }
+.dp-tab { padding: 5px 14px; font-size: 10px; font-weight: 600; color: #2a4060; cursor: pointer; border-radius: 5px 5px 0 0; border: 1px solid transparent; border-bottom: none; transition: all .15s; font-family: inherit; background: transparent; }
+.dp-tab:hover { color: #4a6a8a; }
+.dp-tab.active { color: #c9d4e8; background: #070f1e; border-color: #1a2d4a; }
+
+.dp-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.tab-pane { display: none; flex-direction: column; gap: 14px; }
+.tab-pane.visible { display: flex; }
+
+.ds-title { font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #1e3a5a; margin-bottom: 7px; }
+.dp-desc { font-size: 11px; color: #8ab8d8; line-height: 1.75; background: #050c1a; border-radius: 7px; padding: 11px 14px; }
+
+/* fields */
+.fields { display: flex; flex-direction: column; gap: 4px; }
+.frow { display: flex; align-items: baseline; gap: 10px; padding: 6px 10px; background: #050c1a; border-radius: 6px; border: 1px solid #0d1a2d; cursor: default; transition: border-color .15s; }
+.frow:hover { border-color: #1a2d4a; }
+.frow.miss { border-color: #1a0808; background: #080505; }
+.frow.miss:hover { border-color: #3a1010; }
+.fkey { font-size: 9px; font-family: monospace; min-width: 140px; flex-shrink: 0; }
+.fval { font-size: 10px; color: #8ab8d8; line-height: 1.5; flex: 1; }
+.frow.miss .fkey { color: #f8717166; }
+.frow.miss .fval { color: #3a2020; }
+.f-miss-tag { font-size: 7px; color: #f8717144; margin-left: 6px; flex-shrink: 0; }
+
+/* process */
+.proc-list { display: flex; flex-direction: column; gap: 5px; }
+.proc-step { display: flex; gap: 10px; padding: 8px 11px; background: #050c1a; border-radius: 6px; border: 1px solid #0d1a2d; }
+.pn { font-size: 9px; font-weight: 700; font-family: monospace; min-width: 18px; padding-top: 1px; flex-shrink: 0; }
+.pt { font-size: 10px; color: #8ab8d8; line-height: 1.55; }
+.pt b { font-weight: 600; }
+
+/* io */
+.io-group { display: flex; flex-direction: column; gap: 6px; }
+.io-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.io-label { font-size: 8px; color: #1e3a5a; text-transform: uppercase; letter-spacing: .08em; }
+.iotag { font-size: 9px; padding: 3px 9px; border-radius: 4px; border: 1px solid #0d1a2d; background: #050c1a; color: #4a6a8a; white-space: nowrap; }
+.iotag.in  { border-color: #1a3d7a; color: #4f9eff; background: #050f1e; }
+.iotag.out { border-color: #1a4a22; color: #4ade80; background: #050f0a; }
+
+/* files */
+.file-list { display: flex; flex-direction: column; gap: 5px; }
+.file-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; background: #050c1a; border-radius: 6px; border: 1px solid #0d1a2d; }
+.file-item.miss { border-color: #1a0808; background: #080505; }
+.file-name { font-size: 9px; font-family: monospace; min-width: 190px; flex-shrink: 0; padding-top: 1px; }
+.file-item .ltag { margin-left: auto; flex-shrink: 0; align-self: flex-start; }
+.file-desc { font-size: 10px; color: #8ab8d8; line-height: 1.5; flex: 1; }
+.file-item.miss .file-name { color: #f8717166; }
+.file-item.miss .file-desc { color: #3a2020; }
+
+/* code example */
+.code-block { background: #040a12; border: 1px solid #0d1a2d; border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+.code-block pre { font-size: 10px; font-family: 'Courier New', monospace; color: #8ab8d8; line-height: 1.8; white-space: pre; }
+.code-block .k  { color: #a78bfa; }
+.code-block .s  { color: #4ade80; }
+.code-block .n  { color: #fbbf24; }
+.code-block .c  { color: #2a4060; }
+.code-block .v  { color: #4f9eff; }
+.code-note { font-size: 9px; color: #2a4060; margin-top: 8px; line-height: 1.6; padding: 8px 10px; background: #050c1a; border-radius: 5px; border: 1px solid #0d1a2d; }
+
+/* missing box */
+.miss-box { background: #0d0505; border: 1px solid #4a1a1a; border-radius: 8px; padding: 11px 13px; }
+.miss-title { font-size: 8px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 5px; }
+.miss-text { font-size: 10px; color: #8a4a4a; line-height: 1.65; }
+
+/* ─── PROCESS FLOW (bottom) ─── */
+.pflow { margin-top: 20px; background: #070f1e; border: 1px solid #0d1a2d; border-radius: 12px; overflow: hidden; }
+.pf-head { padding: 11px 20px; border-bottom: 1px solid #0d1a2d; display: flex; align-items: baseline; gap: 10px; }
+.pf-title { font-size: 11px; font-weight: 700; color: #fff; }
+.pf-sub { font-size: 9px; color: #2a4060; }
+.pf-body { padding: 16px 20px; display: flex; align-items: flex-start; overflow-x: auto; gap: 0; }
+.pf-step { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 108px; }
+.pf-box { padding: 7px 10px; border-radius: 7px; border: 1px solid; font-size: 10px; font-weight: 700; text-align: center; cursor: pointer; transition: all .15s; width: 100%; }
+.pf-box:hover { filter: brightness(1.3); }
+.pf-note { font-size: 7px; text-align: center; line-height: 1.5; color: #1e3a5a; }
+.pf-arr { font-size: 14px; color: #1a2d4a; padding: 0 3px; align-self: flex-start; margin-top: 18px; flex-shrink: 0; }
+.pf-data { font-size: 7px; text-align: center; color: #1a3a5a; font-family: monospace; margin-top: 2px; }
+
+/* note */
+.note-panel { margin-top: 20px; background: #070f1e; border: 1px dashed #1a2d4a; border-radius: 10px; padding: 14px 20px; }
+.note-title { font-size: 10px; color: #2a4d7a; margin-bottom: 7px; font-weight: 600; }
+.note-area { width: 100%; min-height: 68px; background: #050c1a; border: 1px solid #0d1a2d; border-radius: 6px; color: #8ab8d8; font-size: 11px; font-family: inherit; padding: 9px 12px; resize: vertical; outline: none; line-height: 1.6; }
+.note-area:focus { border-color: #1a3d7a; }
+.note-area::placeholder { color: #1e3a5a; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">MCS · <em>NPC Anatomy</em></div>
+  <span class="badge">v3</span>
+  <div class="nav-links">
+    <a class="nav-link" href="mcs_v2.html">← v2 NPC State</a>
+    <a class="nav-link" href="mcs_architecture_visual.html">v1 Architecture</a>
+  </div>
+</header>
+
+<div class="page">
+  <div class="sec-label">Анатомія NPC · клікни на шар · вкладки: Опис / Файли / Приклад даних</div>
+
+  <div class="main-grid">
+
+    <!-- ══ LEFT STACK ══ -->
+    <div>
+      <div class="stack">
+
+        <div class="lbtn" data-layer="action" style="--lc:#34d399">
+          <span class="l-num">L5</span>
+          <span class="l-name">Action</span>
+          <span class="l-file">action_emitter.py</span>
+          <span class="ltag t-missing">відсутній</span>
+        </div>
+        <div class="l-arrow"><span>↑</span><em>дія → Social Fabric</em></div>
+
+        <div class="lbtn" data-layer="decision" style="--lc:#4f9eff">
+          <span class="l-num">L4</span>
+          <span class="l-name">Decision</span>
+          <span class="l-file">decision_gate.py</span>
+          <span class="ltag t-planned">описано</span>
+        </div>
+        <div class="l-arrow"><span>↑</span><em>delta_level + weights</em></div>
+
+        <div class="lbtn" data-layer="mcs" style="--lc:#a78bfa">
+          <span class="l-num">L3</span>
+          <span class="l-name">MCS Core</span>
+          <span class="l-file">tick_processor.py</span>
+          <span class="ltag t-planned">описано</span>
+        </div>
+        <div class="l-arrow"><span>↑</span><em>відфільтровані події</em></div>
+
+        <div class="lbtn" data-layer="perception" style="--lc:#fbbf24">
+          <span class="l-num">L2</span>
+          <span class="l-name">Perception</span>
+          <span class="l-file">perception.py</span>
+          <span class="ltag t-missing">відсутній</span>
+        </div>
+        <div class="l-arrow"><span>↑</span><em>body.fatigue → attention</em></div>
+
+        <div class="lbtn" data-layer="body" style="--lc:#fb923c">
+          <span class="l-num">L1</span>
+          <span class="l-name">Body</span>
+          <span class="l-file">body_state.py</span>
+          <span class="ltag t-planned">описано</span>
+        </div>
+        <div class="l-arrow"><span>↑</span><em>event object (Redis)</em></div>
+
+        <div class="lbtn" data-layer="world" style="--lc:#4ade80">
+          <span class="l-num">L0</span>
+          <span class="l-name">World Events</span>
+          <span class="l-file">world_engine.py / Redis</span>
+          <span class="ltag t-done">є</span>
+        </div>
+
+      </div>
+
+      <div class="self-btn" data-layer="selfmodel">
+        <span class="l-num" style="color:#f87171">∅</span>
+        <span class="l-name">Self Model</span>
+        <span class="l-file" style="color:#3a1818">self_model.py</span>
+        <span class="ltag t-missing">відсутній</span>
+      </div>
+
+      <div class="legend">
+        <div class="leg-title">Статус</div>
+        <div class="leg-row"><span class="ltag t-done">є</span><span class="leg-text">реалізовано</span></div>
+        <div class="leg-row"><span class="ltag t-planned">описано</span><span class="leg-text">в архітектурі, не в коді</span></div>
+        <div class="leg-row"><span class="ltag t-missing">відсутній</span><span class="leg-text">не визначено взагалі</span></div>
+      </div>
+    </div>
+
+    <!-- ══ DETAIL PANEL ══ -->
+    <div class="dp" id="dp">
+      <div class="dp-placeholder" id="dp-ph"><span style="font-size:22px">←</span><span>Вибери шар щоб побачити деталі</span></div>
+
+      <!-- ══ L0 WORLD ══ -->
+      <div class="d-panel" id="panel-world">
+        <div class="dp-head">
+          <div class="dp-icon">🌍</div>
+          <div><div class="dp-title" style="color:#4ade80">L0 · World Events</div><div class="dp-subtitle">Зовнішній світ — єдине джерело подій для NPC</div></div>
+          <div class="dp-status"><span class="ltag t-done">реалізовано</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="world">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="world-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #4ade80">
+                <span data-tip="World Engine — окрема система що керує часом, погодою, економікою і подіями у світі">World Engine</span> генерує події і публікує їх у <span data-tip="Redis черги: HIGH (гравець) / MEDIUM (world events) / LOW (idle ticks)">Redis черги</span>. <span data-tip="Celery worker — окремий процес на кожен NPC. Aria має свій worker, Борис — свій.">Celery worker</span> NPC забирає подію і передає вгору по шарах. Це єдина точка входу — все що відбувається у світі приходить спочатку сюди.
+              </div>
+            </div>
+            <div><div class="ds-title">Структура об'єкта події</div>
+              <div class="fields">
+                <div class="frow"><span class="fkey" style="color:#4ade80">event.type</span><span class="fval">threat / social / economic / environmental / internal</span></div>
+                <div class="frow"><span class="fkey" style="color:#4ade80">event.severity</span><span class="fval" data-tip="Об'єктивна сила події у світі. 0.0 = незначне, 1.0 = максимально критичне">0.0 – 1.0 · об'єктивна сила події у світі</span></div>
+                <div class="frow"><span class="fkey" style="color:#4ade80">event.tags</span><span class="fval">threat:physical · injustice · public · witness:npc_id…</span></div>
+                <div class="frow"><span class="fkey" style="color:#4ade80">event.source_npc</span><span class="fval">ID хто ініціював (або null якщо стихія)</span></div>
+                <div class="frow"><span class="fkey" style="color:#4ade80">event.priority</span><span class="fval" data-tip="HIGH — реакція на гравця (миттєво). MEDIUM — world events. LOW — idle life тіки.">HIGH / MEDIUM / LOW → визначає чергу Redis</span></div>
+              </div>
+            </div>
+            <div><div class="ds-title">Що отримує / віддає</div>
+              <div class="io-group">
+                <div><div class="io-label">Отримує від</div><div class="io-row"><span class="iotag in">World Engine</span><span class="iotag in">Player actions</span><span class="iotag in">Tick scheduler</span></div></div>
+                <div><div class="io-label">Віддає в</div><div class="io-row"><span class="iotag out">event object → Redis queue → L1/L2</span></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane" id="world-files">
+            <div><div class="ds-title">Файли цього шару</div>
+              <div class="file-list">
+                <div class="file-item"><span class="file-name" style="color:#4ade80">world_engine/engine.py</span><span class="file-desc">Головний клас World Engine. Керує часом, погодою, економікою, генерує події</span><span class="ltag t-done">є</span></div>
+                <div class="file-item"><span class="file-name" style="color:#4ade80">world_engine/event_factory.py</span><span class="file-desc">Створює event об'єкти з правильною структурою і тегами</span><span class="ltag t-done">є</span></div>
+                <div class="file-item"><span class="file-name" style="color:#4ade80">infrastructure/redis_client.py</span><span class="file-desc">Клієнт Redis. pub/sub + черги HIGH/MEDIUM/LOW</span><span class="ltag t-done">є</span></div>
+                <div class="file-item"><span class="file-name" style="color:#4ade80">worker/celery_app.py</span><span class="file-desc">Конфігурація Celery. Кожен NPC = окремий worker process</span><span class="ltag t-done">є</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane" id="world-example">
+            <div><div class="ds-title">Event object — те що летить в Redis</div>
+              <div class="code-block"><pre><span class="c"># Redis queue: MEDIUM_PRIORITY</span>
+<span class="c"># key: npc:aria_001:events</span>
+
+<span class="k">{</span>
+  <span class="s">"event_id"</span>:     <span class="s">"evt_8472a"</span>,
+  <span class="s">"type"</span>:         <span class="s">"threat"</span>,
+  <span class="s">"subtype"</span>:      <span class="s">"physical"</span>,
+  <span class="s">"severity"</span>:     <span class="n">0.85</span>,
+  <span class="s">"tags"</span>:         [<span class="s">"threat:physical"</span>, <span class="s">"injustice"</span>, <span class="s">"public"</span>],
+  <span class="s">"source_npc"</span>:   <span class="s">"boris_002"</span>,
+  <span class="s">"target_npc"</span>:   <span class="s">"aria_001"</span>,
+  <span class="s">"location"</span>:     <span class="s">"market_square"</span>,
+  <span class="s">"witness_npcs"</span>: [<span class="s">"oleh_003"</span>],
+  <span class="s">"tick"</span>:         <span class="n">2847</span>,
+  <span class="s">"priority"</span>:     <span class="s">"MEDIUM"</span>
+<span class="k">}</span></pre></div>
+              <div class="code-note">severity — об'єктивна сила події. Не плутати з persona.sensitivity — це різні речі. Один і той самий удар (severity=0.85) різні NPCі сприймають по-різному через sensitivity персон.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ L1 BODY ══ -->
+      <div class="d-panel" id="panel-body">
+        <div class="dp-head">
+          <div class="dp-icon">🫀</div>
+          <div><div class="dp-title" style="color:#fb923c">L1 · Body</div><div class="dp-subtitle">Фізичний стан — змінюється автономно кожен тік</div></div>
+          <div class="dp-status"><span class="ltag t-planned">описано</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="body">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="body-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #fb923c">Тіло існує незалежно від подій. <span data-tip="Hunger росте кожен тік на +0.01. Якщо &gt;0.7 — додатковий тригер для Instinct">Hunger</span> і <span data-tip="Fatigue накопичується від активних тіків. Якщо &gt;0.6 — знижує attention_budget в L2">fatigue</span> накопичуються самі. <span data-tip="Stress залишається після загрозливих подій і повільно спадає. Прямо впливає на Instinct raw score">Stress</span> залишається після загрози і повільно спадає. Без цього шару NPC завжди у "нейтральному" стані — як манекен.</div>
+            </div>
+            <div><div class="ds-title">Дані</div>
+              <div class="fields">
+                <div class="frow"><span class="fkey" style="color:#fb923c">body.hunger</span><span class="fval" data-tip="+0.01/тік. Їжа скидає до 0. При &gt;0.7 — Instinct +0.4">0.0–1.0 · росте кожен тік. При &gt;0.7 → Instinct +0.4</span></div>
+                <div class="frow"><span class="fkey" style="color:#fb923c">body.fatigue</span><span class="fval" data-tip="Знижує attention_budget L2. Відновлюється під час 'сну' (consolidation tick)">0.0–1.0 · знижує attention_budget в L2</span></div>
+                <div class="frow"><span class="fkey" style="color:#fb923c">body.stress</span><span class="fval" data-tip="Після загрозливої події stress += severity. Спадає -0.05/тік. Прямий вхід в Instinct.">0.0–1.0 · прямий вхід в Instinct raw score</span></div>
+                <div class="frow"><span class="fkey" style="color:#fb923c">body.health</span><span class="fval">0.0–1.0 · впливає на базову чутливість всіх персон</span></div>
+              </div>
+            </div>
+            <div><div class="ds-title">Що отримує / віддає</div>
+              <div class="io-group">
+                <div><div class="io-label">Отримує від</div><div class="io-row"><span class="iotag in">tick clock (автономно)</span><span class="iotag in">фізичні події (удар, їжа)</span></div></div>
+                <div><div class="io-label">Віддає в</div><div class="io-row"><span class="iotag out">stress → L3 Instinct</span><span class="iotag out">fatigue → L2 attention_budget</span><span class="iotag out">hunger → L3 Instinct</span></div></div>
+              </div>
+            </div>
+            <div class="miss-box"><div class="miss-title">⚠ Не реалізовано</div><div class="miss-text">body state зараз статичний. Aria завжди однаково уважна і не голодна. Без цього шару всі NPCі реагують ідентично в 6 ранку і в 10 вечора.</div></div>
+          </div>
+          <div class="tab-pane" id="body-files">
+            <div><div class="ds-title">Файли</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/layers/body_state.py</span><span class="file-desc">Клас BodyState. tick() метод що оновлює hunger/fatigue/stress кожен тік</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/models/body_model.py</span><span class="file-desc">SQLAlchemy модель для зберігання body state в PostgreSQL</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="body-example">
+            <div><div class="ds-title">Body state об'єкт — передається в L2 і L3</div>
+              <div class="code-block"><pre><span class="c"># PostgreSQL: table npc_body_state</span>
+<span class="c"># оновлюється кожен тік</span>
+
+<span class="k">{</span>
+  <span class="s">"npc_id"</span>:   <span class="s">"aria_001"</span>,
+  <span class="s">"tick"</span>:     <span class="n">2847</span>,
+  <span class="s">"hunger"</span>:   <span class="n">0.42</span>,   <span class="c"># не їла 4 години ігрового часу</span>
+  <span class="s">"fatigue"</span>:  <span class="n">0.31</span>,   <span class="c"># помірна втома</span>
+  <span class="s">"stress"</span>:   <span class="n">0.68</span>,   <span class="c"># залишок від сварки 3 тіки тому</span>
+  <span class="s">"health"</span>:   <span class="n">0.95</span>
+<span class="k">}</span>
+
+<span class="c"># → stress=0.68 передається в L3 Instinct:</span>
+<span class="c"># instinct.raw += 0.68 * 0.85  =  +0.578</span></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ L2 PERCEPTION ══ -->
+      <div class="d-panel" id="panel-perception">
+        <div class="dp-head">
+          <div class="dp-icon">👁</div>
+          <div><div class="dp-title" style="color:#fbbf24">L2 · Perception Filter</div><div class="dp-subtitle">Що NPC взагалі помічає — увага як обмежений ресурс</div></div>
+          <div class="dp-status"><span class="ltag t-missing">відсутній</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="perception">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="perception-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #fbbf24">Найважливіший відсутній шар. Зараз NPC отримує і реагує на <em>всі</em> події однаково. Але <span data-tip="attention_budget = 1.0 - fatigue. Якщо fatigue=0.7, то budget=0.3 — NPC може обробити тільки найсильніші події">attention_budget</span> — обмежений ресурс. Стомлена Aria не помічає тонких сигналів. Голодна — фільтрує все крім їжі.</div>
+            </div>
+            <div><div class="ds-title">Дані (яких немає)</div>
+              <div class="fields">
+                <div class="frow miss"><span class="fkey">attention.budget</span><span class="fval">= 1.0 − fatigue. Визначає скільки подій може обробити</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">filter.threshold</span><span class="fval">event.severity &lt; threshold → подія ігнорується</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">filter.bias</span><span class="fval">голодний → знижує threshold для food-тегів</span><span class="f-miss-tag">відсутній</span></div>
+              </div>
+            </div>
+            <div class="miss-box"><div class="miss-title">⚠ Чому критично</div><div class="miss-text">Без L2 — NPC реагує як сервер що обробляє всі запити з однаковим пріоритетом. З L2 — Aria в стресі може не помітити що клієнт чекає, бо вся увага на Борисі. Це і є різниця між "обчисленням" і "живою людиною".</div></div>
+          </div>
+          <div class="tab-pane" id="perception-files">
+            <div><div class="ds-title">Файли (яких немає)</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/layers/perception.py</span><span class="file-desc">Клас PerceptionFilter. filter_events(events, body_state) → filtered_events</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/layers/attention.py</span><span class="file-desc">Рахує attention_budget з fatigue. Визначає threshold і bias</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="perception-example">
+            <div><div class="ds-title">Як мав би виглядати фільтр</div>
+              <div class="code-block"><pre><span class="c"># Вхід: всі події тіку + body state</span>
+<span class="c"># Вихід: тільки ті що пройшли фільтр</span>
+
+<span class="k">input:</span>
+  body.fatigue   = <span class="n">0.70</span>   <span class="c"># втомлена</span>
+  body.hunger    = <span class="n">0.80</span>   <span class="c"># дуже голодна</span>
+  attention_budget = <span class="n">0.30</span>  <span class="c"># = 1.0 - fatigue</span>
+  threshold      = <span class="n">0.60</span>   <span class="c"># пропускає тільки severity &gt; 0.60</span>
+
+<span class="k">events:</span>
+  evt_A: severity=<span class="n">0.85</span>, tags=[<span class="s">"threat:physical"</span>]  <span class="c">→ ✅ пройшов</span>
+  evt_B: severity=<span class="n">0.30</span>, tags=[<span class="s">"social"</span>]           <span class="c">→ ❌ проігноровано</span>
+  evt_C: severity=<span class="n">0.25</span>, tags=[<span class="s">"food_nearby"</span>]      <span class="c">→ ✅ bias знизив threshold</span>
+
+<span class="k">output → L3:</span>  [evt_A, evt_C]</pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ L3 MCS ══ -->
+      <div class="d-panel" id="panel-mcs">
+        <div class="dp-head">
+          <div class="dp-icon">🧠</div>
+          <div><div class="dp-title" style="color:#a78bfa">L3 · MCS Core</div><div class="dp-subtitle">4 персони · softmax · delta — серце системи</div></div>
+          <div class="dp-status"><span class="ltag t-planned">описано</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="mcs">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="mcs-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #a78bfa">Ядро MCS. Отримує відфільтровані події і body.stress, запускає 4 персони незалежно. Кожна рахує <span data-tip="raw_score = base_trait + Σ(trigger_match × event.severity × persona.sensitivity). Сума не нормалізована.">raw_score</span>, потім <span data-tip="softmax(x) = e^x / Σ(e^xi). Нормалізує довільні числа у ймовірності що сумуються до 1.0">softmax</span> перетворює їх у ваги. <span data-tip="delta = Σ|current_weight − previous_weight|. LOW &lt;0.1, MID 0.1-0.25, HIGH 0.25-0.5, EXPLOSIVE &gt;0.5">Delta</span> визначає наскільки змінився стан.</div>
+            </div>
+            <div><div class="ds-title">Дані</div>
+              <div class="fields">
+                <div class="frow"><span class="fkey" style="color:#a78bfa">personality.base_traits</span><span class="fval">{protector:0.65, instinct:0.55, thinker:0.70, mask:0.45}</span></div>
+                <div class="frow"><span class="fkey" style="color:#a78bfa">state.current_weights</span><span class="fval">{protector:0.42, instinct:0.28, thinker:0.18, mask:0.12}</span></div>
+                <div class="frow"><span class="fkey" style="color:#a78bfa">state.delta_level</span><span class="fval" data-tip="LOW/MID/HIGH/EXPLOSIVE визначає що відбувається в L4 Decision Gate">LOW / MID / HIGH / EXPLOSIVE</span></div>
+                <div class="frow"><span class="fkey" style="color:#a78bfa">state.emotional_state</span><span class="fval">CALM / ALERT / TENSE / EXPLOSIVE ← з домінуючої персони</span></div>
+                <div class="frow miss"><span class="fkey">decay.rate</span><span class="fval">як швидко ваги повертаються до base_traits без подій</span><span class="f-miss-tag">відсутній</span></div>
+              </div>
+            </div>
+            <div><div class="ds-title">Що отримує / віддає</div>
+              <div class="io-group">
+                <div><div class="io-label">Отримує від</div><div class="io-row"><span class="iotag in">filtered events ← L2</span><span class="iotag in">body.stress ← L1</span><span class="iotag in">memory.incidents</span></div></div>
+                <div><div class="io-label">Віддає в</div><div class="io-row"><span class="iotag out">weights → L4</span><span class="iotag out">delta_level → L4</span><span class="iotag out">emotional_state → L5</span></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="mcs-files">
+            <div><div class="ds-title">Файли</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/core/tick_processor.py</span><span class="file-desc">Головний orchestrator тіку. Викликає всі персони, softmax, delta. Метод process_tick(event, body)</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/core/persona_engine.py</span><span class="file-desc">4 класи персон. Кожна має метод score(event, body) → float</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/core/softmax.py</span><span class="file-desc">softmax(scores: dict) → weights: dict. Чиста математика.</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/core/delta.py</span><span class="file-desc">calculate_delta(current, previous) → float + DeltaLevel enum</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/models/npc_state.py</span><span class="file-desc">SQLAlchemy модель. Зберігає weights, delta, emotional_state в PostgreSQL</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="mcs-example">
+            <div><div class="ds-title">Вхід і вихід tick_processor</div>
+              <div class="code-block"><pre><span class="c"># ВХІД в tick_processor.process_tick()</span>
+<span class="k">event:</span>   <span class="k">{</span> type: <span class="s">"threat"</span>, severity: <span class="n">0.85</span>, tags: [<span class="s">"threat:physical"</span>, <span class="s">"injustice"</span>] <span class="k">}</span>
+<span class="k">body:</span>    <span class="k">{</span> stress: <span class="n">0.68</span>, fatigue: <span class="n">0.31</span>, hunger: <span class="n">0.42</span> <span class="k">}</span>
+
+<span class="c"># КРОК 1: raw scores</span>
+<span class="k">raw:</span>
+  protector = <span class="n">0.65</span> + <span class="n">0.85</span>×<span class="n">1.0</span> + <span class="n">0.85</span>×<span class="n">0.53</span> = <span class="n">2.10</span>
+  instinct  = <span class="n">0.55</span> + <span class="n">0.68</span>×<span class="n">0.85</span>          = <span class="n">1.13</span>
+  thinker   = <span class="n">0.70</span>                         = <span class="n">0.70</span>
+  mask      = <span class="n">0.45</span> + <span class="n">1</span>×<span class="n">0.15</span>              = <span class="n">0.60</span>
+
+<span class="c"># КРОК 2: softmax → weights</span>
+<span class="k">weights:</span>
+  protector = <span class="n">0.42</span>, instinct = <span class="n">0.28</span>
+  thinker   = <span class="n">0.18</span>, mask     = <span class="n">0.12</span>   <span class="c">Σ = 1.00 ✓</span>
+
+<span class="c"># КРОК 3: delta vs попередній тік</span>
+<span class="k">previous:</span>  <span class="k">{</span> protector: <span class="n">0.27</span>, instinct: <span class="n">0.24</span>, thinker: <span class="n">0.29</span>, mask: <span class="n">0.20</span> <span class="k">}</span>
+<span class="k">delta:</span>     |<span class="n">0.42</span>-<span class="n">0.27</span>|+|<span class="n">0.28</span>-<span class="n">0.24</span>|+|<span class="n">0.18</span>-<span class="n">0.29</span>|+|<span class="n">0.12</span>-<span class="n">0.20</span>| = <span class="n">0.38</span>
+<span class="k">level:</span>     <span class="v">HIGH</span>  <span class="c">(0.25 &lt; 0.38 &lt; 0.50)</span>
+
+<span class="c"># ВИХІД → L4 Decision Gate</span>
+<span class="k">{</span>
+  <span class="s">"weights"</span>:         <span class="k">{</span> protector: <span class="n">0.42</span>, instinct: <span class="n">0.28</span>, ... <span class="k">}</span>,
+  <span class="s">"delta_level"</span>:     <span class="s">"HIGH"</span>,
+  <span class="s">"emotional_state"</span>: <span class="s">"TENSE"</span>
+<span class="k">}</span></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ L4 DECISION ══ -->
+      <div class="d-panel" id="panel-decision">
+        <div class="dp-head">
+          <div class="dp-icon">⚡</div>
+          <div><div class="dp-title" style="color:#4f9eff">L4 · Decision Gate</div><div class="dp-subtitle">LLM чи ні — ключова розвилка. Дорого vs дешево.</div></div>
+          <div class="dp-status"><span class="ltag t-planned">описано</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="decision">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="decision-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #4f9eff">Decision Gate дивиться на <span data-tip="delta_level: LOW/MID/HIGH/EXPLOSIVE. Чим вище — тим сильніша зміна стану NPC цього тіку">delta_level</span> і вирішує що далі. <span data-tip="LLM виклик — дорогий. Мілісекунди vs секунди. Тому тільки при EXPLOSIVE — коли NPC реально потрібно 'думати'">LLM</span> викликається тільки при EXPLOSIVE або коли NPC говорить з гравцем. Всі інші випадки — детерміновані.</div>
+            </div>
+            <div><div class="ds-title">Пороги рішень</div>
+              <div class="fields">
+                <div class="frow"><span class="fkey" style="color:#f87171">EXPLOSIVE &gt; 0.50</span><span class="fval">LLM виклик негайно → генерувати повну відповідь</span></div>
+                <div class="frow"><span class="fkey" style="color:#fbbf24">HIGH 0.25–0.50</span><span class="fval">Записати стан, MEDIUM priority тік, NPC пам'ятає але мовчить</span></div>
+                <div class="frow"><span class="fkey" style="color:#4f9eff">MID 0.10–0.25</span><span class="fval">Записати стан, LOW priority тік</span></div>
+                <div class="frow"><span class="fkey" style="color:#4a6a8a">LOW &lt; 0.10</span><span class="fval">Тихо оновити weights, наступний тік по розкладу</span></div>
+                <div class="frow miss"><span class="fkey">llm.context_builder</span><span class="fval">що саме передається в LLM: стан + пам'ять + стосунки?</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">llm.response_parser</span><span class="fval">як LLM відповідь → конкретна дія (speak/move/attack)</span><span class="f-miss-tag">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="decision-files">
+            <div><div class="ds-title">Файли</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/layers/decision_gate.py</span><span class="file-desc">decide(delta_level, weights) → Action або None. Головна логіка розгалуження</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/llm/context_builder.py</span><span class="file-desc">Будує LLM prompt з NPC стану, пам'яті, стосунків. Найважливіший невизначений файл.</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/llm/response_parser.py</span><span class="file-desc">Парсить LLM відповідь → структурований Action об'єкт</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/memory/writer.py</span><span class="file-desc">Зберігає стан після кожного тіку в PostgreSQL</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="decision-example">
+            <div><div class="ds-title">Що летить в LLM при EXPLOSIVE</div>
+              <div class="code-block"><pre><span class="c"># context_builder.py → LLM prompt context</span>
+
+<span class="k">{</span>
+  <span class="s">"system"</span>: <span class="s">"You are Aria, a merchant at market_square..."</span>,
+  <span class="s">"npc_state"</span>: <span class="k">{</span>
+    <span class="s">"emotional_state"</span>:  <span class="s">"TENSE"</span>,
+    <span class="s">"dominant_persona"</span>: <span class="s">"protector"</span>,
+    <span class="s">"weights"</span>: <span class="k">{</span> protector: <span class="n">0.42</span>, instinct: <span class="n">0.28</span>, ... <span class="k">}</span>
+  <span class="k">}</span>,
+  <span class="s">"event"</span>:    <span class="s">"Борис вдарив кулаком по прилавку"</span>,
+  <span class="s">"memory"</span>:   [<span class="s">"Boris: 2 попередніх інциденти"</span>, <span class="s">"Oleh дивиться"</span>],
+  <span class="s">"instruction"</span>: <span class="s">"Generate Aria's response. JSON only."</span>
+<span class="k">}</span>
+
+<span class="c"># LLM відповідь → response_parser.py</span>
+<span class="k">{</span>
+  <span class="s">"action_type"</span>: <span class="s">"speak"</span>,
+  <span class="s">"content"</span>:     <span class="s">"Борисе, ще раз таке — і я покличу старшину!"</span>,
+  <span class="s">"tone"</span>:        <span class="s">"firm_warning"</span>,
+  <span class="s">"target"</span>:      <span class="s">"boris_002"</span>,
+  <span class="s">"public"</span>:      <span class="v">true</span>
+<span class="k">}</span></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ L5 ACTION ══ -->
+      <div class="d-panel" id="panel-action">
+        <div class="dp-head">
+          <div class="dp-icon">🎬</div>
+          <div><div class="dp-title" style="color:#34d399">L5 · Action</div><div class="dp-subtitle">Що NPC робить у світі — вихід всієї системи</div></div>
+          <div class="dp-status"><span class="ltag t-missing">відсутній</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="action">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="action-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #34d399">Вихідний шар. Сюди приходить або LLM результат або детермінована реакція. Action визначає що Aria робить: говорить, мовчить, рухається, торгує. Без цього шару NPC може "думати" скільки завгодно — але нічого не відбувається у світі.</div>
+            </div>
+            <div><div class="ds-title">Типи дій (не визначено)</div>
+              <div class="fields">
+                <div class="frow miss"><span class="fkey">action.speak</span><span class="fval">говорить щось · target + content + tone</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">action.move</span><span class="fval">переміщується · destination</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">action.trade</span><span class="fval">ініціює / відхиляє торгівлю</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">action.ignore</span><span class="fval">свідомо ігнорує · теж є дія</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">social_signal</span><span class="fval">що емітується в Social Fabric → інші NPCі чують</span><span class="f-miss-tag">відсутній</span></div>
+              </div>
+            </div>
+            <div class="miss-box"><div class="miss-title">⚠ Блокує взаємодію між NPCями</div><div class="miss-text">Без L5 не можна побудувати Social Fabric. NPCі не можуть впливати один на одного бо немає виходу з системи в зовнішній світ.</div></div>
+          </div>
+          <div class="tab-pane" id="action-files">
+            <div><div class="ds-title">Файли (яких немає)</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/layers/action_emitter.py</span><span class="file-desc">emit(action) → World Engine + Social Fabric. Головний вихід системи.</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/actions/action_types.py</span><span class="file-desc">Enum і dataclass для всіх типів дій. speak / move / trade / ignore…</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">social_fabric/signal_bus.py</span><span class="file-desc">Приймає сигнали від Action і розповсюджує NPCям в радіусі</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="action-example">
+            <div><div class="ds-title">Action object → World Engine + Social Fabric</div>
+              <div class="code-block"><pre><span class="c"># action_emitter.emit() відправляє два сигнали:</span>
+
+<span class="c"># 1. → World Engine (що NPC зробив у світі)</span>
+<span class="k">{</span>
+  <span class="s">"npc_id"</span>:      <span class="s">"aria_001"</span>,
+  <span class="s">"action_type"</span>: <span class="s">"speak"</span>,
+  <span class="s">"content"</span>:     <span class="s">"Борисе, ще раз таке — покличу старшину!"</span>,
+  <span class="s">"target"</span>:      <span class="s">"boris_002"</span>,
+  <span class="s">"tick"</span>:        <span class="n">2847</span>
+<span class="k">}</span>
+
+<span class="c"># 2. → Social Fabric (що почули інші NPCі)</span>
+<span class="k">{</span>
+  <span class="s">"source_npc"</span>:  <span class="s">"aria_001"</span>,
+  <span class="s">"signal_type"</span>: <span class="s">"verbal_confrontation"</span>,
+  <span class="s">"intensity"</span>:   <span class="n">0.72</span>,    <span class="c"># пов'язано з delta</span>
+  <span class="s">"public"</span>:      <span class="v">true</span>,    <span class="c"># всі NPCі в радіусі чують</span>
+  <span class="s">"location"</span>:    <span class="s">"market_square"</span>
+<span class="k">}</span>
+<span class="c"># → Boris отримає цю подію в свою чергу наступного тіку</span></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SELF MODEL ══ -->
+      <div class="d-panel" id="panel-selfmodel">
+        <div class="dp-head">
+          <div class="dp-icon">🪞</div>
+          <div><div class="dp-title" style="color:#f87171">Self Model</div><div class="dp-subtitle">Як NPC бачить себе і що думає що думають інші</div></div>
+          <div class="dp-status"><span class="ltag t-missing">відсутній</span></div>
+        </div>
+        <div class="dp-tabs" data-panel="selfmodel">
+          <button class="dp-tab active" data-tab="desc">Опис</button>
+          <button class="dp-tab" data-tab="files">Файли</button>
+          <button class="dp-tab" data-tab="example">Приклад даних</button>
+        </div>
+        <div class="dp-body">
+          <div class="tab-pane visible" id="selfmodel-desc">
+            <div><div class="ds-title">Що це таке</div>
+              <div class="dp-desc" style="border-left:3px solid #f87171">Окремий шар даних поверх 4 персон. Не замінює їх — але впливає на <span data-tip="base_traits — вроджені значення персон. Self Model може їх модифікувати через multiplier">base_traits</span> через multiplier. Без Self Model всі NPCі з однаковими base_traits поводяться однаково. З ним — кожен через призму власної ідентичності.</div>
+            </div>
+            <div><div class="ds-title">Три осі</div>
+              <div class="fields">
+                <div class="frow miss"><span class="fkey">self.identity</span><span class="fval">"я сильна" · "я чесна" — список переконань про себе</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">self.worth</span><span class="fval">самооцінка 0–1. LOW → Protector чутливість ×1.5 на образи</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">self.world_view</span><span class="fval">чи світ справедливий? безпечний? — впливає на Protector/Thinker base</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">perceived.by_boris</span><span class="fval">що Aria ДУМАЄ що Борис думає про неї. Може бути неправдою.</span><span class="f-miss-tag">відсутній</span></div>
+                <div class="frow miss"><span class="fkey">perceived.desired</span><span class="fval">якою Aria ХОЧЕ виглядати. Конфлікт з perceived → Mask ↑</span><span class="f-miss-tag">відсутній</span></div>
+              </div>
+            </div>
+            <div class="miss-box"><div class="miss-title">⚠ Найбільша архітектурна дірка</div><div class="miss-text">Aria з self.worth=0.3 ("я слабка, мене не поважають") і Aria з self.worth=0.9 ("я впевнена господиня ринку") — це два абсолютно різних NPC навіть з однаковими base_traits.</div></div>
+          </div>
+          <div class="tab-pane" id="selfmodel-files">
+            <div><div class="ds-title">Файли (яких немає)</div>
+              <div class="file-list">
+                <div class="file-item miss"><span class="file-name">npc/self_model/model.py</span><span class="file-desc">Клас SelfModel з identity, worth, world_view, perceived dict</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/self_model/modifier.py</span><span class="file-desc">apply_self_model(base_traits, self_model) → modified_traits. Мультиплікатори.</span><span class="ltag t-missing">відсутній</span></div>
+                <div class="file-item miss"><span class="file-name">npc/self_model/updater.py</span><span class="file-desc">Оновлює self_model під час memory consolidation ("сон"). Повільні зміни.</span><span class="ltag t-missing">відсутній</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="selfmodel-example">
+            <div><div class="ds-title">Self Model об'єкт і як він впливає</div>
+              <div class="code-block"><pre><span class="c"># PostgreSQL: table npc_self_model</span>
+<span class="k">{</span>
+  <span class="s">"npc_id"</span>:    <span class="s">"aria_001"</span>,
+  <span class="s">"identity"</span>: [<span class="s">"я чесна торговець"</span>, <span class="s">"я самодостатня"</span>],
+  <span class="s">"worth"</span>:    <span class="n">0.72</span>,   <span class="c"># досить впевнена в собі</span>
+  <span class="s">"world_view"</span>: <span class="k">{</span>
+    <span class="s">"fair"</span>: <span class="n">0.45</span>,     <span class="c"># світ не дуже справедливий</span>
+    <span class="s">"safe"</span>: <span class="n">0.60</span>
+  <span class="k">}</span>,
+  <span class="s">"perceived"</span>: <span class="k">{</span>
+    <span class="s">"boris_002"</span>: <span class="s">"він думає що я не дам відсіч"</span>,  <span class="c">← може бути неправдою!</span>
+    <span class="s">"public"</span>:   <span class="s">"мене поважають на ринку"</span>
+  <span class="k">}</span>
+<span class="k">}</span>
+
+<span class="c"># → modifier.apply_self_model():</span>
+<span class="c"># perceived.boris = "слабка" → protector.sensitivity × 1.4</span>
+<span class="c"># тобто наступна зустріч з Борисом:</span>
+<span class="c"># raw_protector = 0.65 × 1.4 + triggers = 2.94  ← EXPLOSIVE</span></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /dp -->
+  </div><!-- /main-grid -->
+
+  <!-- PROCESS FLOW -->
+  <div class="pflow">
+    <div class="pf-head">
+      <div class="pf-title">Як подія проходить крізь NPC за один тік</div>
+      <div class="pf-sub">клікни на блок щоб відкрити шар зліва</div>
+    </div>
+    <div class="pf-body">
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#4ade8066;color:#4ade80;background:#0a1e10" data-layer="world">L0 · World</div>
+        <div class="pf-note">event object</div>
+        <div class="pf-data">Redis queue</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#fb923c66;color:#fb923c;background:#1a0d05" data-layer="body">L1 · Body</div>
+        <div class="pf-note">stress / fatigue</div>
+        <div class="pf-data">body_state dict</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#fbbf2466;color:#fbbf24;background:#1a1005;border-style:dashed" data-layer="perception">L2 · Filter</div>
+        <div class="pf-note" style="color:#4a3010">⚠ відсутній</div>
+        <div class="pf-data" style="color:#2a1a00">filtered events</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#a78bfa66;color:#a78bfa;background:#0d0a1e" data-layer="mcs">L3 · MCS</div>
+        <div class="pf-note">weights + delta</div>
+        <div class="pf-data">tick_result dict</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#4f9eff66;color:#4f9eff;background:#050f1e" data-layer="decision">L4 · Decision</div>
+        <div class="pf-note">LLM або тихо</div>
+        <div class="pf-data">action intent</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#34d39966;color:#34d399;background:#050f0a;border-style:dashed" data-layer="action">L5 · Action</div>
+        <div class="pf-note" style="color:#1a4a30">⚠ відсутній</div>
+        <div class="pf-data" style="color:#0a2a1a">action object</div>
+      </div>
+      <div class="pf-arr">›</div>
+      <div class="pf-step">
+        <div class="pf-box" style="border-color:#f8717166;color:#f87171;background:#1a0505;border-style:dashed" data-layer="selfmodel">∅ Self</div>
+        <div class="pf-note" style="color:#4a1a1a">⚠ відсутній</div>
+        <div class="pf-data" style="color:#2a0a0a">modifies L3</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-panel">
+    <div class="note-title">💬 Коментарі</div>
+    <textarea class="note-area" placeholder="Залиш коментар — що додати, що не так..."></textarea>
+  </div>
+
+</div>
+
+<script>
+/* ── tabs within panel ── */
+function switchTab(panelKey, tabKey) {
+  var panes = document.querySelectorAll('#panel-' + panelKey + ' .tab-pane');
+  panes.forEach(function(p) { p.classList.remove('visible'); });
+  var target = document.getElementById(panelKey + '-' + tabKey);
+  if (target) target.classList.add('visible');
+
+  var tabs = document.querySelectorAll('[data-panel="' + panelKey + '"] .dp-tab');
+  tabs.forEach(function(t) { t.classList.remove('active'); });
+  tabs.forEach(function(t) { if (t.dataset.tab === tabKey) t.classList.add('active'); });
+}
+
+document.querySelectorAll('.dp-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var panelKey = this.closest('[data-panel]').dataset.panel;
+    switchTab(panelKey, this.dataset.tab);
+  });
+});
+
+/* ── layer selection ── */
+function showLayer(key) {
+  document.getElementById('dp-ph').style.display = 'none';
+  document.querySelectorAll('.d-panel').forEach(function(p) { p.classList.remove('visible'); });
+  var panel = document.getElementById('panel-' + key);
+  if (panel) panel.classList.add('visible');
+  document.querySelectorAll('[data-layer]').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('[data-layer="' + key + '"]').forEach(function(b) { b.classList.add('active'); });
+}
+
+document.querySelectorAll('[data-layer]').forEach(function(btn) {
+  btn.addEventListener('click', function() { showLayer(this.dataset.layer); });
+});
+</script>
+</body>
+</html>
