@@ -26,13 +26,7 @@ from typing import Any, Dict, List, Optional, Union
 # Helpers for multi-dimension actions (legacy: float, new: dict dim_id -> float)
 # ---------------------------------------------------------------------------
 
-def _cooperation_value(val: Any) -> float:
-    """Extract cooperation action from legacy float or per-dim dict."""
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        return float(val.get("cooperation", 0.5))
-    return 0.5
+from pipeline.utils import _cooperation_val as _cooperation_value
 
 
 # ---------------------------------------------------------------------------

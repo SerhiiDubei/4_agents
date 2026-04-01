@@ -582,6 +582,7 @@ def run_simulation(
                         agent_names=result.agent_names,
                         story_context=story_ctx,
                         situation_text=sit_text,
+                        situation_reflection=situation_reflections.get(agent.agent_id, ""),
                         round_event_text=ev_text,
                         event_participants=ev_parts,
                     )
@@ -709,8 +710,9 @@ def run_simulation(
                     round_consequences = generate_consequences(
                         round_num, round_actions, payoffs_summary, story_params, result.agent_names
                     )
-                except Exception:
-                    pass
+                except Exception as _cons_err:
+                    import sys as _sys
+                    print(f"  [storytell] consequences r{round_num}: {_cons_err}", file=_sys.stderr, flush=True)
 
                 # --- Storytell: широкий опис раунду (що відбулося для кожного і всіх) ---
                 try:
@@ -741,8 +743,9 @@ def run_simulation(
                         prev_rounds_narrative=prev_narr,
                         agent_profiles=agent_profiles,
                     )
-                except Exception:
-                    pass
+                except Exception as _narr_err:
+                    import sys as _sys
+                    print(f"  [storytell] round_narrative r{round_num}: {_narr_err}", file=_sys.stderr, flush=True)
 
             # --- Reveal window ---
             round_reveals = []

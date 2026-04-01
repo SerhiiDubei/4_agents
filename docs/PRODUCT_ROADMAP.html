@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Product Roadmap — 4 Agents</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2rem; color: #58a6ff; border-bottom: 2px solid #21262d; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.4rem; color: #f0883e; margin: 2.5rem 0 1rem; padding: 0.5rem 1rem; background: #161b22; border-left: 4px solid #f0883e; border-radius: 0 6px 6px 0; }
+  h3 { font-size: 1.1rem; color: #e6edf3; margin: 1.5rem 0 0.5rem; }
+  h3.crit { color: #f85149; }
+  h3.high { color: #e3b341; }
+  h3.med { color: #58a6ff; }
+  p { margin: 0.5rem 0; color: #c9d1d9; }
+  code { background: #161b22; color: #79c0ff; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.9em; font-family: 'Consolas', monospace; }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; overflow-x: auto; margin: 1rem 0; font-family: 'Consolas', monospace; font-size: 0.85rem; color: #e6edf3; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #21262d; color: #58a6ff; padding: 0.6rem 1rem; text-align: left; border: 1px solid #30363d; }
+  td { padding: 0.5rem 1rem; border: 1px solid #21262d; color: #c9d1d9; vertical-align: top; }
+  tr:nth-child(even) td { background: #0d1117; }
+  tr:nth-child(odd) td { background: #161b22; }
+  ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; color: #c9d1d9; }
+  li { margin: 0.3rem 0; }
+  .badge { display: inline-block; padding: 0.15em 0.6em; border-radius: 12px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem; }
+  .p0 { background: #4d1a1a; color: #f85149; }
+  .p1 { background: #3a2a00; color: #e3b341; }
+  .meta { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 2rem; display: flex; gap: 2rem; flex-wrap: wrap; }
+  .meta-item { font-size: 0.9rem; }
+  .meta-item span { color: #58a6ff; font-weight: 600; }
+  .issue-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.8rem 0; }
+  .issue-card.crit { border-left: 4px solid #f85149; }
+  .issue-card.high { border-left: 4px solid #e3b341; }
+  .issue-card ul { margin-top: 0.4rem; }
+  .issue-card li { font-size: 0.92rem; }
+  .milestone { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem 1.5rem; margin: 1rem 0; }
+  .milestone h3 { margin: 0 0 0.8rem; color: #3fb950; }
+  .milestone ul { list-style: none; margin: 0; padding: 0; }
+  .milestone li { padding: 0.3rem 0; padding-left: 1.5rem; position: relative; }
+  .milestone li::before { content: '☐'; position: absolute; left: 0; color: #3fb950; }
+  .milestone .goal { font-size: 0.9rem; color: #8b949e; margin-bottom: 0.8rem; }
+  .milestone .criterion { font-size: 0.85rem; color: #3fb950; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid #21262d; }
+  blockquote { background: #161b22; border-left: 4px solid #58a6ff; padding: 0.8rem 1.2rem; margin: 1rem 0; border-radius: 0 6px 6px 0; color: #c9d1d9; font-size: 0.95rem; }
+  .summary-box { background: #1c2a1c; border: 1px solid #3fb950; border-radius: 8px; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .summary-box p { color: #c9d1d9; }
+  nav { position: fixed; top: 0; left: 0; right: 0; background: #161b22cc; backdrop-filter: blur(10px); border-bottom: 1px solid #30363d; padding: 0.6rem 2rem; display: flex; gap: 1.5rem; font-size: 0.85rem; z-index: 100; flex-wrap: wrap; }
+  nav a { color: #8b949e; text-decoration: none; transition: color 0.2s; }
+  nav a:hover { color: #58a6ff; }
+  .content { padding-top: 3rem; }
+  hr { border: none; border-top: 1px solid #21262d; margin: 2rem 0; }
+  .count-badges { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+  .count-badge { background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 0.4rem 1rem; font-size: 0.9rem; }
+  .count-badge.red { border-color: #f85149; color: #f85149; }
+  .count-badge.yellow { border-color: #e3b341; color: #e3b341; }
+  .count-badge.blue { border-color: #58a6ff; color: #58a6ff; }
+  .count-badge.gray { border-color: #8b949e; color: #8b949e; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="#vision">Vision</a>
+  <a href="#summary">Executive Summary</a>
+  <a href="#critical">Критичні (8)</a>
+  <a href="#high">Високі (14)</a>
+  <a href="#medium">Середні (22)</a>
+  <a href="#milestones">Milestones</a>
+  <a href="#architecture">Архітектура</a>
+  <a href="#metrics">Метрики</a>
+  <a href="#risks">Ризики</a>
+</nav>
+
+<div class="container content">
+  <h1>PRODUCT ROADMAP: 4 Agents Social Simulation Platform</h1>
+
+  <div class="meta">
+    <div class="meta-item"><span>Дата:</span> 2026-04-01</div>
+    <div class="meta-item"><span>Версія:</span> 1.0</div>
+    <div class="meta-item"><span>Статус:</span> Аудит завершено, план дій сформовано</div>
+    <div class="meta-item"><span>Підсистем аудитовано:</span> 6</div>
+  </div>
+
+  <!-- VISION -->
+  <h2 id="vision">VISION</h2>
+  <p><strong>4 Agents</strong> — платформа мульти-агентної соціальної симуляції, де AI-агенти з унікальними особистостями взаємодіють через ігрові механіки (Prisoner's Dilemma, Time Wars), приймають рішення на основі характеру, спілкуються природною мовою, формують довіру та пам'ять між іграми.</p>
+  <p style="margin-top:0.8rem"><strong>Кінцева мета:</strong> Створити екосистему, де 17+ агентів із SOUL/BIO/CORE/MEMORY демонструють правдоподібну соціальну динаміку — зраду, альянси, маніпуляцію, кооперацію — з кінематографічним наративом кожного раунду.</p>
+  <ul style="margin-top:0.8rem">
+    <li><strong>Island</strong> (покроковий) — класична Prisoner's Dilemma з наративом, діалогом, рефлексією</li>
+    <li><strong>Time Wars</strong> (реал-тайм) — battle royale з тайм-ресурсом, ролями, кодами, магазином</li>
+  </ul>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <h2 id="summary">EXECUTIVE SUMMARY</h2>
+  <p>Платформа має <strong>солідну базу</strong> (17 агентів, повні SOUL/BIO/CORE/MEMORY, працюючий game loop, decision engine, dialog engine), але страждає від:</p>
+  <ol style="margin:0.8rem 0 0.8rem 1.5rem">
+    <li><strong>Розірваних зв'язків</strong> — діалог генерується, але ігнорується при прийнятті рішень</li>
+    <li><strong>Неконсистентних порогів</strong> — одна й та ж дія класифікується по-різному в різних підсистемах</li>
+    <li><strong>Мертвого коду</strong> — ~30% функціоналу написано, але не підключено</li>
+    <li><strong>Відсутньої інфраструктури</strong> — Redis/Celery = 0 рядків, всі LLM-виклики синхронні</li>
+    <li><strong>Дублювання</strong> — 5 копій <code>_cooperation_val()</code>, 3-4 копії <code>call_openrouter()</code></li>
+  </ol>
+
+  <div class="count-badges">
+    <div class="count-badge red">🔴 8 критичних</div>
+    <div class="count-badge yellow">🟡 14 високих</div>
+    <div class="count-badge blue">🔵 22 середніх</div>
+    <div class="count-badge gray">⚪ 12 низьких</div>
+  </div>
+
+  <!-- CRITICAL -->
+  <h2 id="critical">КРИТИЧНІ ПРОБЛЕМИ (БЛОКЕРИ)</h2>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-1: Діалог ігнорується при прийнятті рішень <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>game_engine.py:536-587</code></li>
+      <li><strong>Суть:</strong> <code>dialog_heard</code> будується (рядки 536-544), але НЕ передається в <code>generate_reasoning()</code>. Агенти вирішують без урахування діалогу.</li>
+      <li><strong>Вплив:</strong> Діалог чисто декоративний. Агент може сказати "я тебе підтримаю" і зрадити — не через маніпуляцію, а через баг.</li>
+      <li><strong>Фікс:</strong> Передати <code>dialog_heard</code> в <code>generate_reasoning()</code> як параметр</li>
+      <li><strong>Складність:</strong> Низька (1 параметр)</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-2: Пороги класифікації дій розходяться між підсистемами <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>payoff_matrix.py</code> (0.33/0.66) · <code>dialog_engine.py</code> (0.15/0.45/0.75) · <code>reveal_skill.py</code> (0.4/0.66)</li>
+      <li><strong>Суть:</strong> Дія 0.5 = "mixed" в payoff, "soft-cooperated" в діалозі, "cooperated" в reveal</li>
+      <li><strong>Вплив:</strong> Агенти отримують суперечливі сигнали про поведінку інших</li>
+      <li><strong>Фікс:</strong> Створити <code>simulation/constants.py</code> з єдиними порогами</li>
+      <li><strong>Складність:</strong> Середня (рефакторинг 4 файлів)</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-3: Ролі НЕ призначені агентам <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>agents/*/CORE.json</code> — немає поля <code>role</code></li>
+      <li><strong>Суть:</strong> <code>roles.json</code> визначає 4 ролі з 8 навичками, але жодному агенту роль не призначена</li>
+      <li><strong>Вплив:</strong> Блокує TIME WARS механіку ролей. <code>ROLE_CORE_OVERLAYS</code> не застосовуються</li>
+      <li><strong>Фікс:</strong> Додати <code>role</code> в CORE.json або автоматичне призначення в <code>create_session()</code></li>
+      <li><strong>Складність:</strong> Низька</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-4: Round Narrative мовчазно фейлить <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>game_engine.py:716-745</code></li>
+      <li><strong>Суть:</strong> <code>generate_round_narrative()</code> обгорнуте в <code>try/except: pass</code>. Якщо LLM фейлить — наратив = "", жодного логування</li>
+      <li><strong>Вплив:</strong> Логи показують шаблонні тексти замість кінематографічних описів. Storytelling — мертвий</li>
+      <li><strong>Фікс:</strong> Логувати помилки, fallback текст</li>
+      <li><strong>Складність:</strong> Низька</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-5: Reveal Skill — метод не існує <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>reveal_skill.py:249</code> викликає <code>tracker.was_exposed()</code>, але метод = <code>was_target()</code> (рядок 147)</li>
+      <li><strong>Суть:</strong> CLI тест падає; reveal фіча не тестується</li>
+      <li><strong>Фікс:</strong> Перейменувати <code>was_target()</code> → <code>was_exposed()</code></li>
+      <li><strong>Складність:</strong> Мінімальна</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-6: Reveal Requests ніколи не ініціалізуються <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>game_engine.py:235,749</code></li>
+      <li><strong>Суть:</strong> Параметр існує, але завжди порожній. Reveal skill недоступний</li>
+      <li><strong>Вплив:</strong> Механіка "одноразового розкриття" — dead code</li>
+      <li><strong>Фікс:</strong> Ініціалізувати або додати механізм тригерення</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-7: Situation Reflections не впливають на рішення <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>game_engine.py:407-427</code></li>
+      <li><strong>Суть:</strong> <code>situation_reflections</code> генеруються LLM, але не передаються в decision engine</li>
+      <li><strong>Вплив:</strong> Агент "думає" про ситуацію, але думки не впливають на його дію</li>
+      <li><strong>Фікс:</strong> Передати reflections в reasoning/decision pipeline</li>
+    </ul>
+  </div>
+
+  <div class="issue-card crit">
+    <h3 class="crit">КРИТ-8: COMM → ACTION в Time Wars відстає <span class="badge p0">P0</span></h3>
+    <ul>
+      <li><strong>Де:</strong> <code>serve_time_wars.py:348-509</code></li>
+      <li><strong>Суть:</strong> Дія обрана утилітарно ДО того, як COMM фаза завершиться. COMM timeout → гра без діалогу</li>
+      <li><strong>Вплив:</strong> TIME WARS комунікація не впливає на рішення</li>
+      <li><strong>Фікс:</strong> COMM → рішення → ACTION</li>
+      <li><strong>Складність:</strong> Висока</li>
+    </ul>
+  </div>
+
+  <!-- HIGH -->
+  <h2 id="high">ВИСОКІ ПРОБЛЕМИ (14)</h2>
+  <table>
+    <tr><th>ID</th><th>Проблема</th><th>Де</th><th>Фікс</th></tr>
+    <tr><td><span class="badge p1">ВИС-1</span></td><td>5 копій <code>_cooperation_val()</code></td><td>pipeline/ (5 файлів)</td><td>Винести в <code>pipeline/utils.py</code></td></tr>
+    <tr><td><span class="badge p1">ВИС-2</span></td><td>3-4 копії <code>call_openrouter()</code></td><td>pipeline/ (кожен модуль)</td><td>Один <code>pipeline/llm_client.py</code></td></tr>
+    <tr><td><span class="badge p1">ВИС-3</span></td><td>Support dimension — dead code</td><td>payoff_matrix.py, interaction_dimensions.py</td><td>Підключити або видалити</td></tr>
+    <tr><td><span class="badge p1">ВИС-4</span></td><td>soul_template.json застарілий (6 розділів, реальні 8)</td><td>agents/soul_template.json</td><td>Оновити до 8 розділів</td></tr>
+    <tr><td><span class="badge p1">ВИС-5</span></td><td>question_contexts.json не використовується</td><td>agents/question_contexts.json</td><td>Інтегрувати в decision_engine</td></tr>
+    <tr><td><span class="badge p1">ВИС-6</span></td><td>meta_params.json не використовується</td><td>agents/meta_params.json</td><td>Підключити до SOUL генерації</td></tr>
+    <tr><td><span class="badge p1">ВИС-7</span></td><td>profile порожній для 14/17 агентів</td><td>agents/roster.json</td><td>Заповнити з BIO.md</td></tr>
+    <tr><td><span class="badge p1">ВИС-8</span></td><td>Dead code в dialog_engine.py (2 unused generators)</td><td>dialog_engine.py:250,544</td><td>Видалити</td></tr>
+    <tr><td><span class="badge p1">ВИС-9</span></td><td>codes.json може не існувати → SHOP пропускається</td><td>shop.py</td><td>Дефолтні коди або помилка на старті</td></tr>
+    <tr><td><span class="badge p1">ВИС-10</span></td><td>Redis/Celery = 0 рядків, всі LLM синхронні</td><td>Весь проект</td><td>asyncio queue або Celery</td></tr>
+    <tr><td><span class="badge p1">ВИС-11</span></td><td>state_snapshots не серіалізуються</td><td>game_engine.py:796-819</td><td>Додати до GameResult.to_dict()</td></tr>
+    <tr><td><span class="badge p1">ВИС-12</span></td><td>Auth UI відсутній, USER_ID завжди "local"</td><td>Frontend</td><td>Додати Auth UI або прибрати endpoints</td></tr>
+    <tr><td><span class="badge p1">ВИС-13</span></td><td>Human player UI для TIME WARS не реалізований</td><td>serve_time_wars.py</td><td>Додати UI або прибрати hasHuman</td></tr>
+    <tr><td><span class="badge p1">ВИС-14</span></td><td>roster.json та BIO.md читаються на КОЖЕН раунд</td><td>game_engine.py:347,718</td><td>Кешувати на початку гри</td></tr>
+  </table>
+
+  <!-- MEDIUM -->
+  <h2 id="medium">СЕРЕДНІ ПРОБЛЕМИ (22)</h2>
+  <table>
+    <tr><th>#</th><th>Проблема</th><th>Де</th><th>Вплив</th></tr>
+    <tr><td>СЕР-1</td><td>Async event loop дублюється 3+ разів</td><td>game_engine.py</td><td>Code smell</td></tr>
+    <tr><td>СЕР-2</td><td>sys.path.insert 5+ разів</td><td>game_engine.py</td><td>Крихкий import</td></tr>
+    <tr><td>СЕР-3</td><td>DM ротація передбачувана (i+round%n)</td><td>game_engine.py:212</td><td>Тривіальна стратегія</td></tr>
+    <tr><td>СЕР-4</td><td>No bounds check на action values</td><td>payoff_matrix.py</td><td>Потенційний crash</td></tr>
+    <tr><td>СЕР-5</td><td>Genre/mood/stakes не передаються в промпти</td><td>storytell</td><td>Наративи не відповідають mood</td></tr>
+    <tr><td>СЕР-6</td><td>Character Arc відсутній</td><td>storytell</td><td>Персонажі не розвиваються</td></tr>
+    <tr><td>СЕР-7</td><td>Dynamic Event Escalation відсутній</td><td>storytell/round_events.py</td><td>Events статичні</td></tr>
+    <tr><td>СЕР-8</td><td>Consequence Carryover відсутній</td><td>storytell</td><td>Зрада не впливає на events</td></tr>
+    <tr><td>СЕР-9</td><td>Storytell не інтегрований з TIME WARS</td><td>game_modes/time_wars</td><td>Немає наративу в TW</td></tr>
+    <tr><td>СЕР-10</td><td>Мана механіка непрозора</td><td>TIME WARS</td><td>Незрозуміло як купувати коди</td></tr>
+    <tr><td>СЕР-11</td><td>Параметри TIME WARS hardcoded</td><td>serve_time_wars.py</td><td>Немає конфігурації</td></tr>
+    <tr><td>СЕР-12</td><td>CODE фаза не використовує decision_engine</td><td>loop.py</td><td>Утилітарна замість personality</td></tr>
+    <tr><td>СЕР-13</td><td>Deception threshold (60) тільки в dialog</td><td>dialog_engine.py</td><td>Inconsistent</td></tr>
+    <tr><td>СЕР-14</td><td>Temperature 0.88 hardcoded</td><td>dialog_engine.py</td><td>Неможливо тюнити</td></tr>
+    <tr><td>СЕР-15</td><td>DM reply не отримує memory context</td><td>dialog_engine.py</td><td>Менш інформовані відповіді</td></tr>
+    <tr><td>СЕР-16</td><td>Dimension weights не нормалізовані (sum=1.5)</td><td>interaction_dimensions.py</td><td>Неочевидна математика</td></tr>
+    <tr><td>СЕР-17</td><td>core_deception поле ніде не використовується</td><td>interaction_dimensions.py</td><td>Dead field</td></tr>
+    <tr><td>СЕР-18</td><td>Dead code в reflection.py (~100 рядків)</td><td>pipeline</td><td>Зайвий код</td></tr>
+    <tr><td>СЕР-19</td><td>Inconsistent JSON parsing в pipeline</td><td>pipeline</td><td>Різні парсери</td></tr>
+    <tr><td>СЕР-20</td><td>Skill conditions не використовуються</td><td>skills.py</td><td>Тільки ON_GAME_END перевіряє</td></tr>
+    <tr><td>СЕР-21</td><td>ON_GAME_END бонус після визначення переможця</td><td>loop.py</td><td>Бонус лише інформаційний</td></tr>
+    <tr><td>СЕР-22</td><td>Rounding inconsistency (2, 3, 4 decimals)</td><td>Кілька файлів</td><td>Cosmetic</td></tr>
+  </table>
+
+  <!-- MILESTONES -->
+  <h2 id="milestones">MILESTONES</h2>
+
+  <div class="milestone">
+    <h3>M0: STABILIZE <small style="color:#8b949e;font-weight:400">(1-2 дні)</small></h3>
+    <p class="goal">Мета: Зробити Island Mode стабільним та функціональним</p>
+    <ul>
+      <li>КРИТ-1: Передати dialog_heard в reasoning</li>
+      <li>КРИТ-2: Централізувати пороги дій в <code>simulation/constants.py</code></li>
+      <li>КРИТ-4: Логувати помилки в <code>generate_round_narrative()</code></li>
+      <li>КРИТ-5: Фікс <code>was_target()</code> → <code>was_exposed()</code></li>
+      <li>КРИТ-7: Передати situation_reflections в decision pipeline</li>
+      <li>ВИС-1: Один <code>_cooperation_val()</code> в <code>pipeline/utils.py</code></li>
+      <li>ВИС-2: Один <code>call_openrouter()</code> в <code>pipeline/llm_client.py</code></li>
+    </ul>
+    <p class="criterion">✓ Критерій: Island гра де діалог впливає на рішення, наративи генеруються, reveal працює</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M1: CONNECT <small style="color:#8b949e;font-weight:400">(3-5 днів)</small></h3>
+    <p class="goal">Мета: Підключити всі розроблені системи</p>
+    <ul>
+      <li>КРИТ-3: Призначити ролі агентам</li>
+      <li>КРИТ-6: Ініціалізувати reveal_requests</li>
+      <li>ВИС-3: Підключити support dimension або видалити</li>
+      <li>ВИС-4: Оновити soul_template.json до 8 розділів</li>
+      <li>ВИС-5: Інтегрувати question_contexts в decision pipeline</li>
+      <li>ВИС-6: Підключити meta_params до SOUL генерації</li>
+      <li>ВИС-7: Заповнити profile в roster.json</li>
+      <li>ВИС-8: Видалити dead code з dialog_engine</li>
+      <li>ВИС-11: Серіалізувати state_snapshots</li>
+      <li>ВИС-14: Кешувати roster.json та BIO.md</li>
+    </ul>
+    <p class="criterion">✓ Критерій: Всі розроблені системи працюють разом, немає dead code</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M2: TIME WARS FIX <small style="color:#8b949e;font-weight:400">(3-5 днів)</small></h3>
+    <p class="goal">Мета: Зробити Time Wars повноцінним</p>
+    <ul>
+      <li>КРИТ-8: Переструктурувати COMM → ACTION послідовність</li>
+      <li>ВИС-9: Забезпечити codes.json</li>
+      <li>СЕР-10: Документувати мана механіку</li>
+      <li>СЕР-11: Конфігурація параметрів TIME WARS (config.json)</li>
+      <li>СЕР-12: CODE фаза через decision_engine</li>
+      <li>СЕР-20: Підключити skill conditions</li>
+      <li>СЕР-21: ON_GAME_END бонус до визначення переможця</li>
+    </ul>
+    <p class="criterion">✓ Критерій: TIME WARS з працюючими COMM, SHOP, CODE, ACTION фазами</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M3: STORYTELLING <small style="color:#8b949e;font-weight:400">(3-5 днів)</small></h3>
+    <p class="goal">Мета: Кінематографічний наратив кожного раунду</p>
+    <ul>
+      <li>СЕР-5: Genre/mood/stakes в промпти</li>
+      <li>СЕР-6: Character Arc між раундами</li>
+      <li>СЕР-7: Dynamic Event Escalation (напруга зростає)</li>
+      <li>СЕР-8: Consequence Carryover (зрада → наступні events)</li>
+      <li>СЕР-9: Storytell для TIME WARS</li>
+      <li>Тести для storytell модуля</li>
+    </ul>
+    <p class="criterion">✓ Критерій: HTML лог гри читається як кінематографічна історія</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M4: FRONTEND & UX <small style="color:#8b949e;font-weight:400">(5-7 днів)</small></h3>
+    <p class="goal">Мета: Повноцінний UI</p>
+    <ul>
+      <li>ВИС-12: Auth UI (login/register)</li>
+      <li>ВИС-13: Human player interface для TIME WARS</li>
+      <li>Dashboard з аналітикою ігор</li>
+      <li>Real-time візуалізація Island гри</li>
+      <li>Agent profiles на фронтенді</li>
+    </ul>
+    <p class="criterion">✓ Критерій: Користувач може запустити гру, спостерігати, грати як людина</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M5: INFRASTRUCTURE <small style="color:#8b949e;font-weight:400">(5-7 днів)</small></h3>
+    <p class="goal">Мета: Production-ready архітектура</p>
+    <ul>
+      <li>ВИС-10: Async LLM calls (asyncio queue або Celery+Redis)</li>
+      <li>Database міграції (Alembic)</li>
+      <li>Structured logging (не print)</li>
+      <li>Error monitoring</li>
+      <li>Config management (env-based)</li>
+      <li>API rate limiting для OpenRouter</li>
+    </ul>
+    <p class="criterion">✓ Критерій: Система витримує 10+ паралельних ігор</p>
+  </div>
+
+  <div class="milestone">
+    <h3>M6: POLISH <small style="color:#8b949e;font-weight:400">(ongoing)</small></h3>
+    <ul>
+      <li>Всі СЕР та НИЗ проблеми</li>
+      <li>Unit тести для кожного модуля</li>
+      <li>Integration тести для game loop</li>
+      <li>Performance optimization</li>
+      <li>Documentation</li>
+    </ul>
+  </div>
+
+  <!-- DEPENDENCY MAP -->
+  <h2>DEPENDENCY MAP</h2>
+  <pre>M0 (Stabilize) ← блокер для всього
+  ↓
+M1 (Connect) ← залежить від M0
+  ↓
+M2 (Time Wars) ←─┐  можна паралельно
+M3 (Storytelling)─┘
+  ↓
+M4 (Frontend) ← залежить від M1
+  ↓
+M5 (Infrastructure) ← може паралельно з M4
+  ↓
+M6 (Polish) ← після всього</pre>
+
+  <!-- ARCHITECTURE -->
+  <h2 id="architecture">АРХІТЕКТУРА: ПОТОЧНИЙ vs ЦІЛЬОВИЙ</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+    <div>
+      <h3 style="color:#f85149;margin-bottom:0.5rem">Поточний стан</h3>
+      <pre>Frontend (React/Vite:5173)
+  ├── Island UI (базовий)
+  └── Time Wars UI (:5174)
+
+Backend (FastAPI:8000)
+  ├── simulation/game_engine.py
+  │   (Island, синхронний)
+  ├── simulation/dialog_engine.py
+  ├── pipeline/ (decision, soul)
+  ├── storytell/ (не підключений TW)
+  └── game_modes/time_wars/
+      (окремий FastAPI)
+
+Data Layer
+  ├── SQLite
+  ├── agents/ (SOUL/CORE/BIO/STATES/MEM)
+  └── logs/ (JSONL + HTML)
+
+External
+  └── OpenRouter API</pre>
+    </div>
+    <div>
+      <h3 style="color:#3fb950;margin-bottom:0.5rem">Цільовий стан</h3>
+      <pre>Frontend (React/Vite:5173)
+  ├── Auth UI
+  ├── Island UI (real-time)
+  ├── Time Wars UI (human play)
+  ├── Agent Profiles
+  └── Analytics Dashboard
+
+Backend (FastAPI:8000) ← ОДИН
+  ├── simulation/ (unified)
+  ├── pipeline/ (shared LLM client)
+  ├── storytell/ (connected + arcs)
+  └── config/ (centralized)
+
+Data Layer
+  ├── PostgreSQL / SQLite
+  ├── agents/ (з ролями, profiles)
+  └── logs/ (with state_snapshots)
+
+Queue
+  └── asyncio / Celery+Redis
+
+External
+  └── OpenRouter (rate limit + retry)</pre>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <h2 id="metrics">МЕТРИКИ ЯКОСТІ</h2>
+  <table>
+    <tr><th>Метрика</th><th>Поточне</th><th>Ціль M0</th><th>Ціль M3</th><th>Ціль M6</th></tr>
+    <tr><td>Тести</td><td>32 pass</td><td>50+</td><td>80+</td><td>120+</td></tr>
+    <tr><td>Dead code</td><td>~30%</td><td>&lt;15%</td><td>&lt;5%</td><td>&lt;2%</td></tr>
+    <tr><td>Дублювання cooperation_val</td><td>5x</td><td>1x</td><td>1x</td><td>1x</td></tr>
+    <tr><td>Inconsistent thresholds</td><td>3 набори</td><td>1</td><td>1</td><td>1</td></tr>
+    <tr><td>Dialog → Decision</td><td style="color:#f85149">Розірвано</td><td style="color:#e3b341">Підключено</td><td style="color:#3fb950">Повноцінно</td><td style="color:#3fb950">З feedback loop</td></tr>
+    <tr><td>Narrative якість</td><td style="color:#f85149">Шаблонна</td><td style="color:#e3b341">Генерується</td><td style="color:#3fb950">Кінематографічна</td><td style="color:#3fb950">З character arc</td></tr>
+    <tr><td>Час раунду Island</td><td>~10 хв</td><td>~5 хв</td><td>~3 хв</td><td>&lt;2 хв</td></tr>
+  </table>
+
+  <!-- RISKS -->
+  <h2 id="risks">РИЗИКИ</h2>
+  <table>
+    <tr><th>Ризик</th><th>Ймовірність</th><th>Вплив</th><th>Mitigation</th></tr>
+    <tr><td>OpenRouter downtime</td><td>Середня</td><td>Високий</td><td>Fallback models, retry logic</td></tr>
+    <tr><td>LLM cost explosion</td><td>Висока</td><td>Середній</td><td>Token budgets, caching, smaller models</td></tr>
+    <tr><td>Context window overflow</td><td>Середня</td><td>Високий</td><td>Truncation strategy, summarization</td></tr>
+    <tr><td>Async migration складність</td><td>Висока</td><td>Середній</td><td>Поступово: asyncio перед Celery</td></tr>
+    <tr><td>Game balance (roles)</td><td>Середня</td><td>Середній</td><td>A/B testing, tunable parameters</td></tr>
+  </table>
+
+  <!-- SUMMARY -->
+  <h2>РЕЗЮМЕ</h2>
+  <div class="summary-box">
+    <p><strong>Що добре:</strong> 17 агентів з повними особистостями, працюючий decision engine, два ігрові режими, HTML логи, cross-game пам'ять, LLM-діалог.</p>
+    <p style="margin-top:0.6rem"><strong>Що потрібно терміново:</strong> Підключити діалог до рішень (КРИТ-1), уніфікувати пороги (КРИТ-2), призначити ролі (КРИТ-3), полагодити наратив (КРИТ-4).</p>
+    <p style="margin-top:0.6rem"><strong>Очікуваний час до якісного запуску:</strong> M0–M3 = 10–17 днів активної роботи. M4–M5 = додатково 10–14 днів.</p>
+  </div>
+
+  <hr>
+  <p style="color:#8b949e;font-size:0.85rem;text-align:center">Документ згенеровано на основі глибокого аудиту 6 підсистем: Game Engine · Pipeline · Storytell · Agents & Schemas · Time Wars · Frontend & Server</p>
+</div>
+</body>
+</html>

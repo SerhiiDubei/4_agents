@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCS v4 — 3D Interactive Architecture</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #060b18; color: #c9d4e8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; overflow: hidden; }
+
+.topbar { position: fixed; top: 0; left: 0; right: 0; height: 48px; background: rgba(7,16,31,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #141f35; display: flex; align-items: center; padding: 0 20px; gap: 12px; z-index: 100; }
+.logo { font-size: 13px; font-weight: 700; color: #fff; }
+.logo em { font-style: normal; color: #34d399; }
+.badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #0a1e18; color: #34d399; border: 1px solid #1a5a40; letter-spacing: .06em; text-transform: uppercase; }
+.nav-links { margin-left: auto; display: flex; gap: 8px; }
+.nav-link { font-size: 10px; color: #2a4d7a; text-decoration: none; border: 1px solid #141f35; padding: 4px 12px; border-radius: 5px; transition: all .2s; }
+.nav-link:hover { color: #4f9eff; border-color: #1a2d4a; }
+
+.layer-filter { position: fixed; top: 60px; left: 16px; display: flex; flex-direction: column; gap: 6px; z-index: 90; }
+.layer-btn { font-size: 10px; font-weight: 600; padding: 6px 14px; border-radius: 6px; border: 1px solid #1a2d4a; background: rgba(10,20,40,0.8); color: #5a7a9a; cursor: pointer; transition: all .2s; text-align: left; }
+.layer-btn:hover { border-color: #2a4d7a; color: #8ab8d8; }
+.layer-btn.active { border-color: var(--lc); color: var(--lc); background: rgba(10,20,40,0.95); }
+
+.panel { position: fixed; top: 48px; right: 0; width: 340px; height: calc(100vh - 48px); background: rgba(7,16,31,0.95); backdrop-filter: blur(12px); border-left: 1px solid #141f35; padding: 20px; overflow-y: auto; z-index: 90; transform: translateX(100%); transition: transform .3s ease; }
+.panel.open { transform: translateX(0); }
+.panel-close { position: absolute; top: 12px; right: 12px; background: none; border: 1px solid #1a2d4a; color: #5a7a9a; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px; }
+.panel-close:hover { color: #fff; border-color: #4f9eff; }
+.panel h2 { font-size: 16px; color: #fff; margin-bottom: 4px; }
+.panel .layer-tag { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 12px; }
+.panel p { font-size: 12px; line-height: 1.6; color: #8ab8d8; margin-bottom: 12px; }
+.panel h3 { font-size: 11px; font-weight: 700; color: #5a7a9a; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
+.panel .sub-item { font-size: 11px; color: #6a8aaa; padding: 4px 0; border-bottom: 1px solid #0d1a2d; }
+.panel .sub-key { color: #4ade80; font-weight: 600; }
+
+.legend { position: fixed; bottom: 16px; left: 16px; display: flex; gap: 12px; z-index: 90; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #5a7a9a; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+.hint { position: fixed; bottom: 16px; right: 16px; font-size: 10px; color: #2a4d7a; z-index: 90; text-align: right; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">MCS &middot; <em>3D Architecture</em></div>
+  <span class="badge">v4 interactive</span>
+  <div class="nav-links">
+    <a class="nav-link" href="mcs_architecture_visual.html">v1 Architecture</a>
+    <a class="nav-link" href="mcs_v2.html">v2 NPC State</a>
+    <a class="nav-link" href="mcs_v3.html">v3 NPC Anatomy</a>
+  </div>
+</div>
+
+<div class="layer-filter" id="layerFilter"></div>
+
+<div id="3d-graph"></div>
+
+<div class="panel" id="panel">
+  <button class="panel-close" id="panelClose">&times;</button>
+  <h2 id="panelTitle"></h2>
+  <span class="layer-tag" id="panelTag"></span>
+  <p id="panelDesc"></p>
+  <div id="panelSubs"></div>
+  <div id="panelConns"></div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="hint">
+  Hover &mdash; show connections<br>
+  Click &mdash; node details<br>
+  Scroll &mdash; zoom &middot; Drag &mdash; rotate
+</div>
+
+<script src="//cdn.jsdelivr.net/npm/3d-force-graph@1"></script>
+<script>
+(function() {
+'use strict';
+
+var LAYERS = {
+  L1: { name: 'L1 System', color: '#4f9eff', z: 300 },
+  L2: { name: 'L2 Parliament', color: '#f87171', z: 150 },
+  L3: { name: 'L3 Desires', color: '#fbbf24', z: 0 },
+  L4: { name: 'L4 Tick Lifecycle', color: '#a78bfa', z: -150 },
+  NPC: { name: 'NPC Anatomy', color: '#34d399', z: -300 },
+  META: { name: 'META Self Model', color: '#fb923c', z: -450 }
+};
+
+var nodes = [
+  { id: 'player', name: 'PLAYER', layer: 'L1', val: 3, desc: 'Player input. REST/WebSocket through FastAPI. Highest priority.' },
+  { id: 'world-engine', name: 'WORLD ENGINE', layer: 'L1', val: 3, desc: 'World events: death, weather, economy, time. World lives without player.' },
+  { id: 'fastapi', name: 'FastAPI :8000', layer: 'L1', val: 4, desc: 'Gateway. Auth validation, routing to priority queues in Redis. REST + SSE.' },
+  { id: 'celery-beat', name: 'Celery Beat', layer: 'L1', val: 2, desc: 'System clock. Periodic scheduler, generates idle_life_tick to LOW queue.' },
+  { id: 'redis', name: 'Redis', layer: 'L1', val: 5, desc: 'Nervous system. Pub/sub + priority queues (HIGH/MED/LOW). ~1M ops/s.' },
+  { id: 'social-fabric', name: 'Social Fabric', layer: 'L1', val: 3, desc: 'NPC-to-NPC relations. Reputation, rumors, trust, emotional contagion via pub/sub.' },
+  { id: 'celery-workers', name: 'Celery Workers', layer: 'L1', val: 4, desc: 'Muscles. Each NPC = separate OS process. Pick tasks by priority. Auto-retry.' },
+  { id: 'mcs-core', name: 'MCS Core', layer: 'L1', val: 5, desc: 'NPC brain. 4 personas argue, softmax normalizes weights, delta determines intensity. NO LLM.' },
+  { id: 'llm', name: 'LLM (local)', layer: 'L1', val: 3, desc: 'Called only on delta=RAPID|EXPLOSIVE or schedule. Generates dialogue.' },
+  { id: 'postgresql', name: 'PostgreSQL', layer: 'L1', val: 4, desc: 'Long-term NPC memory. State snapshots, relationship graph, event history.' },
+
+  { id: 'input-event', name: 'INCOMING EVENT', layer: 'L2', val: 3, desc: 'Any event entering the tick: player, world, or internal impulse.' },
+  { id: 'protector', name: 'Protector', layer: 'L2', val: 5, desc: 'Guardian. "What must I protect?" Triggers: threats, injustice. Conflicts with Thinker.', subs: ['base: 0.65', 'threat:physical +1.0', 'injustice +0.45', 'attack on close +0.8'] },
+  { id: 'instinct', name: 'Instinct', layer: 'L2', val: 5, desc: 'Body speaks first. "What do I feel?" Hunger, fatigue, desire. Conflicts with Mask.', subs: ['base: 0.55', 'adrenaline +0.85', 'fear +0.7', 'hunger +0.4', 'pain +0.9'] },
+  { id: 'thinker', name: 'Thinker', layer: 'L2', val: 5, desc: 'Analyzes consequences. Slow but precise. Suppresses impulses. Loses in crisis, wins in planning.', subs: ['base: 0.70', 'complex choice +0.5', 'negotiation +0.6', 'risk analysis +0.3'] },
+  { id: 'mask', name: 'Mask', layer: 'L2', val: 5, desc: 'Social mask. "What do they expect?" Reputation, conformity. Conflicts with Instinct.', subs: ['base: 0.45', 'witness +0.15/person', 'public reputation +0.5', 'reputation risk +0.6'] },
+  { id: 'softmax', name: 'Softmax', layer: 'L2', val: 4, desc: 'Normalizes raw persona scores to weights summing to 1.0. Nobody disappears, only dominates.' },
+  { id: 'delta', name: 'Delta', layer: 'L2', val: 4, desc: 'How much NPC state changed. STABLE<0.1, GRADUAL<0.3, RAPID<0.6, EXPLOSIVE>=0.6.' },
+  { id: 'inertia', name: 'Inertia Blend', layer: 'L2', val: 3, desc: 'Character does not change instantly. 70% new + 30% previous state.' },
+  { id: 'output-action', name: 'ACTION / WHISPER', layer: 'L2', val: 3, desc: 'Tick result: action (strong signal) or whisper (sub-threshold). Both matter for future ticks.' },
+
+  { id: 'gap', name: 'Gap', layer: 'L3', val: 4, desc: 'Distance between current state and desired state. 0=satisfied, 1=critical deficit.' },
+  { id: 'frustration', name: 'Frustration', layer: 'L3', val: 4, desc: 'Grows +0.05 each tick while desire unmet. Resets to 0 on satisfaction. Can exceed 1.0.' },
+  { id: 'resistance', name: '(1 - resistance)', layer: 'L3', val: 3, desc: 'Personal barrier: fear, habit, tiredness. High resistance weakens desire_pull.' },
+  { id: 'desire-pull', name: 'desire_pull', layer: 'L3', val: 5, desc: 'Resultant force pushing NPC to act. = gap * frustration * (1-resistance)' },
+  { id: 'compare', name: 'COMPARE', layer: 'L3', val: 4, desc: 'NPC compares what it WANTS vs what it MUST. Balance determines choice.' },
+  { id: 'fork', name: 'Decision Fork', layer: 'L3', val: 3, desc: 'If desire_pull > obligation_pull * 1.5 then procrastinate. Else act.' },
+  { id: 'procrastinate', name: 'PROCRASTINATE', layer: 'L3', val: 3, desc: 'NPC finds excuse, delays obligation, seeks immediate gratification.' },
+  { id: 'desire-action', name: 'ACTION (proactive)', layer: 'L3', val: 4, desc: 'NPC moves toward desired state. Proactive action without external trigger.' },
+  { id: 'learned-helplessness', name: 'Learned Helplessness', layer: 'L3', val: 3, desc: 'Protector accumulates failures. After N failures stops trying. Permanent until recovery.' },
+
+  { id: 'tick-event', name: 'EVENT (incoming)', layer: 'L4', val: 3, desc: 'Three sources: player (HIGH), world event (MED), or idle_life_tick (LOW).' },
+  { id: 'priority-queue', name: 'Redis Priority Queue', layer: 'L4', val: 3, desc: '3 queues: celery.high, celery.medium, celery.low. Worker checks high first.' },
+  { id: 'worker', name: 'Celery Worker', layer: 'L4', val: 3, desc: 'Dedicated worker per NPC. Task locking ensures one worker per NPC per tick.' },
+  { id: 'l1-math', name: 'L1 Math Tick', layer: 'L4', val: 5, desc: 'Pure math always runs: persona scores, softmax, delta, inertia blend. No LLM, milliseconds.' },
+  { id: 'delta-check', name: 'Delta Level Check', layer: 'L4', val: 4, desc: 'After L1 math, checks change intensity. STABLE/GRADUAL skip LLM. RAPID/EXPLOSIVE trigger LLM.' },
+  { id: 'state-update', name: 'State Update', layer: 'L4', val: 4, desc: 'New NPC state written: persona_weights, emotional_state, current_intent, action_log.' },
+  { id: 'l2-llm', name: 'L2: LLM Call', layer: 'L4', val: 4, desc: 'LLM receives context + state + event, generates: dialogue, inner monologue, memory fragment.' },
+  { id: 'persist-db', name: 'Persist to PostgreSQL', layer: 'L4', val: 3, desc: 'State saved to DB. NPC remembers between sessions. Async write to avoid blocking.' },
+  { id: 'publish-redis', name: 'Publish to Redis', layer: 'L4', val: 3, desc: 'NPC action published to bus. Social Fabric and other NPCs hear what happened.' },
+
+  { id: 'body-state', name: 'Body State', layer: 'NPC', val: 4, desc: 'Physical state ticking autonomously: hunger, fatigue, stress, health.', subs: ['hunger: 0-1, >0.7 Instinct +0.4', 'fatigue: 0-1, reduces attention', 'stress: 0-1, input to Instinct', 'health: 0-1, affects all personas'] },
+  { id: 'perception-filter', name: 'Perception Filter', layer: 'NPC', val: 4, desc: 'What NPC actually notices. attention_budget = 1.0 - fatigue. Tired NPC misses signals.', subs: ['attention_budget = 1.0 - fatigue', 'filter_threshold: weak events ignored', 'filter_bias: hungry NPC notices food'] },
+  { id: 'decision-gate', name: 'Decision Gate', layer: 'NPC', val: 4, desc: 'LLM or not. EXPLOSIVE>0.50 LLM immediately. HIGH 0.25-0.50 remember silently.' },
+  { id: 'action-emitter', name: 'Action Emitter', layer: 'NPC', val: 4, desc: 'System output. What NPC does: speak, move, trade, ignore. Emits to World + Social Fabric.' },
+
+  { id: 'self-model', name: 'Self Model', layer: 'META', val: 5, desc: 'How NPC sees itself. Modifies base_traits via multiplier. Biggest architectural gap.', subs: ['identity: beliefs about self', 'worth: 0-1, LOW Protector x1.5', 'world_view: is world fair/safe?', 'perceived_by_X: what NPC thinks others think'] }
+];
+
+var links = [
+  { source: 'player', target: 'fastapi', label: 'HIGH priority', strength: 5 },
+  { source: 'world-engine', target: 'fastapi', label: 'MEDIUM priority', strength: 4 },
+  { source: 'fastapi', target: 'redis', label: 'enqueue()', strength: 5 },
+  { source: 'celery-beat', target: 'redis', label: 'LOW tick', strength: 3 },
+  { source: 'redis', target: 'celery-workers', label: 'dequeue()', strength: 5 },
+  { source: 'redis', target: 'social-fabric', label: 'pub/sub', strength: 3 },
+  { source: 'celery-workers', target: 'mcs-core', label: 'run_tick()', strength: 5 },
+  { source: 'mcs-core', target: 'llm', label: 'if RAPID/EXPLOSIVE', strength: 3 },
+  { source: 'mcs-core', target: 'postgresql', label: 'persist()', strength: 4 },
+  { source: 'mcs-core', target: 'social-fabric', label: 'broadcast()', strength: 2 },
+
+  { source: 'input-event', target: 'protector', label: 'event', strength: 4 },
+  { source: 'input-event', target: 'instinct', label: 'event', strength: 4 },
+  { source: 'input-event', target: 'thinker', label: 'event', strength: 4 },
+  { source: 'input-event', target: 'mask', label: 'event', strength: 4 },
+  { source: 'protector', target: 'softmax', label: 'raw score', strength: 5 },
+  { source: 'instinct', target: 'softmax', label: 'raw score', strength: 5 },
+  { source: 'thinker', target: 'softmax', label: 'raw score', strength: 5 },
+  { source: 'mask', target: 'softmax', label: 'raw score', strength: 5 },
+  { source: 'softmax', target: 'delta', label: 'delta score', strength: 4 },
+  { source: 'softmax', target: 'inertia', label: 'blend', strength: 5 },
+  { source: 'inertia', target: 'output-action', label: 'final weights', strength: 5 },
+  { source: 'protector', target: 'thinker', label: 'gut vs analysis', strength: 3, conflict: true },
+  { source: 'instinct', target: 'mask', label: 'raw vs social', strength: 3, conflict: true },
+
+  { source: 'gap', target: 'desire-pull', label: 'multiply', strength: 5 },
+  { source: 'frustration', target: 'desire-pull', label: 'multiply', strength: 5 },
+  { source: 'resistance', target: 'desire-pull', label: 'multiply (1-r)', strength: 4 },
+  { source: 'desire-pull', target: 'compare', label: 'desire_pull value', strength: 5 },
+  { source: 'compare', target: 'fork', label: 'comparison result', strength: 4 },
+  { source: 'fork', target: 'procrastinate', label: 'desire > oblig x1.5', strength: 3 },
+  { source: 'fork', target: 'desire-action', label: 'balanced', strength: 4 },
+  { source: 'learned-helplessness', target: 'protector', label: 'weakens Protector', strength: 3 },
+
+  { source: 'tick-event', target: 'priority-queue', label: 'enqueue', strength: 4 },
+  { source: 'priority-queue', target: 'worker', label: 'dequeue', strength: 4 },
+  { source: 'worker', target: 'l1-math', label: 'process', strength: 5 },
+  { source: 'l1-math', target: 'delta-check', label: 'delta value', strength: 5 },
+  { source: 'delta-check', target: 'state-update', label: 'STABLE/GRADUAL', strength: 4 },
+  { source: 'delta-check', target: 'l2-llm', label: 'RAPID/EXPLOSIVE', strength: 3 },
+  { source: 'l2-llm', target: 'state-update', label: 'LLM response', strength: 4 },
+  { source: 'state-update', target: 'persist-db', label: 'new state', strength: 4 },
+  { source: 'persist-db', target: 'publish-redis', label: 'publish', strength: 3 },
+
+  { source: 'body-state', target: 'instinct', label: 'stress to raw score', strength: 5 },
+  { source: 'body-state', target: 'perception-filter', label: 'fatigue to attention', strength: 4 },
+  { source: 'perception-filter', target: 'mcs-core', label: 'filtered events', strength: 5 },
+  { source: 'mcs-core', target: 'decision-gate', label: 'weights + delta', strength: 5 },
+  { source: 'decision-gate', target: 'action-emitter', label: 'action intent', strength: 5 },
+  { source: 'action-emitter', target: 'world-engine', label: 'action to world', strength: 4 },
+  { source: 'action-emitter', target: 'social-fabric', label: 'social signal', strength: 4 },
+  { source: 'self-model', target: 'mcs-core', label: 'modifies base_traits', strength: 4 }
+];
+
+// Assign layer properties
+nodes.forEach(function(n) {
+  var L = LAYERS[n.layer];
+  n.color = L.color;
+  n.fz = L.z;
+  n.layerName = L.name;
+});
+
+var gData = { nodes: nodes, links: links };
+
+// Cross-link neighbors
+gData.links.forEach(function(link) {
+  var a = nodes.find(function(n) { return n.id === link.source; });
+  var b = nodes.find(function(n) { return n.id === link.target; });
+  if (!a || !b) return;
+  if (!a.neighbors) a.neighbors = [];
+  if (!b.neighbors) b.neighbors = [];
+  a.neighbors.push(b);
+  b.neighbors.push(a);
+  if (!a.links) a.links = [];
+  if (!b.links) b.links = [];
+  a.links.push(link);
+  b.links.push(link);
+});
+
+// Highlight state
+var highlightNodes = new Set();
+var highlightLinks = new Set();
+var hoverNode = null;
+var activeLayerFilter = null;
+
+function getNodeFromLink(link, prop) {
+  return typeof link[prop] === 'object' ? link[prop] : nodes.find(function(n) { return n.id === link[prop]; });
+}
+
+var Graph = new ForceGraph3D(document.getElementById('3d-graph'))
+  .graphData(gData)
+  .backgroundColor('#060b18')
+  .width(window.innerWidth)
+  .height(window.innerHeight)
+  .nodeVal(function(n) {
+    if (activeLayerFilter && n.layer !== activeLayerFilter) return n.val * 0.3;
+    return n.val;
+  })
+  .nodeColor(function(n) {
+    if (activeLayerFilter && n.layer !== activeLayerFilter) return 'rgba(40,50,70,0.3)';
+    if (highlightNodes.size === 0) return n.color;
+    if (n === hoverNode) return '#ffffff';
+    if (highlightNodes.has(n)) return n.color;
+    return 'rgba(40,50,70,0.3)';
+  })
+  .nodeOpacity(1)
+  .nodeLabel(function(n) {
+    var el = document.createElement('div');
+    el.style.cssText = 'background:#0d1a2d;border:1px solid #1a2d4a;border-radius:6px;padding:8px 12px;font-size:11px;color:#c9d4e8;max-width:260px';
+    var title = document.createElement('strong');
+    title.style.color = '#fff';
+    title.textContent = n.name;
+    var br1 = document.createElement('br');
+    var layerSpan = document.createElement('span');
+    layerSpan.style.cssText = 'color:' + n.color + ';font-size:9px';
+    layerSpan.textContent = n.layerName;
+    var br2 = document.createElement('br');
+    var descSpan = document.createElement('span');
+    descSpan.style.cssText = 'color:#6a8aaa;font-size:10px';
+    descSpan.textContent = n.desc.length > 120 ? n.desc.slice(0, 120) + '...' : n.desc;
+    el.appendChild(title);
+    el.appendChild(br1);
+    el.appendChild(layerSpan);
+    el.appendChild(br2);
+    el.appendChild(descSpan);
+    return el;
+  })
+  .linkWidth(function(link) {
+    if (activeLayerFilter) {
+      var s = getNodeFromLink(link, 'source');
+      var t = getNodeFromLink(link, 'target');
+      if (s && t && s.layer !== activeLayerFilter && t.layer !== activeLayerFilter) return 0.2;
+    }
+    if (highlightLinks.has(link)) return link.conflict ? 3 : 4;
+    return link.conflict ? 0.8 : 1;
+  })
+  .linkColor(function(link) {
+    if (link.conflict) return highlightLinks.has(link) ? '#ff4444' : 'rgba(255,60,60,0.25)';
+    if (highlightLinks.has(link)) return 'rgba(255,255,255,0.6)';
+    if (activeLayerFilter) {
+      var s = getNodeFromLink(link, 'source');
+      var t = getNodeFromLink(link, 'target');
+      if (s && t && s.layer !== activeLayerFilter && t.layer !== activeLayerFilter) return 'rgba(30,40,60,0.15)';
+    }
+    return 'rgba(80,120,180,0.2)';
+  })
+  .linkDirectionalArrowLength(function(link) { return link.conflict ? 0 : 4; })
+  .linkDirectionalArrowRelPos(1)
+  .linkDirectionalParticles(function(link) { return highlightLinks.has(link) && !link.conflict ? 3 : 0; })
+  .linkDirectionalParticleWidth(2)
+  .linkDirectionalParticleColor(function() { return 'rgba(255,255,255,0.7)'; })
+  .linkLabel(function(link) {
+    var el = document.createElement('span');
+    el.style.cssText = 'background:#0d1a2d;border:1px solid #1a2d4a;border-radius:4px;padding:3px 8px;font-size:10px;color:#8ab8d8';
+    el.textContent = link.label || '';
+    return el;
+  })
+  .onNodeHover(function(node) {
+    highlightNodes.clear();
+    highlightLinks.clear();
+    if (node) {
+      highlightNodes.add(node);
+      if (node.neighbors) node.neighbors.forEach(function(n) { highlightNodes.add(n); });
+      if (node.links) node.links.forEach(function(l) { highlightLinks.add(l); });
+    }
+    hoverNode = node || null;
+    updateHighlight();
+    document.body.style.cursor = node ? 'pointer' : 'default';
+  })
+  .onNodeClick(function(node) {
+    showPanel(node);
+    var distance = 120;
+    var distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+    Graph.cameraPosition(
+      { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+      node, 1500
+    );
+  })
+  .onBackgroundClick(function() {
+    document.getElementById('panel').classList.remove('open');
+  })
+  .cooldownTime(5000);
+
+Graph.d3Force('charge').strength(-120);
+
+// Fix Z axis for layers
+setTimeout(function() {
+  nodes.forEach(function(n) { n.fz = LAYERS[n.layer].z; });
+  Graph.refresh();
+}, 100);
+
+function updateHighlight() {
+  Graph
+    .nodeColor(Graph.nodeColor())
+    .nodeVal(Graph.nodeVal())
+    .linkWidth(Graph.linkWidth())
+    .linkColor(Graph.linkColor())
+    .linkDirectionalParticles(Graph.linkDirectionalParticles());
+}
+
+// Side panel
+function showPanel(node) {
+  var panel = document.getElementById('panel');
+  var L = LAYERS[node.layer];
+
+  document.getElementById('panelTitle').textContent = node.name;
+
+  var tag = document.getElementById('panelTag');
+  tag.textContent = L.name;
+  tag.style.background = L.color + '22';
+  tag.style.color = L.color;
+  tag.style.border = '1px solid ' + L.color + '44';
+
+  document.getElementById('panelDesc').textContent = node.desc;
+
+  var subsEl = document.getElementById('panelSubs');
+  subsEl.textContent = '';
+  if (node.subs && node.subs.length) {
+    var h3 = document.createElement('h3');
+    h3.textContent = 'Sub-components';
+    subsEl.appendChild(h3);
+    node.subs.forEach(function(s) {
+      var div = document.createElement('div');
+      div.className = 'sub-item';
+      var parts = s.split(':');
+      var keySpan = document.createElement('span');
+      keySpan.className = 'sub-key';
+      keySpan.textContent = parts[0];
+      div.appendChild(keySpan);
+      if (parts.length > 1) {
+        div.appendChild(document.createTextNode(':' + parts.slice(1).join(':')));
+      }
+      subsEl.appendChild(div);
+    });
+  }
+
+  var connsEl = document.getElementById('panelConns');
+  connsEl.textContent = '';
+  if (node.neighbors && node.neighbors.length) {
+    var h3c = document.createElement('h3');
+    h3c.textContent = 'Connections';
+    connsEl.appendChild(h3c);
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px';
+    node.neighbors.forEach(function(n) {
+      var span = document.createElement('span');
+      span.style.cssText = 'font-size:9px;padding:2px 8px;border-radius:3px;background:#0d1a2d;border:1px solid ' + LAYERS[n.layer].color + '44;color:' + LAYERS[n.layer].color;
+      span.textContent = n.name;
+      wrap.appendChild(span);
+    });
+    connsEl.appendChild(wrap);
+  }
+
+  panel.classList.add('open');
+}
+
+document.getElementById('panelClose').addEventListener('click', function() {
+  document.getElementById('panel').classList.remove('open');
+});
+
+// Layer filter buttons
+var filterEl = document.getElementById('layerFilter');
+
+var allBtn = document.createElement('button');
+allBtn.className = 'layer-btn active';
+allBtn.textContent = 'ALL LAYERS';
+allBtn.style.setProperty('--lc', '#fff');
+allBtn.addEventListener('click', function() {
+  activeLayerFilter = null;
+  document.querySelectorAll('.layer-btn').forEach(function(b) { b.classList.remove('active'); });
+  allBtn.classList.add('active');
+  updateHighlight();
+});
+filterEl.appendChild(allBtn);
+
+Object.keys(LAYERS).forEach(function(key) {
+  var L = LAYERS[key];
+  var count = nodes.filter(function(n) { return n.layer === key; }).length;
+  var btn = document.createElement('button');
+  btn.className = 'layer-btn';
+  btn.style.setProperty('--lc', L.color);
+  var nameSpan = document.createElement('span');
+  nameSpan.style.color = L.color;
+  nameSpan.textContent = L.name;
+  var countSpan = document.createElement('span');
+  countSpan.style.cssText = 'color:#3a5a7a;font-size:9px';
+  countSpan.textContent = ' (' + count + ')';
+  btn.appendChild(nameSpan);
+  btn.appendChild(countSpan);
+  btn.addEventListener('click', function() {
+    activeLayerFilter = key;
+    document.querySelectorAll('.layer-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    updateHighlight();
+  });
+  filterEl.appendChild(btn);
+});
+
+// Legend
+var legendEl = document.getElementById('legend');
+Object.keys(LAYERS).forEach(function(key) {
+  var L = LAYERS[key];
+  var item = document.createElement('div');
+  item.className = 'legend-item';
+  var dot = document.createElement('div');
+  dot.className = 'legend-dot';
+  dot.style.background = L.color;
+  item.appendChild(dot);
+  item.appendChild(document.createTextNode(L.name));
+  legendEl.appendChild(item);
+});
+
+window.addEventListener('resize', function() {
+  Graph.width(window.innerWidth).height(window.innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>

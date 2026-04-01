@@ -105,13 +105,7 @@ def _dn(agent_id: str, names: dict) -> str:
     return names.get(agent_id) or agent_id.split("_")[-1][:8]
 
 
-def _cooperation_val(val) -> float:
-    """Extract cooperation from legacy float or per-dim dict."""
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        return float(val.get("cooperation", 0.5))
-    return 0.5
+from pipeline.utils import _cooperation_val
 
 
 def _format_received(actions_received: dict, names: dict = None) -> str:
@@ -261,6 +255,7 @@ def generate_reasoning(
     agent_names: Optional[dict] = None,
     story_context: str = "",
     situation_text: str = "",
+    situation_reflection: str = "",
     round_event_text: str = "",
     event_participants: Optional[List[str]] = None,
 ) -> ReasoningResult:
@@ -340,6 +335,8 @@ def generate_reasoning(
     if situation_text:
         sit_short = situation_text[:350] + ("..." if len(situation_text) > 350 else "")
         user_parts.append(f"\nСитуація: {sit_short}")
+    if situation_reflection and situation_reflection.strip():
+        user_parts.append(f"\nТвоя реакція на ситуацію: {situation_reflection.strip()[:250]}")
     if bio and bio.strip():
         user_parts.append(f"\nТвоя біографія (коротко): {bio.strip()[:500]}")
 

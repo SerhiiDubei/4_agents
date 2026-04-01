@@ -215,13 +215,7 @@ def tick_cooldowns(states: Dict[str, AgentState]) -> Dict[str, AgentState]:
 # Round outcome — what happened to/around an agent this round
 # ---------------------------------------------------------------------------
 
-def _cooperation_value(val: Any) -> float:
-    """Extract cooperation action from legacy float or per-dim dict."""
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        return float(val.get("cooperation", 0.5))
-    return 0.5
+from pipeline.utils import _cooperation_val as _cooperation_value
 
 
 @dataclass
