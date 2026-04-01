@@ -164,6 +164,40 @@ textarea::placeholder{color:var(--muted)}
 .sum-title{font-size:1.0rem;font-weight:700;color:var(--accent);margin-bottom:14px}
 .sum-row{padding:6px 0;font-size:0.88rem;border-bottom:1px solid var(--border)}
 
+/* ── LLM I/O PANEL ── */
+.llm-round{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.llm-round-hdr{padding:8px 14px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.llm-round-hdr .rnum{font-weight:800;font-size:0.88rem;color:var(--accent)}
+
+.llm-call{border-bottom:1px solid var(--border)}
+.llm-call:last-child{border-bottom:none}
+.llm-call-hdr{padding:7px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;transition:background .12s}
+.llm-call-hdr:hover{background:var(--s2)}
+.llm-call.collapsed .llm-call-body{display:none}
+.llm-call-body{padding:10px 14px}
+
+.phase-badge{font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px}
+.phase-dialog{background:#1a3040;color:#9dd5f5}
+.phase-reasoning{background:#2a1f40;color:#b8a9e8}
+.phase-reflection{background:#1f2f1a;color:#3dd68c}
+.phase-narrative{background:#2a1a30;color:#c8b4f7}
+.phase-other{background:var(--s2);color:var(--muted)}
+
+.llm-agent{font-weight:700;font-size:0.82rem;flex:1}
+.llm-meta{font-size:0.64rem;color:var(--muted);margin-left:auto;display:flex;gap:8px;align-items:center}
+.schema-badge{background:#1a2f1a;color:#3dd68c;font-size:0.6rem;padding:1px 5px;border-radius:3px;font-weight:600}
+
+.llm-section{margin-bottom:8px}
+.llm-section-hdr{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--s2);border-radius:5px;cursor:pointer;user-select:none;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border:1px solid var(--border)}
+.llm-section-hdr:hover{background:#252b3a}
+.llm-section.collapsed .llm-section-body{display:none}
+.llm-section-hdr .stoggle{margin-left:auto;transition:transform .15s}
+.llm-section.collapsed .llm-section-hdr .stoggle{transform:rotate(-90deg)}
+.llm-pre{font-family:'Cascadia Code','Consolas',monospace;font-size:0.72rem;line-height:1.6;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;color:var(--text);margin-top:4px;max-height:400px;overflow-y:auto}
+.llm-pre.system{color:#9dd5f5}
+.llm-pre.user{color:#b8f0c8}
+.llm-pre.response{color:#f7d794}
+
 /* Status bar */
 .statusbar{padding:6px 16px;background:var(--surface);border-top:1px solid var(--border);font-size:0.68rem;color:var(--muted);display:flex;align-items:center;gap:7px;flex-shrink:0}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
@@ -212,6 +246,9 @@ textarea::placeholder{color:var(--muted)}
         World Engine <span class="tbadge" id="weCount">0</span>
       </div>
       <div class="tab" id="tabSum" onclick="switchTab('sum')">Підсумок</div>
+      <div class="tab" id="tabLLM" onclick="switchTab('llm')">
+        LLM I/O <span class="tbadge" id="llmCount">0</span>
+      </div>
     </div>
 
     <!-- LOG panel -->
@@ -225,6 +262,13 @@ textarea::placeholder{color:var(--muted)}
     <div class="panel" id="panelWE">
       <div class="we-panel" id="wePanel">
         <div class="log-empty"><div class="ico">&#127759;</div><div>World Engine дані з'являться після першого раунду</div></div>
+      </div>
+    </div>
+
+    <!-- LLM I/O panel -->
+    <div class="panel" id="panelLLM">
+      <div class="we-panel" id="llmPanel">
+        <div class="log-empty"><div class="ico">&#129302;</div><div>LLM виклики з'являться під час симуляції</div></div>
       </div>
     </div>
 
@@ -263,12 +307,15 @@ function empty(el){ while(el.firstChild) el.removeChild(el.firstChild); }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(name){
-  g('tabLog').classList.toggle('active', name==='log');
+  ['log','we','sum','llm'].forEach(t=>{
+    g('tab'+t[0].toUpperCase()+t.slice(1)).classList.toggle('active', t===name);
+    g('panel'+t[0].toUpperCase()+t.slice(1)).classList.toggle('active', t===name);
+  });
+  // Handle non-standard IDs
   g('tabWE').classList.toggle('active', name==='we');
-  g('tabSum').classList.toggle('active', name==='sum');
-  g('panelLog').classList.toggle('active', name==='log');
   g('panelWE').classList.toggle('active', name==='we');
-  g('panelSum').classList.toggle('active', name==='sum');
+  g('tabLLM').classList.toggle('active', name==='llm');
+  g('panelLLM').classList.toggle('active', name==='llm');
 }
 
 // ── Archetype ─────────────────────────────────────────────────────────────────
@@ -592,6 +639,76 @@ function renderWeRound(data){
   wep.scrollTop = wep.scrollHeight;
 }
 
+// ── LLM I/O tab ───────────────────────────────────────────────────────────────
+let llmCallCount = 0;
+let llmCurrentRound = 0;
+let llmCurrentRoundEl = null;
+
+function makeLlmSection(label, content, colorClass){
+  const sec = mk('div','llm-section collapsed');
+  const hdr = mk('div','llm-section-hdr');
+  hdr.appendChild(mk('span',null,label));
+  const tog = mk('span','stoggle','▼');
+  hdr.appendChild(tog);
+  hdr.addEventListener('click',()=>sec.classList.toggle('collapsed'));
+  const body = mk('div','llm-section-body');
+  const pre = mk('pre','llm-pre '+colorClass, content);
+  body.appendChild(pre);
+  sec.appendChild(hdr); sec.appendChild(body);
+  return sec;
+}
+
+function renderLlmEvent(data){
+  const panel = g('llmPanel');
+  const empty_el = panel.querySelector('.log-empty');
+  if(empty_el) panel.removeChild(empty_el);
+
+  // New round container if needed
+  if(data.round !== llmCurrentRound){
+    llmCurrentRound = data.round;
+    const roundEl = mk('div','llm-round');
+    const rhdr = mk('div','llm-round-hdr');
+    rhdr.appendChild(mk('span','rnum','Раунд '+data.round+'/'+data.total));
+    roundEl.appendChild(rhdr);
+    panel.appendChild(roundEl);
+    llmCurrentRoundEl = roundEl;
+  }
+
+  const callEl = mk('div','llm-call collapsed');
+  const chdr = mk('div','llm-call-hdr');
+
+  // Phase badge
+  const phaseCls = {dialog:'phase-dialog',reasoning:'phase-reasoning',reflection:'phase-reflection',narrative:'phase-narrative'}[data.phase]||'phase-other';
+  chdr.appendChild(mk('span','phase-badge '+phaseCls, data.phase));
+
+  // Agent name
+  chdr.appendChild(mk('span','llm-agent', data.agent_name||data.agent_id.slice(-8)));
+
+  // Meta: model, schema
+  const meta = mk('div','llm-meta');
+  meta.appendChild(mk('span',null, data.model.split('/').pop()));
+  meta.appendChild(mk('span',null,'t='+data.temperature));
+  if(data.has_schema) meta.appendChild(mk('span','schema-badge','JSON'));
+  chdr.appendChild(meta);
+
+  chdr.addEventListener('click',()=>callEl.classList.toggle('collapsed'));
+  const cbody = mk('div','llm-call-body');
+
+  // System / User / Response sections
+  cbody.appendChild(makeLlmSection('System Prompt', data.system, 'system'));
+  cbody.appendChild(makeLlmSection('User Prompt', data.user, 'user'));
+  // Try to pretty-print response if JSON
+  let respText = data.response||'';
+  try{ respText = JSON.stringify(JSON.parse(respText), null, 2); } catch(e){}
+  cbody.appendChild(makeLlmSection('Response', respText, 'response'));
+
+  callEl.appendChild(chdr); callEl.appendChild(cbody);
+  if(llmCurrentRoundEl) llmCurrentRoundEl.appendChild(callEl);
+
+  llmCallCount++;
+  g('llmCount').textContent = String(llmCallCount);
+}
+
 // ── SUMMARY ───────────────────────────────────────────────────────────────────
 function buildSummary(){
   const panel = g('sumPanel'); empty(panel);
@@ -622,7 +739,7 @@ function buildSummary(){
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
 async function launchSim(){
   if(running) return;
-  running=true; lineCount=0; weRoundCount=0; currentSection=null;
+  running=true; lineCount=0; weRoundCount=0; llmCallCount=0; llmCurrentRound=0; llmCurrentRoundEl=null; currentSection=null;
   finalScoreLines.length=0;
 
   const btn=g('btnLaunch'); const dot=g('statusDot');
@@ -639,6 +756,8 @@ async function launchSim(){
   // Clear all panels
   const logP=g('logPanel'); empty(logP);
   const weP=g('wePanel'); empty(weP);
+  const llmP=g('llmPanel'); empty(llmP);
+  g('llmCount').textContent='0';
 
   // Init header in log
   const infoLine=mk('div','ll hd');
@@ -671,11 +790,14 @@ async function launchSim(){
 
         // World Engine structured event
         if(line.startsWith('WE_EVENT:')){
-          try{
-            const data=JSON.parse(line.slice(9));
-            renderWeRound(data);
-          } catch(e){ /* ignore parse errors */ }
-          continue; // don't show in main log
+          try{ renderWeRound(JSON.parse(line.slice(9))); } catch(e){}
+          continue;
+        }
+
+        // LLM I/O event
+        if(line.startsWith('LLM_EVENT:')){
+          try{ renderLlmEvent(JSON.parse(line.slice(10))); } catch(e){}
+          continue;
         }
 
         appendLog(line);

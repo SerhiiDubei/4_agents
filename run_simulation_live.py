@@ -625,6 +625,71 @@ def print_reasoning(round_result, agent_ids, names: dict = None):
             print(f"  {DIM}{disp:10s}  (no reasoning){RESET}", flush=True)
 
 
+# ---------------------------------------------------------------------------
+# LLM I/O event helpers
+# ---------------------------------------------------------------------------
+
+_current_round_num = [0]   # updated by live_progress on each dialog_start
+
+
+def _llm_detect_phase(system: str) -> str:
+    """Detect which simulation phase triggered this LLM call from system prompt."""
+    if "You are generating dialog" in system:
+        return "dialog"
+    if "decide how much to cooperate" in system or '"intents"' in system:
+        return "reasoning"
+    if "reflection" in system.lower() or "нотатку" in system.lower():
+        return "reflection"
+    if "narrative" in system.lower() or "story" in system.lower():
+        return "narrative"
+    return "other"
+
+
+def _llm_detect_agent(system: str, user: str, names: dict) -> tuple:
+    """Return (agent_id, agent_name) from prompt content."""
+    import re as _re
+    # Reasoning: system starts with "You are {display_name}."
+    m = _re.match(r"You are (.+?)\.", system.strip())
+    if m and "generating dialog" not in system:
+        cand_name = m.group(1).strip()
+        # Lookup by name
+        for aid, aname in names.items():
+            if aname and aname.lower() == cand_name.lower():
+                return aid, aname
+        return "unknown", cand_name
+    # Dialog: user prompt starts with "AGENT PROFILE:\nТи {name}."
+    m2 = _re.search(r"Ти\s+(\S+)", user[:300])
+    if m2:
+        cand_name = m2.group(1).rstrip(".,!?")
+        for aid, aname in names.items():
+            if aname and aname.lower().startswith(cand_name.lower()):
+                return aid, aname
+        return "unknown", cand_name
+    return "unknown", "unknown"
+
+
+def emit_llm_event(phase: str, agent_id: str, agent_name: str,
+                   system: str, user: str, response: str,
+                   model: str, temperature: float, max_tokens: int,
+                   has_schema: bool, total_rounds: int):
+    """Emit LLM_EVENT: JSON line to stdout for LLM I/O tab in browser."""
+    payload = {
+        "round": _current_round_num[0],
+        "total": total_rounds,
+        "phase": phase,
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "has_schema": has_schema,
+        "system": system,
+        "user": user,
+        "response": response,
+    }
+    print(f"LLM_EVENT:{json.dumps(payload, ensure_ascii=False)}", flush=True)
+
+
 def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
                   story_params=None, cores: dict = None):
     """Emit a single-line WE_EVENT: JSON for the World Engine tab in the browser."""
@@ -1085,6 +1150,7 @@ def main():
         _phase_start[0] = now
 
         if stage == "dialog_start":
+            _current_round_num[0] = rnum   # track for LLM_EVENT emitter
             _phase_start[0] = now
             _round_start[0] = now
             if args.verbose:
@@ -1159,11 +1225,53 @@ def main():
     # Store result reference in holder so live_progress "complete" can access it
     _sim_result_holder[0] = type('_R', (), {'rounds': []})()  # empty placeholder
 
-    # story_params is generated inside run_simulation — we hook it via on_progress
-    # "simulation_start" event (emitted at beginning) carries story params
-    # For now, we set it after the first round via on_progress "dialog_start" r1
+    # ── Monkey-patch call_openrouter to capture all LLM I/O ──────────────────
+    import pipeline.seed_generator as _seed_gen
+    _orig_call_openrouter = _seed_gen.call_openrouter
+
+    def _patched_call_openrouter(
+        system_prompt: str,
+        user_prompt: str,
+        model: str = "openai/gpt-4o-mini",
+        temperature: float = 0.85,
+        max_tokens: int = 300,
+        timeout: int = 120,
+        json_schema=None,
+        api_key=None,
+    ) -> str:
+        response = _orig_call_openrouter(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            json_schema=json_schema,
+            api_key=api_key,
+        )
+        try:
+            phase = _llm_detect_phase(system_prompt)
+            aid, aname = _llm_detect_agent(system_prompt, user_prompt, names)
+            emit_llm_event(
+                phase=phase,
+                agent_id=aid,
+                agent_name=aname,
+                system=system_prompt,
+                user=user_prompt,
+                response=response or "",
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                has_schema=(json_schema is not None),
+                total_rounds=args.rounds,
+            )
+        except Exception:
+            pass  # never break simulation due to logging
+        return response
+
+    _seed_gen.call_openrouter = _patched_call_openrouter
+
     def _on_progress_with_sp(event: str, round_result=None):
-        # Grab story_params from result after first round setup
         live_progress(event, round_result)
 
     result = run_simulation(
