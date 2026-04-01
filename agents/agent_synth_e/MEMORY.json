@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_e",
-  "total_score": 813.808,
+  "total_score": 172.6401,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -437,6 +437,81 @@
         "agent_synth_jesus": 0.66,
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 420.61,
+      "winner": "agent_synth_e",
+      "betrayals_received": 39,
+      "cooperations_received": 41,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Переміг, але якою ціною? Багато з тих, кому я довіряв, підвели мене. Вождь виявився ненадійним, хоч і давав надію на співпрацю. Алєг, Роман, Марта – їхній вибір мене здивував, я очікував більшої підтримки. Вова та Ліля – ось хто справді показав свою вірність, їхню підтримку я ціную найбільше. Наступного разу буду обережнішим у виборі союзників, бо в цьому світі довіра – рідкісний товар.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 1.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 0.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 6,
+      "final_score": 116.77,
+      "winner": "agent_synth_f",
+      "betrayals_received": 9,
+      "cooperations_received": 15,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Катерина Марсова виявилася найхитрішою з нас усіх, або просто найрозумнішою. Я, як завжди, занадто довго намагався грати в хорошого хлопця, особливо з Дімончиком – він зрадив мене раз за разом, а я все одно вірив у нього. Марта теж виявилася ненадійною. Наступного разу треба бути більш жорстким з самого початку, не давати нікому можливості скористатися мною.",
+      "trust_snapshot": {
+        "agent_synth_h": 0.0,
+        "agent_synth_g": 0.66,
+        "agent_synth_f": 1.0,
+        "agent_synth_dimonchyk": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 172.64,
+      "winner": "agent_synth_c",
+      "betrayals_received": 17,
+      "cooperations_received": 15,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Знову мене обвели навколо пальця. Алєг виграв, а я, як завжди, повірив не тим. Треба було з самого початку дотримуватися жорсткої лінії, а не намагатися грати в \"доброго хлопця\" з Романом Романюком і Катериною Марсовою. Вони теж мене зрадили, як і більшість інших. Наступного разу нікому не довірятиму, особливо Вождю, він двічі намагався зіграти чесно, а це найгірший вид брехні. Краще бути одному, ніж знову відчувати це розчарування від зради Марти, Дімончика та Чорної Кішки.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.33,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 0.66,
+        "agent_synth_mykyta": 0.33,
         "agent_synth_natalka": 0.33
       }
     }

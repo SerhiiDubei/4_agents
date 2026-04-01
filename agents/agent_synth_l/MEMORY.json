@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_l",
-  "total_score": 796.3808,
+  "total_score": 56.1763,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -438,6 +438,80 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 1.0,
         "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 371.04,
+      "winner": "agent_synth_e",
+      "betrayals_received": 52,
+      "cooperations_received": 28,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все. Тайлер Дерден виграв, а я, як завжди, десь посередині. Стільки разів мене зрадили, особливо боляче від Чорної Кішки та Сергія, я ж їм довіряв. З Алєгом і Романом Романюком треба бути обережнішим, хоч і допомагали мені. Наступного разу буду уважнішим до того, хто як поводиться, може, тоді й вийде щось путнє. Треба менше вірити людям, це точно.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 0.33,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 171.3,
+      "winner": "agent_synth_c",
+      "betrayals_received": 17,
+      "cooperations_received": 15,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і збіговисько зміюк. Алєг виграв, а я знову в дурнях лишився. Стільки разів мене зрадили, що я вже й не знаю, кому вірити. Павла треба було підтримувати до кінця, він хоч намагався по-людськи. І, може, з Катериною Марсовою треба було більше співпрацювати, вона хоч якось намагалася. Більше нікому не буду вірити, хіба що собі. І, блін, треба було з самого початку грати жорсткіше.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 56.18,
+      "winner": "agent_synth_d",
+      "betrayals_received": 8,
+      "cooperations_received": 4,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, Артурчику, знову ти повівся як ідіот. Я довіряв Роману, віддавав йому все, а він просто користувався моєю добротою. Катерина і Ліля з самого початку показали себе не з кращого боку, але я все одно намагався знайти з ними спільну мову. В наступний раз буду діяти жорсткіше, не буду таким наївним. Можливо, варто було з самого початку ставитися до всіх з підозрою, а не намагатися бути хорошим хлопцем.",
+      "trust_snapshot": {
+        "agent_synth_d": 1.0,
+        "agent_synth_f": 0.33,
+        "agent_synth_k": 0.33
       }
     }
   ],

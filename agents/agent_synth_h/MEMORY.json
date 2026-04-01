@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_h",
-  "total_score": 831.2312,
+  "total_score": 170.3753,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -568,6 +568,97 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 1.0,
         "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 397.81,
+      "winner": "agent_synth_e",
+      "betrayals_received": 45,
+      "cooperations_received": 35,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Тайлер Дерден виграв... Не дивно, він здавався хитрим з самого початку. Я зрозуміла, що довіряти всім підряд – це моя помилка. Особливо Вождю, він мене зрадив кілька разів, хоча я намагалася з ним співпрацювати. Наступного разу буду обережніша з тим, кому відкриваюся. Можливо, варто було більше уваги приділяти тим, хто стабільно співпрацював, як Павло та Наталка Калітчак, а не намагатися перехитрити всіх.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 0.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 6,
+      "final_score": 118.99,
+      "winner": "agent_synth_f",
+      "betrayals_received": 15,
+      "cooperations_received": 9,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і гра. Катерина виявилась хитрішою за мене, хоч я й не розраховувала, що вона така простачка. Треба було з самого початку ставитись до неї з більшою підозрою. Тайлер Дерден - справжній зрадник, ніколи йому не довірюсь, хоч і шкода, що він так легко купився на мою гру. Дімончик теж виявився не надто розумним, а Вождь... ну, він хоч і передбачуваний, але все одно дратує своєю впертістю. Наступного разу буду більш безжальною, треба менше думати про співпрацю і більше про власну вигоду.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 1.0,
+        "agent_synth_dimonchyk": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 67.48,
+      "winner": "agent_synth_f",
+      "betrayals_received": 4,
+      "cooperations_received": 8,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Катерина Марсова виграла? От же ж гадюка! Я їй так довіряла, а вона, виходить, мене обіграла. Треба було з самого початку бути обережнішою. Хесус, здається, щирий, але Вождь... від нього завжди чекай підступу. В наступній грі буду грати жорсткіше, нікому не віритиму так сліпо.",
+      "trust_snapshot": {
+        "agent_synth_jesus": 1.0,
+        "agent_synth_g": 0.33,
+        "agent_synth_f": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 170.38,
+      "winner": "agent_synth_c",
+      "betrayals_received": 18,
+      "cooperations_received": 14,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Що ж, черговий раз мене обдурили. Я була надто довірливою, особливо до Вождя в другому раунді – дарма я йому повірила. Алєг, як завжди, виявився хитрим лисом, але я чомусь сподівалася на інший результат. Роману Романюку, схоже, теж не можна довіряти. Наступного разу буду більш обережною і жорсткою з самого початку, ніяких компромісів.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.0,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.66,
+        "agent_synth_natalka": 0.33
       }
     }
   ],

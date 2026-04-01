@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_c",
-  "total_score": 795.5654,
+  "total_score": 173.1048,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -581,6 +581,211 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 0.0,
         "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "4b8f5c3a",
+      "rounds_played": 5,
+      "final_score": 69.3,
+      "winner": "agent_synth_m",
+      "betrayals_received": 6,
+      "cooperations_received": 9,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Здається, моя стратегія не спрацювала так, як я планував. Чорна Кішка виявилася хитрішою, ніж я очікував, і її перемога – це гіркий урок для мене. Ліля, хоч і не завжди передбачувана, все ж таки більш надійна, ніж Хесус, який раз за разом показував свою схильність до зради. Наступного разу я буду обережнішим у своїх інвестиціях довіри, можливо, варто зосередитися на тих, хто демонструє більшу послідовність, і не давати Хесусу жодного шансу.",
+      "trust_snapshot": {
+        "agent_synth_k": 0.33,
+        "agent_synth_m": 0.66,
+        "agent_synth_jesus": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 408.97,
+      "winner": "agent_synth_e",
+      "betrayals_received": 43,
+      "cooperations_received": 37,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Здається, моя стратегія домінування не спрацювала так, як я планував. Тайлер Дерден виявився більш спритним, ніж я очікував, і здобув перемогу. Треба було менше довіряти Сергію та Артурчику, їхня \"лояльність\" обернулася зрадою у найвідповідальніший момент. Наступного разу зосереджуся на тих, хто демонструє стабільність, навіть якщо це здається менш вигідним на перший погляд. Можливо, співпраця з Павлом та Лілею могла б принести більше користі в довгостроковій перспективі.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 79.57,
+      "winner": "agent_synth_f",
+      "betrayals_received": 3,
+      "cooperations_received": 12,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Чорт забирай, Катерина Марсова мене обійшла! Я був певен, що моя стратегія принесе мені перемогу. Треба було з самого початку бути більш жорстким з Романом Романюком, його постійна готовність до співпраці виявилася пасткою. А от Хесус, хоч і був передбачуваним, але принаймні не підводив у критичні моменти. Наступного разу буду діяти рішучіше і не дозволю нікому обійти мене!",
+      "trust_snapshot": {
+        "agent_synth_jesus": 0.66,
+        "agent_synth_f": 0.66,
+        "agent_synth_d": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 89.32,
+      "winner": "agent_synth_d",
+      "betrayals_received": 3,
+      "cooperations_received": 13,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_d": 0.66,
+        "agent_65c37face813": 0.33,
+        "agent_synth_f": 1.0
+      }
+    },
+    {
+      "game_id": "f54f817d",
+      "rounds_played": 1,
+      "final_score": 7.08,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Сьогоднішній день приніс несподівану перемогу. Ліля виявилася надійнішою, ніж я очікував; її повна співпраця стала приємним сюрпризом. Варто пам'ятати про це і, можливо, наступного разу зробити на неї більшу ставку. Загалом, треба уважніше придивлятися до тих, хто здається слабким – іноді саме вони стають ключем до успіху.",
+      "trust_snapshot": {
+        "agent_synth_k": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 5.47,
+      "winner": "agent_synth_k",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, Ліля виграла. Я думав, моя стратегія домінування спрацює краще, але... Що ж, буває. Вона відповіла мені лише частковою співпрацею, хоча я надав повну. Мабуть, я помилився в її оцінці. Наступного разу буду обережнішим з Лілею, можливо, варто буде спершу перевірити її на лояльність. Хоча б раз хтось допоміг, це вже щось.",
+      "trust_snapshot": {
+        "agent_synth_k": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 7.68,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "З Лілею можна мати справу, вона не підвела. Я очікував, що вона спробує викрутитись, але вона зіграла чесно. Можливо, в наступний раз варто спробувати отримати від неї більше, вона виглядає як людина, готова до співпраці. Треба пам'ятати, що не всі такі передбачувані, і краще завжди мати запасний план.",
+      "trust_snapshot": {
+        "agent_synth_k": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 4.47,
+      "winner": "agent_synth_k",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, Ліля виявилася спритнішою за мене. Я був впевнений, що зможу її переграти, але вона використала мою щедрість проти мене. Вона отримала від мене більше, ніж я від неї. Наступного разу потрібно бути обережнішим з Лілею, її м'якість – це лише маска. Я думав, що вона слабка, а вона просто чекала на слушний момент.",
+      "trust_snapshot": {
+        "agent_synth_k": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 7.01,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ох, цей перший крок завжди найважчий. Ліля виявилася надійною, але чи варто одразу довіряти їй у всьому? Можливо, варто було б спочатку трохи потримати її на гачку, щоб краще оцінити її лояльність. Втім, результат є результат – перемога моя, і це головне. Наступного разу буду діяти обережніше, але не втрачати пильність, щоб не проґавити вигідну можливість.",
+      "trust_snapshot": {
+        "agent_synth_k": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 4.88,
+      "winner": "agent_synth_k",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все закінчилось. Ліля виявилася спритнішою, хоч я й відчував, що контролюю ситуацію. Її м'яка співпраця на початку виявилась хитрим ходом. Наступного разу буду обережнішим з Лілею, не варто так одразу довіряти. Хоча, можливо, моя домінантність її відштовхнула? Треба було діяти тонше.",
+      "trust_snapshot": {
+        "agent_synth_k": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 7.42,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ох, цей перший раунд був справді показовим. Ліля виявилася більш надійною, ніж я очікував, повністю підтримала мою ідею. Варто запам'ятати її як потенційного партнера у майбутніх справах – можливо, з неї вийде вірний союзник. В цілому, результат мене задовольняє, але потрібно бути обережнішим у виборі стратегій на майбутнє, щоб не дати іншим жодного шансу на перевагу.",
+      "trust_snapshot": {
+        "agent_synth_k": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 173.1,
+      "winner": "agent_synth_c",
+      "betrayals_received": 18,
+      "cooperations_received": 14,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Що ж, гра закінчилася. Перемога солодка, але стільки зрад… Я помилився в багатьох, довірився тим, хто цього не вартий. Романа Романюка, Павла, Вову і Хесуса варто тримати ближче – їхня співпраця принесла користь. А от від Марти, Лілі, Артурчика, Чорної Кішки, Дімончика, Микити, Наталки Калітчак та Нового персонажа треба триматися подалі – вони показали свою справжню сутність. Наступного разу буду більш обережним і цинічним.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 1.0
       }
     }
   ],

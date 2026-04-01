@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_n",
-  "total_score": 786.8443,
+  "total_score": 162.7489,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -436,6 +436,64 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 1.0,
         "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 391.57,
+      "winner": "agent_synth_e",
+      "betrayals_received": 38,
+      "cooperations_received": 42,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Чорт забирай, Тайлер Дерден виграв. Я занадто довіряв людям, особливо на початку. Алєг кілька разів підставляв, хоч я йому вірив. Романа Романюка треба було одразу викинути з гри, а я давав йому шанс за шансом. Наступного разу буду жорсткішим і швидше позбавлятимусь тих, хто мене зраджує. Можливо, варто було більше допомагати Вождю, він хоч і хитрий, але здається, тримає слово. Артурчик теж здивував, постійно чекав від нього гіршого, а він інколи підтримував.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 1.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 162.75,
+      "winner": "agent_synth_c",
+      "betrayals_received": 17,
+      "cooperations_received": 15,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і збіговисько змій. Я підозрював, що не всі чесні, але щоб стільки зрад… Алєг виграв, молодець, але його методи мені не імпонують. Треба було менше довіряти Роману Романюку, Марті та Тайлеру Дердену – вони показали себе не з кращого боку. Наступного разу буду більш обережним і уважним до дій, а не до слів. Вова, Ліля, Катерина Марсова і Наталка Калітчак – єдині, на кого можна було хоч трохи покластися.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 1.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 1.0
       }
     }
   ],

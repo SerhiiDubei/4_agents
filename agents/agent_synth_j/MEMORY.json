@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_j",
-  "total_score": 841.301,
+  "total_score": 151.0786,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -550,6 +550,64 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 0.66,
         "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 381.45,
+      "winner": "agent_synth_e",
+      "betrayals_received": 43,
+      "cooperations_received": 37,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, є про що подумати. Тайлер Дерден виявився спритнішим, переміг. Я занадто довіряв людям, особливо на початку. Не очікував, що Алєг так швидко почне грати проти мене. Вождь, як завжди, тримав слово, йому можна довіряти. Наступного разу буду обережнішим з Мартою та Павлом, вони виявились не такими передбачуваними, як я думав. Треба менше вірити обіцянкам і більше дивитися на дії. І, можливо, трохи більше хитрості не завадить.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.0,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 1.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 151.08,
+      "winner": "agent_synth_c",
+      "betrayals_received": 16,
+      "cooperations_received": 16,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і гра видалась. Алєг виграв, вітаю його, але ж скільки зрад! Я завжди грав чесно з Алєгом, а він мене зрадив в останньому раунді. Марта і Чорна Кішка теж виявились не тими, за кого я їх приймав. Тайлер Дерден і Микита спочатку ніби йшли на контакт, а потім почали крутити. Наступного разу буду обережнішим з тими, хто спочатку здається другом, та й взагалі, менше довірятиму людям.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 0.66,
+        "agent_synth_natalka": 0.66
       }
     }
   ],

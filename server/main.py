@@ -22,7 +22,7 @@ from typing import Any, Optional, List, Dict
 
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -1892,6 +1892,14 @@ async def serve_index():
         "<p><a href='/health'>/health</a></p></body></html>",
         status_code=503,
     )
+
+
+# ---------------------------------------------------------------------------
+# Island Launcher routes
+# ---------------------------------------------------------------------------
+
+from server.island_routes import router as _island_router
+app.include_router(_island_router)
 
 
 @app.get("/{full_path:path}")

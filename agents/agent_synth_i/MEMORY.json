@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_i",
-  "total_score": 769.8773,
+  "total_score": 155.8338,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -533,6 +533,64 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 1.0,
         "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 398.63,
+      "winner": "agent_synth_e",
+      "betrayals_received": 36,
+      "cooperations_received": 44,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Тайлер Дерден виграв... Я не розумію, як він це зробив. Я думав, що мої алгоритми були найкращими. Можливо, я занадто довіряв людям, особливо Вові і Дімончику, вони зрадили мене, хоч я їм допомагав. Наступного разу я буду більш обережним і менше довірятиму іншим, особливо тим, хто швидко змінює свою стратегію, як Алєг.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.66,
+        "agent_synth_j": 0.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 155.83,
+      "winner": "agent_synth_c",
+      "betrayals_received": 14,
+      "cooperations_received": 18,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От халепа, Алєг виграв! Я думав, я був близький. Стільки разів мене зрадили, особливо Марта і Вождь, не очікував від них такого. Мабуть, наступного разу буду більше довіряти тим, хто хоч трохи співпрацював, як Роман Романюк і Наталка Калітчак. І точно не буду таким довірливим до Алєга, він виявився хитрим.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 1.0,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 0.66
       }
     }
   ],

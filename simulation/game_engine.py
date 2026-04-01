@@ -910,7 +910,12 @@ def run_simulation(
             result.rounds.append(round_result)
 
             if on_progress:
-                on_progress(f"round:{round_num}:{total_rounds}:complete")
+                # Pass round_result as optional second arg so live renderers
+                # can display the round immediately without waiting for all rounds
+                try:
+                    on_progress(f"round:{round_num}:{total_rounds}:complete", round_result)
+                except TypeError:
+                    on_progress(f"round:{round_num}:{total_rounds}:complete")
 
     finally:
         # Always archive and save — even on interrupt/crash. "Якщо лог добавився — він в історії"

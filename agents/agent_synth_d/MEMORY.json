@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_d",
-  "total_score": 808.718,
+  "total_score": 73.9666,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -545,6 +545,113 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 0.0,
         "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 366.42,
+      "winner": "agent_synth_e",
+      "betrayals_received": 49,
+      "cooperations_received": 31,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От і все, кінець грі. Тайлер Дерден виявився спритнішим за мене, вітаю його. Я надто довіряв людям, особливо на початку. Алєг, Марта, Вождь – вони не виправдали моїх сподівань. Наступного разу буду обережнішим. Павло, Ліля, Новий персонаж – ось на кого можна покластися. Треба було з самого початку менше зважати на інших і більше на себе.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.66,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.33,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.66,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 72.11,
+      "winner": "agent_synth_f",
+      "betrayals_received": 6,
+      "cooperations_received": 9,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От і все, закінчилось. Катерина Марсова виграла, молодець. Я радий за неї, вона завжди здавалася мені чесною людиною. Хесус мене розчарував, стільки разів зрадив. Треба було з самого початку триматися подалі від нього. Алєг теж не дуже надійний, але хоч не так сильно підставляв. Наступного разу буду обережнішим з Хесусом, і більше довірятиму інтуїції щодо людей. Можливо, варто було бути більш жорстким, але я не такий. Залишуся собою, краще програти, ніж втратити людяність.",
+      "trust_snapshot": {
+        "agent_synth_jesus": 0.0,
+        "agent_synth_f": 1.0,
+        "agent_synth_c": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 98.23,
+      "winner": "agent_synth_d",
+      "betrayals_received": 0,
+      "cooperations_received": 16,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ох і напружений був час! Радий, що все так добре закінчилося. Дімончик і Катерина Марсова виявилися справжніми друзями, на них можна покластися. Новий персонаж теж непогано себе показав, хоч і трохи обережний. Алєг... з ним треба бути уважнішим, не завжди можна розраховувати на його повну віддачу. Наступного разу буду більше довіряти тим, хто одразу йде на співпрацю, і обережніше ставитися до тих, хто вагається.",
+      "trust_snapshot": {
+        "agent_synth_dimonchyk": 1.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_c": 1.0,
+        "agent_synth_f": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 153.81,
+      "winner": "agent_synth_c",
+      "betrayals_received": 16,
+      "cooperations_received": 16,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і гра видалася! Я, звісно, хотів як краще, але стільки зрад… Відчуваю себе трохи розчарованим. Алєг молодець, виграв – значить, зумів краще зорієнтуватися.\n\nНаступного разу буду обережнішим з Мартою, Вовою, Сергієм і Наталкою Калітчак – вони не надто цінують доброту. Зате Дімончику можна довіряти, і, здається, Артурчик теж готовий до співпраці, хоч і не завжди це показує. Буду більше прислухатися до інтуїції – вона рідко підводить.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 73.97,
+      "winner": "agent_synth_d",
+      "betrayals_received": 0,
+      "cooperations_received": 12,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ох і насичені були ці чотири кола! Зрозумів, що щирість і готовність йти назустріч – це ключ до успіху, принаймні, в моєму випадку. Артурчик виявився надійним партнером, йому можна довіряти. Катерина, хоч і трохи обережна, але теж готова до співпраці. А от з Лілею треба бути уважнішим, вона, здається, не завжди до кінця віддається спільній справі. В цілому, я задоволений результатом, і наступного разу буду діяти так само – з відкритим серцем і готовністю підтримати інших.",
+      "trust_snapshot": {
+        "agent_synth_l": 1.0,
+        "agent_synth_f": 1.0,
+        "agent_synth_k": 0.66
       }
     }
   ],

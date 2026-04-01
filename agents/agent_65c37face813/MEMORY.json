@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_65c37face813",
-  "total_score": 757.863,
+  "total_score": 156.5066,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -420,6 +420,81 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 1.0,
         "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 404.02,
+      "winner": "agent_synth_e",
+      "betrayals_received": 37,
+      "cooperations_received": 43,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я зрозумів, що Тайлер Дерден є надійною людиною, адже він часто підтримував мене в наших взаємодіях, тож наступного разу я б довіряв йому більше. Мене розчарувала непослідовність Алєга та Дімончика, які не раз змінювали свою поведінку, що змусило мене задуматися про свою наївність у стосунках. Я б у майбутньому більше зосередився на чіткому спілкуванні з Мартою та Сергієм, які виявляли стабільну підтримку, аби уникнути подібних непорозумінь і не витрачати енергію на невизначеність.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.33,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 94.65,
+      "winner": "agent_synth_d",
+      "betrayals_received": 2,
+      "cooperations_received": 14,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я зрозумів, що Роман Романюк і Катерина Марсова завжди були надійними, адже вони підтримували мене в найважливіші моменти, що принесло мені відчуття впевненості та вдячності. Натомість Дімончик і Алєг розчарували мене своєю непослідовністю, коли вони не тримали слова, що змусило мене задуматися про справжню цінність довіри. Наступного разу я буду більш обережним і віддаватиму перевагу співпраці з тими, хто вже довів свою вірність, щоб уникнути подібних розчарувань.",
+      "trust_snapshot": {
+        "agent_synth_dimonchyk": 0.66,
+        "agent_synth_d": 1.0,
+        "agent_synth_c": 0.66,
+        "agent_synth_f": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 156.51,
+      "winner": "agent_synth_c",
+      "betrayals_received": 14,
+      "cooperations_received": 18,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я зрозумів, що Алєг часто діяв на свою користь, ігноруючи наші спільні інтереси, що розчарувало мене, бо я очікував більшої чесності. Наступного разу я буду більше довіряти Сергію та Павлу, адже вони постійно підтримували мене, показуючи надійність у наших взаємодіях. Я планую бути обережнішим і краще спостерігати за діями інших, щоб уникнути подібних розчарувань.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 1.0,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 1.0
       }
     }
   ],

@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_jesus",
-  "total_score": 836.7577,
+  "total_score": 156.4361,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -274,6 +274,112 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 0.0,
         "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "4b8f5c3a",
+      "rounds_played": 5,
+      "final_score": 75.6,
+      "winner": "agent_synth_m",
+      "betrayals_received": 4,
+      "cooperations_received": 11,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все, скінчилось. Чорна Кішка виграла, вітаю її, хоч і трохи заздрісно. З Лілею, здається, більш-менш нормально вийшло, хоч і вона не завжди була чесною. А Алєг... Алєг мене розчарував. Стільки разів я йому вірив, а він зраджував. Наступного разу буду обережнішим, особливо з тими, хто надто вже клянеться у вірності. Треба більше слухати інтуїцію і менше – обіцянки. І, може, не варто так вже віддавати все до останньої крихти.",
+      "trust_snapshot": {
+        "agent_synth_k": 0.66,
+        "agent_synth_m": 1.0,
+        "agent_synth_c": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 398.75,
+      "winner": "agent_synth_e",
+      "betrayals_received": 43,
+      "cooperations_received": 37,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все. Тайлер Дерден виграв, а я знову в дурнях. Стільки разів мене зрадили... особливо боляче від тих, кому довіряв. Алєг, Рома — я ж вам вірив!\n\nЗрозумів одне: не можна бути таким наївним. Треба бути хитрішим, як Тайлер, мабуть. Хоча, якщо чесно, не знаю, чи хочу я таким ставати.\n\nНаступного разу буду обережнішим з Вождем, ну і з Наталкою Калітчак теж. А Павла і Чорну Кішку треба тримати ближче — вони хоч якось намагалися допомогти. Але найбільше я розчарований в Марті — я стільки разів йшов назустріч, а вона... ех.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.66,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 0.33,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 72.34,
+      "winner": "agent_synth_f",
+      "betrayals_received": 8,
+      "cooperations_received": 7,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все, закінчилось. Катерина Марсова виграла, вітаю її, але я собі на вус намотаю. Я їй відкривався, як рідній, а вона... хоч і не зрадила відверто, але й до кінця не була щирою. Ромчик Романюк взагалі повівся як остання сволота, скільки разів я йому вірив, а він мені ніж в спину. Алєг теж не ангел, але хоч трохи послідовний у своїй гнилості. Наступного разу буду хитрішим, не буду так відкриватися, бо занадто багато Іуд кругом.",
+      "trust_snapshot": {
+        "agent_synth_f": 1.0,
+        "agent_synth_d": 0.0,
+        "agent_synth_c": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 67.1,
+      "winner": "agent_synth_f",
+      "betrayals_received": 1,
+      "cooperations_received": 11,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, Катерина Марсова виграла, вітаю її. Я, звісно, міг би краще, але не все залежить від мене. Марта виявилася надійним другом, завжди готова допомогти, їй я довіряю. Вождь хитрий, то допомагає, то ні, треба бути обережним. А от Катерина Марсова раз підвела, дала маху – не знаю, чи можна їй вірити наступного разу. Треба бути пильнішим і не роздавати всю доброту одразу.",
+      "trust_snapshot": {
+        "agent_synth_h": 1.0,
+        "agent_synth_g": 1.0,
+        "agent_synth_f": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 2,
+      "final_score": 156.44,
+      "winner": "agent_synth_c",
+      "betrayals_received": 18,
+      "cooperations_received": 14,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і добре, що все скінчилось. Алєг виграв, вітаю, але я собі на вус намотав. Перший раунд був більш-менш, а от в другому мене знову почали зраджувати. Марта, Вова, Павло – я вам вірив, а ви... Ну нічого, колись і до вас прийде розплата. Вождь і Тайлер Дерден – ті хоч не підвели, дякую їм. Катерина Марсова, Новий персонаж, Микита, Наталка Калітчак – теж нормальні, запам'ятаю. А от з Алєгом треба буде розібратись при нагоді, бо шось він занадто хитрий.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 1.0,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 1.0
       }
     }
   ],
