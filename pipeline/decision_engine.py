@@ -80,11 +80,13 @@ class CoreParams:
         return 0.1 + (self.strategic_horizon / 100) * 0.89
 
     def temperature(self) -> float:
-        """riskAppetite → softmax temperature in [0.3, 3.0]
-        High risk = flat distribution (unpredictable)
+        """riskAppetite → softmax temperature in [0.3, 1.5]
+        High risk = flatter distribution (less predictable)
         Low risk  = sharp distribution (consistent)
+        Range reduced from [0.3, 3.0] to [0.3, 1.5] so personality scores
+        actually differentiate roles instead of washing out to uniform.
         """
-        return 0.3 + (self.risk_appetite / 100) * 2.7
+        return 0.3 + (self.risk_appetite / 100) * 1.2
 
 
 @dataclass
@@ -164,45 +166,51 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
         if context.observed_actions else 0.5
     )
 
+    # Betrayal/cooperation rates for consequence scoring
+    betrayal_rate = min(
+        context.betrayals_received / max(context.round_number, 1), 1.0
+    )
+    cooperation_rate = min(
+        context.cooperations_received / max(context.round_number, 1), 1.0
+    )
+
     scores = []
     for action in ACTIONS:
-        # Base: how much this action aligns with cooperationBias (adjusted by reasoning intent)
-        cooperation_score = cb_effective * action
+        # --- cooperation_score: high cb → prefers cooperative actions ---
+        # Low cb agents get NEGATIVE score for cooperation (they dislike it)
+        cooperation_score = (cb_effective - 0.5) * action * 2.0
 
-        # Deception penalty on cooperation: high deception → inflates defection
-        deception_score = dt * (1.0 - action) * 0.8
+        # --- deception_score: high dt → defection is attractive ---
+        deception_score = dt * (1.0 - action) * 1.2
 
-        # Strategic value: long-horizon agents prefer mid-range actions
-        # (pure defection destroys future gains)
+        # --- strategic_score: long-horizon nudges toward sustained cooperation,
+        # but DOES NOT penalize defection for low-sh agents ---
+        # Key fix: sh only BOOSTS mid-range for high-sh, no longer penalizes extremes
         if sh > 0.5:
-            strategic_score = -abs(action - 0.66) * sh * 0.4
+            # Long-term thinkers slightly prefer conditional cooperation over extremes
+            strategic_score = (1.0 - abs(action - 0.66)) * (sh - 0.5) * 0.3
         else:
-            strategic_score = -abs(action - 0.33) * (1 - sh) * 0.2
+            # Short-term thinkers slightly prefer bold moves (defect or full coop)
+            strategic_score = abs(action - 0.5) * (0.5 - sh) * 0.2
 
-        # Retaliation: if others defected → lower cooperation is more attractive
-        retaliation_score = (1.0 - avg_observed) * (1.0 - action) * 0.3
+        # --- retaliation: if others defected → defection more attractive ---
+        # ADDED (not subtracted) to total: when others defect, defection gains score
+        # Scaled by (1 - cb) so cooperative agents retaliate less
+        retaliation_score = (1.0 - avg_observed) * (1.0 - action) * 0.4 * (1.0 - cb_effective * 0.5)
 
-        # Trust boost: if high average trust → cooperation more attractive
-        trust_score = avg_trust * action * 0.4
+        # --- trust: high trust → cooperation more attractive ---
+        # Amplified so trust actually shifts behavior meaningfully
+        trust_score = avg_trust * action * 0.7
 
-        # Late-game nudge toward defection
-        endgame_score = end_game_factor * (1.0 - action) * 0.15 if rounds_left < 2 else 0.0
+        # --- endgame: last 2 rounds nudge toward defection ---
+        endgame_score = end_game_factor * (1.0 - action) * 0.2 if rounds_left < 2 else 0.0
 
-        # Consequence score: if betrayed frequently → defection becomes more attractive
-        # Scaled by how often you were betrayed relative to rounds played
-        betrayal_rate = min(
-            context.betrayals_received / max(context.round_number, 1), 1.0
-        )
-        cooperation_rate = min(
-            context.cooperations_received / max(context.round_number, 1), 1.0
-        )
+        # --- consequence: betrayed often → lean defect; helped often → lean coop ---
         consequence_score = (
-            betrayal_rate * (1.0 - action) * 0.5      # betrayed → lean defect
-            - cooperation_rate * (1.0 - action) * 0.2  # helped → reduce defect pull
+            betrayal_rate * (1.0 - action) * 0.5
+            - cooperation_rate * (1.0 - action) * 0.2
         )
-
-        # Payoff momentum: if last round was bad, increase risk-taking slightly
-        if context.last_round_payoff < 2.0:  # below P threshold
+        if context.last_round_payoff < 2.0:
             consequence_score += (1.0 - action) * 0.1
 
         total = (
@@ -210,7 +218,7 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
             + deception_score
             + strategic_score
             + trust_score
-            - retaliation_score
+            + retaliation_score
             + endgame_score
             + consequence_score
         )
