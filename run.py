@@ -24,7 +24,7 @@ if __name__ == "__main__":
     api_key = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
     if not api_key:
         print("WARNING: OPENROUTER_API_KEY is not set. API calls will fail.")
-        print("  Railway: Project → Your service → Variables → Add OPENROUTER_API_KEY (exact name).")
+        print("  Railway: Project -> Your service -> Variables -> Add OPENROUTER_API_KEY (exact name).")
         print("  Locally: copy .env.example to .env and set your API key.")
         # Don't exit — start server so container stays up and user can fix Variables
     else:
