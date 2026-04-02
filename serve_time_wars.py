@@ -106,7 +106,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
+        allow_origins=["*"],  # island_launcher + hub connect from any origin
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
@@ -277,11 +277,30 @@ def _run_game_in_thread(session_id: str) -> None:
         codes_catalog = load_codes()
         _tw_log("Entering main game loop...")
 
+        current_round_num = 0  # updated each action phase
         for t in range(1, duration + 1):
             if t <= 3 or t % 50 == 0:
                 _tw_log(f"Tick {t}...")
             drain = escalating_drain(t, base=DRAIN_BASE, double_every=DRAIN_DOUBLE_EVERY)
             eliminated = tick(session, t, drain_sec=drain)
+
+            # Per-tick progress: player times for real-time UI (lightweight, no flush overhead)
+            _sessions_progress[session_id] = {
+                "round": current_round_num,
+                "tick": t,
+                "tick_total": duration,
+                "drain": drain,
+                "active": len(session.active_players()),
+                "players": [
+                    {
+                        "id": p.agent_id,
+                        "time": p.time_remaining_sec,
+                        "mana": p.mana,
+                        "status": p.status,
+                    }
+                    for p in session.players
+                ],
+            }
 
             # Check after tick (eliminations may have resolved the battle royale)
             if is_game_over(session, t, min_ticks):
@@ -303,12 +322,12 @@ def _run_game_in_thread(session_id: str) -> None:
             if t % ticks_per_action == 0:
                 round_num = t // ticks_per_action
                 t_round_start = time.perf_counter()
+                current_round_num = round_num
                 sit = build_situation_text(session, threshold_sec=max(60, base_sec // 3))
                 _log_extra = {"drain_sec": drain, "drain_double_every": DRAIN_DOUBLE_EVERY}
                 log_round_start(session, round_num, t, t, {**sit, **_log_extra})
                 apply_mana_per_round(session, t)
                 _tw_log(f"Round {round_num} (tick {t}) | drain={drain}s | active={len(session.active_players())}")
-                _sessions_progress[session_id] = {"round": round_num, "tick": t, "active": len(session.active_players())}
 
                 # ── SHOP phase: buy as many codes as mana allows ──────────
                 t_shop = time.perf_counter()

@@ -207,6 +207,60 @@ textarea::placeholder{color:var(--muted)}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── TIME WARS TICK MONITOR ── */
+.tw-monitor{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.tw-connect-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tw-input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:0.78rem;outline:none}
+.tw-input:focus{border-color:var(--accent)}
+.tw-input.tw-sid{flex:1;min-width:160px}
+.tw-btn{padding:5px 14px;border-radius:6px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600}
+.tw-btn{background:var(--accent);color:#0d1117}
+.tw-btn:hover{filter:brightness(1.15)}
+.tw-btn-sec{background:var(--border);color:var(--text)}
+.tw-conn-status{font-size:0.73rem;color:var(--muted);margin-left:auto}
+.tw-conn-status.on{color:var(--green)}
+
+.tw-statbar{display:flex;gap:12px;padding:7px 12px;background:var(--s2);border-bottom:1px solid var(--border);font-size:0.78rem;flex-wrap:wrap}
+.tw-stat{color:var(--muted)}
+.tw-stat b{color:var(--text);font-weight:700}
+
+/* Player cards */
+.tw-players{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.tw-player{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:160px;flex:1}
+.tw-player.eliminated{opacity:.45;filter:grayscale(1)}
+.tw-pname{font-size:0.78rem;font-weight:600;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
+.tw-pname .tw-role{font-size:0.65rem;color:var(--muted);font-weight:400}
+.tw-ptime{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:4px}
+.tw-ptime.danger{color:var(--red)}
+.tw-ptime.warn{color:var(--yellow)}
+.tw-ptime.ok{color:var(--green)}
+.tw-bar-wrap{background:var(--bg);border-radius:3px;height:5px;overflow:hidden}
+.tw-bar-fill{height:100%;border-radius:3px;transition:width .9s linear}
+.tw-mana{font-size:0.68rem;color:var(--muted);margin-top:3px}
+
+/* Event stream */
+.tw-events{flex:1;overflow-y:auto;padding:8px}
+.tw-ev{display:flex;align-items:flex-start;gap:7px;padding:4px 6px;border-radius:5px;margin-bottom:3px;font-size:0.75rem;line-height:1.4}
+.tw-ev:hover{background:var(--s2)}
+.tw-ev-tick{color:var(--muted);font-variant-numeric:tabular-nums;min-width:44px;font-size:0.68rem;padding-top:1px}
+.tw-ev-ico{font-size:0.85rem;min-width:18px;text-align:center}
+.tw-ev-body{flex:1}
+.tw-ev-body .tw-ev-main{font-weight:500}
+.tw-ev-body .tw-ev-detail{color:var(--muted);font-size:0.68rem}
+
+/* Event type colors */
+.tw-ev.ev-round_start .tw-ev-main{color:var(--accent)}
+.tw-ev.ev-cooperate .tw-ev-main{color:var(--green)}
+.tw-ev.ev-steal .tw-ev-main{color:var(--yellow)}
+.tw-ev.ev-steal.outcome-fail .tw-ev-main{color:var(--red)}
+.tw-ev.ev-code_use .tw-ev-main{color:#bc8cff}
+.tw-ev.ev-code_buy .tw-ev-main{color:#9dd5f5}
+.tw-ev.ev-elimination .tw-ev-main{color:var(--red)}
+.tw-ev.ev-game_over .tw-ev-main{color:#ffd700;font-weight:700}
+.tw-ev.ev-comm_message .tw-ev-main{color:var(--muted)}
+.tw-ev.ev-player_intent .tw-ev-main{color:#c9a4f7}
+.tw-ev.ev-storm .tw-ev-main{color:var(--red)}
 </style>
 </head>
 <body>
@@ -249,6 +303,9 @@ textarea::placeholder{color:var(--muted)}
       <div class="tab" id="tabLLM" onclick="switchTab('llm')">
         LLM I/O <span class="tbadge" id="llmCount">0</span>
       </div>
+      <div class="tab" id="tabTW" onclick="switchTab('tw')">
+        ⏱ Тіки <span class="tbadge" id="twEventCount">0</span>
+      </div>
     </div>
 
     <!-- LOG panel -->
@@ -276,6 +333,33 @@ textarea::placeholder{color:var(--muted)}
     <div class="panel" id="panelSum">
       <div class="sum-panel" id="sumPanel">
         <div class="log-empty"><div class="ico">&#127942;</div><div>Підсумок після завершення</div></div>
+      </div>
+    </div>
+
+    <!-- TIME WARS TICK MONITOR panel -->
+    <div class="panel" id="panelTW">
+      <div class="tw-monitor" id="twMonitor">
+        <!-- Connection bar -->
+        <div class="tw-connect-bar" id="twConnectBar">
+          <input class="tw-input" id="twUrl" type="text" value="http://localhost:5174" placeholder="Time Wars URL" />
+          <input class="tw-input tw-sid" id="twSid" type="text" placeholder="Session ID" />
+          <button class="tw-btn" id="twConnectBtn" onclick="twConnect()">▶ Підключитись</button>
+          <button class="tw-btn tw-btn-sec" id="twDisconnectBtn" onclick="twDisconnect()" style="display:none">■ Стоп</button>
+          <span class="tw-conn-status" id="twConnStatus">●&nbsp;Не підключено</span>
+        </div>
+        <!-- Tick status bar -->
+        <div class="tw-statbar" id="twStatBar" style="display:none">
+          <span class="tw-stat" id="twStatTick">TICK&nbsp;<b>0</b></span>
+          <span class="tw-stat" id="twStatRound">РАУНД&nbsp;<b>0</b></span>
+          <span class="tw-stat" id="twStatDrain">DRAIN&nbsp;<b>—</b>s/тік</span>
+          <span class="tw-stat" id="twStatActive">ЖИВИХ&nbsp;<b>—</b></span>
+        </div>
+        <!-- Player time bars -->
+        <div class="tw-players" id="twPlayers"></div>
+        <!-- Event log -->
+        <div class="tw-events" id="twEvents">
+          <div class="log-empty"><div class="ico">⏳</div><div>Підключись до Time Wars сесії</div></div>
+        </div>
       </div>
     </div>
 
@@ -307,7 +391,7 @@ function empty(el){ while(el.firstChild) el.removeChild(el.firstChild); }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(name){
-  const ids={log:['tabLog','panelLog'],we:['tabWE','panelWE'],sum:['tabSum','panelSum'],llm:['tabLLM','panelLLM']};
+  const ids={log:['tabLog','panelLog'],we:['tabWE','panelWE'],sum:['tabSum','panelSum'],llm:['tabLLM','panelLLM'],tw:['tabTW','panelTW']};
   Object.entries(ids).forEach(([t,[tid,pid]])=>{
     const te=g(tid); if(te) te.classList.toggle('active', t===name);
     const pe=g(pid); if(pe) pe.classList.toggle('active', t===name);
@@ -818,6 +902,188 @@ async function launchSim(){
 }
 
 loadAgents();
+
+// ═══════════════════════════════════════════════════════════
+// TIME WARS TICK MONITOR — uses textContent for all user data
+// ═══════════════════════════════════════════════════════════
+let twEs = null;
+let twEventCount = 0;
+let twPlayerMap = {};
+let twBaseTime = 1000;
+
+const TW_ICONS = {
+  round_start:'🔔',cooperate:'🤝',steal:'🗡️',code_use:'🃏',code_buy:'🛒',
+  elimination:'💀',game_over:'🏆',comm_message:'💬',player_intent:'💭',
+  storm:'🌪️',crisis:'⚠️',role_assignment:'🎭',game_start:'🚀',
+};
+
+function twMk(tag,cls){ const e=document.createElement(tag); if(cls)e.className=cls; return e; }
+function twTxt(tag,cls,text){ const e=twMk(tag,cls); e.textContent=text; return e; }
+function twName(id){ return twPlayerMap[id]?.name || id; }
+function twFmt(sec){
+  if(sec==null) return '—';
+  return Math.floor(sec/60)+'m '+String(sec%60).padStart(2,'0')+'s';
+}
+
+function twConnect(){
+  const url=(g('twUrl').value||'').trim().replace(/\/+$/,'');
+  const sid=(g('twSid').value||'').trim();
+  if(!sid){ alert('Введи Session ID'); return; }
+  twDisconnect();
+  twEventCount=0; twPlayerMap={}; twBaseTime=1000;
+  g('twEventCount').textContent='0';
+  empty(g('twEvents')); empty(g('twPlayers'));
+  g('twStatBar').style.display='flex';
+  g('twConnStatus').textContent='● Підключення...';
+  g('twConnStatus').className='tw-conn-status';
+  g('twConnectBtn').style.display='none';
+  g('twDisconnectBtn').style.display='';
+  twEs=new EventSource(url+'/api/game-events/'+sid);
+  twEs.onopen=()=>{ g('twConnStatus').textContent='● Live'; g('twConnStatus').className='tw-conn-status on'; };
+  twEs.onmessage=(e)=>{ try{ twHandleEvent(JSON.parse(e.data)); }catch(ex){} };
+  twEs.onerror=()=>{ g('twConnStatus').textContent='● Помилка'; g('twConnStatus').className='tw-conn-status'; };
+}
+
+function twDisconnect(){
+  if(twEs){ twEs.close(); twEs=null; }
+  g('twConnectBtn').style.display='';
+  g('twDisconnectBtn').style.display='none';
+  g('twConnStatus').textContent='● Не підключено';
+  g('twConnStatus').className='tw-conn-status';
+}
+
+function twHandleEvent(d){
+  const et=d.event_type||'';
+  if(et==='__progress__'){ twStat(d); if(d.players) twPlayers(d.players,d.drain); return; }
+  if(et==='__stream_end__'){ g('twConnStatus').textContent='● Завершено'; twDisconnect(); return; }
+  if(et==='game_start'){
+    twBaseTime=d.base_sec||1000;
+    if(d.players) d.players.forEach(p=>{ twPlayerMap[p.agent_id]={name:p.agent_id_name||p.agent_id,baseTime:p.time_remaining_sec}; });
+  }
+  if(et==='role_assignment'&&d.agent_id&&!twPlayerMap[d.agent_id])
+    twPlayerMap[d.agent_id]={name:d.agent_id_name||d.agent_id,baseTime:twBaseTime};
+  if(et==='round_start'&&d.players){
+    d.players.forEach(p=>{ if(!twPlayerMap[p.agent_id]) twPlayerMap[p.agent_id]={name:p.agent_id_name||p.agent_id,baseTime:twBaseTime}; });
+    twStat(d); twPlayers(d.players,d.drain_sec);
+  }
+  if(d.tick) twStat({tick:d.tick,round_num:d.round_num});
+  twRow(d);
+}
+
+function twStat(d){
+  if(d.tick!=null) g('twStatTick').textContent='TICK '+(d.tick_total?d.tick+'/'+d.tick_total:d.tick);
+  if(d.round!=null||d.round_num!=null) g('twStatRound').textContent='РАУНД '+(d.round??d.round_num);
+  if(d.drain!=null||d.drain_sec!=null) g('twStatDrain').textContent='DRAIN '+(d.drain??d.drain_sec)+'s/тік';
+  if(d.active!=null) g('twStatActive').textContent='ЖИВИХ '+d.active;
+}
+
+function twPlayers(players,drainSec){
+  const panel=g('twPlayers');
+  players.forEach(p=>{
+    const aid=p.agent_id||p.id;
+    const name=twPlayerMap[aid]?.name||p.agent_id_name||aid;
+    const base=twPlayerMap[aid]?.baseTime||twBaseTime||1000;
+    const timeS=p.time_remaining_sec!=null?p.time_remaining_sec:(p.time??0);
+    const pct=Math.max(0,Math.min(100,(timeS/base)*100));
+    const timeClass=timeS<base*.15?'danger':timeS<base*.35?'warn':'ok';
+    const barColor=timeS<base*.15?'#f25f5c':timeS<base*.35?'#f7b731':'#3dd68c';
+    let card=document.getElementById('twp_'+aid);
+    if(!card){
+      card=twMk('div','tw-player'); card.id='twp_'+aid;
+      const nh=twMk('div','tw-pname');
+      nh.appendChild(twTxt('span','tpn',name));
+      const role=twMk('span','tw-role'); role.id='twrole_'+aid;
+      nh.appendChild(role); card.appendChild(nh);
+      const tim=twTxt('div','tw-ptime '+timeClass,twFmt(timeS)); tim.id='twtime_'+aid;
+      card.appendChild(tim);
+      const bw=twMk('div','tw-bar-wrap');
+      const bf=twMk('div','tw-bar-fill'); bf.id='twbar_'+aid;
+      bf.style.width=pct+'%'; bf.style.background=barColor; bw.appendChild(bf); card.appendChild(bw);
+      const mn=twTxt('div','tw-mana','mana: '+(p.mana??'—')); mn.id='twmana_'+aid;
+      card.appendChild(mn);
+      panel.appendChild(card);
+    } else {
+      card.className='tw-player'+(p.status==='eliminated'?' eliminated':'');
+      const te=document.getElementById('twtime_'+aid);
+      if(te){ te.textContent=twFmt(timeS); te.className='tw-ptime '+timeClass; }
+      const be=document.getElementById('twbar_'+aid);
+      if(be){ be.style.width=pct+'%'; be.style.background=barColor; }
+      const me=document.getElementById('twmana_'+aid);
+      if(me) me.textContent='mana: '+(p.mana??'—');
+    }
+    if(drainSec!=null) g('twStatDrain').textContent='DRAIN '+drainSec+'s/тік';
+  });
+}
+
+function twRow(d){
+  const et=d.event_type||'unknown';
+  const panel=g('twEvents');
+  const emptyEl=panel.querySelector('.log-empty');
+  if(emptyEl) panel.removeChild(emptyEl);
+
+  // Build event texts using textContent (no innerHTML with user data)
+  let mainText='', detailText='';
+  const a=d.actor_id||d.agent_id;
+  const t2=d.target_id;
+
+  if(et==='round_start'){
+    mainText='Раунд '+(d.round_num||'—')+' | drain '+(d.drain_sec||'—')+'s';
+    if(d.players) detailText=d.players.filter(p=>p.status==='active')
+      .map(p=>twName(p.agent_id)+': '+twFmt(p.time_remaining_sec)+' / '+(p.mana??'—')+'m').join(' · ');
+  } else if(et==='cooperate'){
+    mainText=twName(a)+' 🤝 '+twName(t2);
+    detailText='+'+(d.time_delta_seconds??30)+'s кожен';
+  } else if(et==='steal'){
+    mainText=twName(a)+' 🗡️ '+twName(t2)+' — '+(d.outcome||'?')+' (d20='+(d.roll??'?')+')';
+    detailText=a&&d.time_delta_seconds!=null ? twName(a)+': '+(d.time_delta_seconds>0?'+':'')+d.time_delta_seconds+'s' : '';
+  } else if(et==='code_use'){
+    mainText=twName(a)+' використав '+(d.code_id||'код');
+    detailText=d.time_delta_seconds!=null?(d.time_delta_seconds>0?'+':'')+d.time_delta_seconds+'s':'';
+  } else if(et==='code_buy'){
+    mainText=twName(a)+' купив '+(d.code_id||'код')+' (-'+(d.cost_mana??'?')+'m)';
+  } else if(et==='elimination'){
+    mainText=twName(a)+' вибув — час скінчився';
+    const card=document.getElementById('twp_'+a);
+    if(card) card.classList.add('eliminated');
+  } else if(et==='game_over'){
+    mainText='Переможець: '+twName(d.winner_id)+' | тік '+(d.tick||'—');
+    if(d.final_times_named) detailText=Object.entries(d.final_times_named).map(([n,s])=>n+': '+twFmt(s)).join(' · ');
+  } else if(et==='comm_message'){
+    const sender=twName(d.sender_id);
+    const ch=d.channel||'public';
+    const txt=(d.text||'').slice(0,80)+((d.text||'').length>80?'…':'');
+    mainText=sender+' ['+ch+']: '+txt;
+  } else if(et==='player_intent'){
+    mainText=twName(a)+': '+((d.choice||d.plan||'—').slice(0,60));
+    detailText=(d.thought||'').slice(0,100);
+  } else if(et==='role_assignment'){
+    mainText=twName(a)+' → роль '+(d.role_name||d.role_id||'?');
+    const re=document.getElementById('twrole_'+a);
+    if(re) re.textContent=d.role_name||d.role_id||'';
+  } else if(et==='storm'){
+    mainText='Шторм! Всі гравці '+(d.time_delta_seconds??-20)+'s';
+  } else if(et==='game_start'){
+    mainText='Гра стартує | '+(d.agent_count??'?')+' агентів | base='+(d.base_sec||'?')+'s';
+  } else {
+    mainText=et;
+  }
+
+  const outcomeClass=d.outcome?' outcome-'+d.outcome:'';
+  const row=twMk('div','tw-ev ev-'+et+outcomeClass);
+  row.appendChild(twTxt('span','tw-ev-tick','#'+(d.tick??'—')));
+  row.appendChild(twTxt('span','tw-ev-ico',TW_ICONS[et]||'•'));
+  const body=twMk('span','tw-ev-body');
+  body.appendChild(twTxt('div','tw-ev-main',mainText));
+  if(detailText) body.appendChild(twTxt('div','tw-ev-detail',detailText));
+  row.appendChild(body);
+  panel.appendChild(row);
+
+  twEventCount++;
+  g('twEventCount').textContent=String(twEventCount);
+  const atBottom=panel.scrollHeight-panel.scrollTop-panel.clientHeight<80;
+  if(atBottom) panel.scrollTop=panel.scrollHeight;
+}
+
 </script>
 </body>
 </html>
