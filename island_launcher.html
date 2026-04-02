@@ -678,12 +678,16 @@ function renderLlmEvent(data){
   chdr.appendChild(mk('span','phase-badge '+phaseCls, data.phase));
 
   // Agent name
-  chdr.appendChild(mk('span','llm-agent', data.agent_name||data.agent_id.slice(-8)));
+  const agentLabel = (data.agent_id==='group')
+    ? '👥 '+data.agent_name
+    : (data.agent_id==='unknown' ? '❓ '+data.agent_name : data.agent_name||data.agent_id.slice(-8));
+  chdr.appendChild(mk('span','llm-agent', agentLabel));
 
-  // Meta: model, schema
+  // Meta: model, tokens, schema
   const meta = mk('div','llm-meta');
   meta.appendChild(mk('span',null, data.model.split('/').pop()));
   meta.appendChild(mk('span',null,'t='+data.temperature));
+  meta.appendChild(mk('span',null,(data.system||'').length+'+'+(data.user||'').length+' sym'));
   if(data.has_schema) meta.appendChild(mk('span','schema-badge','JSON'));
   chdr.appendChild(meta);
 
@@ -691,12 +695,15 @@ function renderLlmEvent(data){
   const cbody = mk('div','llm-call-body');
 
   // System / User / Response sections
-  cbody.appendChild(makeLlmSection('System Prompt', data.system, 'system'));
-  cbody.appendChild(makeLlmSection('User Prompt', data.user, 'user'));
+  const sysLabel = 'System Prompt ('+(data.system||'').length+' sym)';
+  const userLabel = 'User Prompt ('+(data.user||'').length+' sym)';
+  cbody.appendChild(makeLlmSection(sysLabel, data.system, 'system'));
+  cbody.appendChild(makeLlmSection(userLabel, data.user, 'user'));
   // Try to pretty-print response if JSON
   let respText = data.response||'';
   try{ respText = JSON.stringify(JSON.parse(respText), null, 2); } catch(e){}
-  cbody.appendChild(makeLlmSection('Response', respText, 'response'));
+  const respLabel = 'Response ('+(data.response||'').length+' sym)';
+  cbody.appendChild(makeLlmSection(respLabel, respText, 'response'));
 
   callEl.appendChild(chdr); callEl.appendChild(cbody);
   if(llmCurrentRoundEl) llmCurrentRoundEl.appendChild(callEl);

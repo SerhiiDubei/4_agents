@@ -648,23 +648,39 @@ def _llm_detect_phase(system: str) -> str:
 def _llm_detect_agent(system: str, user: str, names: dict) -> tuple:
     """Return (agent_id, agent_name) from prompt content."""
     import re as _re
+
+    def _lookup(cand: str) -> tuple | None:
+        cand_l = cand.lower()
+        for aid, aname in names.items():
+            if aname and (aname.lower() == cand_l or aname.lower().startswith(cand_l)):
+                return aid, aname
+        return None
+
     # Reasoning: system starts with "You are {display_name}."
     m = _re.match(r"You are (.+?)\.", system.strip())
     if m and "generating dialog" not in system:
-        cand_name = m.group(1).strip()
-        # Lookup by name
-        for aid, aname in names.items():
-            if aname and aname.lower() == cand_name.lower():
-                return aid, aname
-        return "unknown", cand_name
-    # Dialog: user prompt starts with "AGENT PROFILE:\nТи {name}."
-    m2 = _re.search(r"Ти\s+(\S+)", user[:300])
+        cand = m.group(1).strip()
+        found = _lookup(cand)
+        return found if found else ("unknown", cand)
+
+    # Situation per-agent: user starts with "Персонаж: {name}. Акт"
+    m2 = _re.search(r"Персонаж:\s*(.+?)\.", user[:200])
     if m2:
-        cand_name = m2.group(1).rstrip(".,!?")
-        for aid, aname in names.items():
-            if aname and aname.lower().startswith(cand_name.lower()):
-                return aid, aname
-        return "unknown", cand_name
+        cand = m2.group(1).strip()
+        found = _lookup(cand)
+        return found if found else ("unknown", cand)
+
+    # Dialog: user prompt contains "Ти {name}"
+    m3 = _re.search(r"Ти\s+(\S+)", user[:300])
+    if m3:
+        cand = m3.group(1).rstrip(".,!?")
+        found = _lookup(cand)
+        return found if found else ("unknown", cand)
+
+    # Narrative (round_narrative): user starts with "Акт N" — no per-agent, mark as group
+    if _re.match(r"Акт\s+\d+", user.strip()):
+        return "group", "Всі агенти"
+
     return "unknown", "unknown"
 
 
