@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS Architecture</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f; --bg2: #111118; --border: #2a2a3a;
+  --text: #c8c8e0; --dim: #5a5a7a; --accent: #7c6dfa;
+  --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
+  --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
+  --c-bug: #e05050;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; }
+
+header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:20px; }
+.logo { font-size:20px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
+.sub { font-size:11px; color:var(--dim); }
+.legend { margin-left:auto; display:flex; gap:14px; flex-wrap:wrap; }
+.li { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--dim); }
+.ld { width:8px; height:8px; border-radius:50%; }
+
+.main { display:grid; grid-template-columns:1fr 340px; min-height:calc(100vh - 73px); }
+
+.arch { padding:28px 36px; overflow-y:auto; }
+.arch-label { font-size:10px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:28px; }
+
+.layer { margin-bottom:10px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.layer-hdr { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; }
+.layer-hdr:hover { background:rgba(255,255,255,.02); }
+.lnum { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; }
+.lname { font-size:12px; font-weight:bold; letter-spacing:1px; flex:1; }
+.ltag { font-size:9px; color:var(--dim); }
+.larrow { font-size:9px; color:var(--dim); transition:transform .2s; }
+.lbtn { font-size:9px; color:var(--dim); border:1px solid var(--border); border-radius:3px; padding:2px 8px; text-decoration:none; margin-right:6px; transition:all .15s; }
+.lbtn:hover { color:var(--accent); border-color:var(--accent); }
+.navtabs { display:flex; gap:6px; }
+.ntab { font-size:10px; padding:5px 12px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:4px; color:var(--dim); text-decoration:none; transition:all .15s; }
+.ntab:hover,.ntab.act { color:var(--text); border-color:var(--accent); }
+.layer.open .larrow { transform:rotate(90deg); }
+.layer-body { display:none; padding:0 14px 14px; border-top:1px solid var(--border); }
+.layer.open .layer-body { display:block; }
+
+.mods { display:grid; grid-template-columns:repeat(auto-fill,minmax(195px,1fr)); gap:7px; margin-top:10px; }
+.mod { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:5px; padding:9px 11px; cursor:pointer; transition:all .15s; position:relative; }
+.mod:hover { background:rgba(255,255,255,.06); transform:translateY(-1px); }
+.mod.sel { border-color:var(--accent); background:rgba(124,109,250,.08); }
+.mod.bug::after { content:'!'; position:absolute; top:5px; right:8px; font-size:11px; color:var(--c-bug); font-weight:bold; }
+.mname { font-size:11px; font-weight:bold; margin-bottom:3px; }
+.mdesc { font-size:9px; color:var(--dim); line-height:1.4; }
+.mfile { font-size:8px; color:#3a3a5a; margin-top:5px; }
+
+.conn { display:flex; align-items:center; padding:4px 0; gap:8px; color:var(--dim); font-size:9px; }
+.cline { flex:1; height:1px; background:linear-gradient(to right,transparent,var(--border),transparent); }
+
+.flows { margin-top:28px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.flows-hdr { padding:11px 14px; background:rgba(255,255,255,.02); font-size:10px; color:var(--dim); letter-spacing:2px; cursor:pointer; }
+.flows-body { padding:14px; }
+.fi { margin-bottom:14px; padding:10px; background:rgba(255,255,255,.02); border-radius:5px; border-left:2px solid var(--accent); }
+.fi-title { font-size:10px; font-weight:bold; color:var(--accent); margin-bottom:7px; }
+.fs { display:flex; flex-direction:column; gap:3px; }
+.step { display:flex; gap:7px; font-size:9px; color:var(--text); }
+.snum { color:var(--dim); flex-shrink:0; width:14px; }
+.sfile { color:var(--accent); opacity:.75; }
+
+.panel { border-left:1px solid var(--border); padding:22px; overflow-y:auto; background:var(--bg2); }
+.ptitle { font-size:10px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:18px; }
+
+.stats { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:18px; }
+.stat { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:5px; padding:9px; text-align:center; }
+.sval { font-size:18px; font-weight:bold; color:var(--accent); line-height:1; margin-bottom:3px; }
+.slbl { font-size:8px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+
+.section { margin-bottom:18px; }
+.stitle { font-size:10px; font-weight:bold; color:var(--dim); letter-spacing:1px; margin-bottom:7px; text-transform:uppercase; }
+
+.bug-card { background:rgba(224,80,80,.07); border:1px solid rgba(224,80,80,.25); border-radius:5px; padding:9px 10px; margin-bottom:7px; }
+.bid { font-size:9px; color:var(--c-bug); font-weight:bold; margin-bottom:3px; }
+.btitle { font-size:10px; color:var(--text); margin-bottom:3px; }
+.bfile { font-size:9px; color:var(--dim); }
+
+.agents { display:flex; flex-direction:column; gap:3px; }
+.agent { display:flex; align-items:center; gap:7px; padding:5px 7px; background:rgba(255,255,255,.02); border-radius:4px; font-size:9px; }
+.adot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.aname { flex:1; }
+.astat { color:var(--dim); }
+
+.detail { display:none; margin-top:14px; padding:12px; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:6px; }
+.detail.active { display:block; }
+.dtitle { font-size:10px; font-weight:bold; color:var(--accent); margin-bottom:10px; letter-spacing:1px; }
+.code { background:rgba(0,0,0,.5); border:1px solid var(--border); border-radius:5px; padding:10px; font-size:9px; color:#8888aa; line-height:1.7; white-space:pre; overflow-x:auto; font-family:'Courier New',monospace; }
+.ck { color:#7c6dfa; } .cv { color:#4dbb80; } .cc { color:#444466; }
+.dnote { font-size:9px; color:var(--dim); margin-top:8px; line-height:1.5; }
+.dbug { color:var(--c-bug); }
+
+::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">Architecture Map &mdash; 2026-03-22</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab act">&#9776; Layers</a>
+    <a href="architecture_flow.html" class="ntab">&#9654; Process Flow</a>
+  </div>
+  <div class="legend">
+    <div class="li"><span class="ld" style="background:var(--c-data)"></span>Data</div>
+    <div class="li"><span class="ld" style="background:var(--c-pipeline)"></span>Pipeline</div>
+    <div class="li"><span class="ld" style="background:var(--c-game)"></span>Game Modes</div>
+    <div class="li"><span class="ld" style="background:var(--c-server)"></span>Servers</div>
+    <div class="li"><span class="ld" style="background:var(--c-frontend)"></span>Frontend</div>
+    <div class="li"><span class="ld" style="background:var(--c-bug)"></span>Bug</div>
+  </div>
+</header>
+
+<div class="main">
+<div class="arch">
+<div class="arch-label">system architecture &mdash; bottom to top &mdash; click modules for detail</div>
+
+<!-- ══ LAYER 1: DATA ══ -->
+<div class="layer open" id="l-data">
+  <div class="layer-hdr" onclick="toggle('l-data')">
+    <div class="lnum" style="background:#1e3a2f;color:var(--c-data)">1</div>
+    <div class="lname" style="color:var(--c-data)">DATA LAYER</div>
+    <div class="ltag">persistent state &middot; files &middot; db</div>
+    <a href="arch_data.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div style="font-size:9px;color:var(--dim);margin:8px 0 2px">Все, що зберігається між іграми. Ядро ідентичності кожного агента.</div>
+    <div class="mods">
+      <div class="mod" onclick="sel(this,'d-soul')"><div class="mname" style="color:var(--c-data)">SOUL.md</div><div class="mdesc">Наративна ідентичність (8 секцій, 2-га особа, укр.)</div><div class="mfile">agents/{id}/SOUL.md</div></div>
+      <div class="mod" onclick="sel(this,'d-core')"><div class="mname" style="color:var(--c-data)">CORE.json</div><div class="mdesc">Параметри особистості 0-100: cooperation, deception, horizon, risk</div><div class="mfile">agents/{id}/CORE.json</div></div>
+      <div class="mod" onclick="sel(this,'d-states')"><div class="mname" style="color:var(--c-data)">STATES.md</div><div class="mdesc">Швидкозмінний емоційний стан: tension, fear, mood, trust per peer</div><div class="mfile">agents/{id}/STATES.md</div></div>
+      <div class="mod" onclick="sel(this,'d-memory')"><div class="mname" style="color:var(--c-data)">MEMORY.json</div><div class="mdesc">Епізодична пам'ять: зради, обіцянки, дії по раундах</div><div class="mfile">agents/{id}/MEMORY.json</div></div>
+      <div class="mod" onclick="sel(this,'d-roster')"><div class="mname" style="color:var(--c-data)">roster.json</div><div class="mdesc">Реєстр усіх 17 агентів: id, name, type, default_count</div><div class="mfile">agents/roster.json</div></div>
+      <div class="mod" onclick="sel(this,'d-db')"><div class="mname" style="color:var(--c-data)">timewars.db</div><div class="mdesc">SQLite: User, GameSession, PlayerAction, HumanDecision</div><div class="mfile">timewars.db &middot; db/models.py</div></div>
+      <div class="mod" onclick="sel(this,'d-logs')"><div class="mname" style="color:var(--c-data)">Logs</div><div class="mdesc">JSONL events + HTML reports для Island і Time Wars</div><div class="mfile">logs/island/*.json &middot; logs/time_wars_*.jsonl</div></div>
+      <div class="mod" onclick="sel(this,'d-roles')"><div class="mname" style="color:var(--c-data)">roles.json / codes.json</div><div class="mdesc">Ролі (snake, gambler, banker, peacekeeper) + коди карт</div><div class="mfile">game_modes/time_wars/roles.json</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="conn"><div class="cline"></div><span>&#8593; читається кожен раунд &#8593;</span><div class="cline"></div></div>
+
+<!-- ══ LAYER 2: PIPELINE ══ -->
+<div class="layer open" id="l-pipeline">
+  <div class="layer-hdr" onclick="toggle('l-pipeline')">
+    <div class="lnum" style="background:#1a2a3e;color:var(--c-pipeline)">2</div>
+    <div class="lname" style="color:var(--c-pipeline)">PIPELINE LAYER</div>
+    <div class="ltag">decision logic &middot; llm calls &middot; state dynamics</div>
+    <a href="arch_pipeline.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div style="font-size:9px;color:var(--dim);margin:8px 0 2px">Перетворює ідентичність агента на дію. Ініціалізація + логіка рішень.</div>
+    <div class="mods">
+      <div class="mod bug" onclick="sel(this,'d-de')"><div class="mname" style="color:var(--c-pipeline)">decision_engine.py</div><div class="mdesc">Softmax вибір дії (0/0.33/0.66/1.0). CORE &rarr; action.</div><div class="mfile">pipeline/decision_engine.py</div></div>
+      <div class="mod bug" onclick="sel(this,'d-ac')"><div class="mname" style="color:var(--c-pipeline)">agent_context.py</div><div class="mdesc">Будує LLM-контекст. Накладає ROLE_CORE_OVERLAYS.</div><div class="mfile">pipeline/agent_context.py</div></div>
+      <div class="mod" onclick="sel(this,'d-sm')"><div class="mname" style="color:var(--c-pipeline)">state_machine.py</div><div class="mdesc">Динаміка емоцій: tension, fear, mood після кожного раунду</div><div class="mfile">pipeline/state_machine.py</div></div>
+      <div class="mod" onclick="sel(this,'d-mem')"><div class="mname" style="color:var(--c-pipeline)">memory.py</div><div class="mdesc">log_round(), game_history, promises, trust_snapshot</div><div class="mfile">pipeline/memory.py</div></div>
+      <div class="mod" onclick="sel(this,'d-reas')"><div class="mname" style="color:var(--c-pipeline)">reasoning.py</div><div class="mdesc">Pre-decision LLM: агент думає перед вибором дії</div><div class="mfile">pipeline/reasoning.py</div></div>
+      <div class="mod" onclick="sel(this,'d-refl')"><div class="mname" style="color:var(--c-pipeline)">reflection.py</div><div class="mdesc">Post-round + post-game рефлексія через LLM</div><div class="mfile">pipeline/reflection.py</div></div>
+      <div class="mod" onclick="sel(this,'d-sc')"><div class="mname" style="color:var(--c-pipeline)">soul_compiler.py</div><div class="mdesc">Генерує SOUL.md (8 секцій) через LLM при ініціалізації</div><div class="mfile">pipeline/soul_compiler.py</div></div>
+      <div class="mod" onclick="sel(this,'d-qe')"><div class="mname" style="color:var(--c-pipeline)">question_engine.py</div><div class="mdesc">7-раундовий Q&amp;A &rarr; CORE deltas &rarr; фінальний CORE.json</div><div class="mfile">pipeline/question_engine.py</div></div>
+      <div class="mod" onclick="sel(this,'d-tt')"><div class="mname" style="color:var(--c-pipeline)">talk_transition.py</div><div class="mdesc">Тон діалогу &rarr; STATES update (tension++, trust+-)</div><div class="mfile">pipeline/talk_transition.py</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="conn"><div class="cline"></div><span>&#8593; рішення &rarr; ігровий цикл &#8593;</span><div class="cline"></div></div>
+
+<!-- ══ LAYER 3: GAME MODES ══ -->
+<div class="layer open" id="l-game">
+  <div class="layer-hdr" onclick="toggle('l-game')">
+    <div class="lnum" style="background:#2e1e3a;color:var(--c-game)">3</div>
+    <div class="lname" style="color:var(--c-game)">GAME MODES LAYER</div>
+    <div class="ltag">island &middot; time wars &middot; round loops</div>
+    <a href="arch_game.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div style="font-size:9px;color:var(--c-game);margin:10px 0 5px;letter-spacing:1px">&#9658; ISLAND (simulation/)</div>
+    <div class="mods">
+      <div class="mod" onclick="sel(this,'d-ge')"><div class="mname" style="color:var(--c-game)">game_engine.py</div><div class="mdesc">Головний цикл: dialog &rarr; decisions &rarr; payoffs &rarr; states &rarr; reflect</div><div class="mfile">simulation/game_engine.py</div></div>
+      <div class="mod" onclick="sel(this,'d-diag')"><div class="mname" style="color:var(--c-game)">dialog_engine.py</div><div class="mdesc">LLM-генерація діалогу: публічні + DM повідомлення</div><div class="mfile">simulation/dialog_engine.py</div></div>
+      <div class="mod" onclick="sel(this,'d-pm')"><div class="mname" style="color:var(--c-game)">payoff_matrix.py</div><div class="mdesc">PD виплати: T=7, R=5, P=2, S=0.5 для кожної пари</div><div class="mfile">simulation/payoff_matrix.py</div></div>
+      <div class="mod" onclick="sel(this,'d-rev')"><div class="mname" style="color:var(--c-game)">reveal_skill.py</div><div class="mdesc">Скілл: розкрити дію суперника цього раунду</div><div class="mfile">simulation/reveal_skill.py</div></div>
+    </div>
+    <div style="font-size:9px;color:var(--c-game);margin:14px 0 5px;letter-spacing:1px">&#9658; TIME WARS (game_modes/time_wars/)</div>
+    <div class="mods">
+      <div class="mod bug" onclick="sel(this,'d-twl')"><div class="mname" style="color:var(--c-game)">loop.py</div><div class="mdesc">Тик-цикл: drain &rarr; actions &rarr; steal/coop &rarr; codes &rarr; events</div><div class="mfile">game_modes/time_wars/loop.py</div></div>
+      <div class="mod" onclick="sel(this,'d-tws')"><div class="mname" style="color:var(--c-game)">state.py</div><div class="mdesc">Session + Player: time_remaining, role, mana, inventory</div><div class="mfile">game_modes/time_wars/state.py</div></div>
+      <div class="mod bug" onclick="sel(this,'d-twac')"><div class="mname" style="color:var(--c-game)">agent_context.py</div><div class="mdesc">TW context builder + ROLE_CORE_OVERLAYS для LLM</div><div class="mfile">game_modes/time_wars/agent_context.py</div></div>
+      <div class="mod" onclick="sel(this,'d-twsk')"><div class="mname" style="color:var(--c-game)">skills.py</div><div class="mdesc">Скілли ролей: тригери BEFORE_STEAL / ON_SUCCESS / ON_FAIL</div><div class="mfile">game_modes/time_wars/skills.py</div></div>
+      <div class="mod" onclick="sel(this,'d-twco')"><div class="mname" style="color:var(--c-game)">constants.py</div><div class="mdesc">Баланс: COOP=+30s, drain rates, mana, steal payoffs</div><div class="mfile">game_modes/time_wars/constants.py</div></div>
+      <div class="mod" onclick="sel(this,'d-twsh')"><div class="mname" style="color:var(--c-game)">shop / codes</div><div class="mdesc">Код-карти клас C/B/A/S: ціна, ризик, ефект</div><div class="mfile">shop.py &middot; code_manifest.py &middot; codes.json</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LAYER 3.5: STORYTELL ══ -->
+<div class="conn"><div class="cline"></div><span style="color:var(--c-bug)">&#9888; storytell/ exists but NOT wired to Time Wars</span><div class="cline"></div></div>
+<div class="layer" id="l-story" style="opacity:.7">
+  <div class="layer-hdr" onclick="toggle('l-story')">
+    <div class="lnum" style="background:#2a2a1e;color:var(--c-story)">3&#189;</div>
+    <div class="lname" style="color:var(--c-story)">STORYTELL LAYER</div>
+    <div class="ltag" style="color:var(--c-bug)">&#9888; decoupled &mdash; CRIT-4</div>
+    <a href="arch_story.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div class="mods">
+      <div class="mod" onclick="sel(this,'d-sg')"><div class="mname" style="color:var(--c-story)">story_generator.py</div><div class="mdesc">Детерміноване налаштування сцени: рік, місце, жанр, mood</div><div class="mfile">storytell/story_generator.py</div></div>
+      <div class="mod bug" onclick="sel(this,'d-rn')"><div class="mname" style="color:var(--c-story)">round_narrative.py</div><div class="mdesc">LLM нарратив раунду &mdash; готово але не викликається!</div><div class="mfile">storytell/round_narrative.py</div></div>
+      <div class="mod" onclick="sel(this,'d-cons')"><div class="mname" style="color:var(--c-story)">consequences.py</div><div class="mdesc">Наслідки подій для сюжету</div><div class="mfile">storytell/consequences.py</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="conn"><div class="cline"></div><span>&#8593; API endpoints &#8593;</span><div class="cline"></div></div>
+
+<!-- ══ LAYER 4: SERVERS ══ -->
+<div class="layer open" id="l-srv">
+  <div class="layer-hdr" onclick="toggle('l-srv')">
+    <div class="lnum" style="background:#3a2a1e;color:var(--c-server)">4</div>
+    <div class="lname" style="color:var(--c-server)">SERVERS LAYER</div>
+    <div class="ltag">fastapi &middot; port 8000 &middot; port 5174</div>
+    <a href="arch_server.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div class="mods">
+      <div class="mod" onclick="sel(this,'d-srv')"><div class="mname" style="color:var(--c-server)">server/main.py</div><div class="mdesc">Port 8000. Ініціалізація агентів, Island games, results API</div><div class="mfile">POST /run-game &middot; GET /api/games-summary</div></div>
+      <div class="mod" onclick="sel(this,'d-tw-srv')"><div class="mname" style="color:var(--c-server)">serve_time_wars.py</div><div class="mdesc">Port 5174. TW sessions, SSE streaming, human actions</div><div class="mfile">POST /api/start-game &middot; GET /api/game-events/{id}</div></div>
+      <div class="mod" onclick="sel(this,'d-db2')"><div class="mname" style="color:var(--c-server)">db/</div><div class="mdesc">SQLAlchemy ORM, JWT auth, password hashing</div><div class="mfile">database.py &middot; models.py &middot; auth.py</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="conn"><div class="cline"></div><span>&#8593; HTTP / SSE &#8593;</span><div class="cline"></div></div>
+
+<!-- ══ LAYER 5: FRONTEND ══ -->
+<div class="layer open" id="l-fe">
+  <div class="layer-hdr" onclick="toggle('l-fe')">
+    <div class="lnum" style="background:#1a3a2a;color:var(--c-frontend)">5</div>
+    <div class="lname" style="color:var(--c-frontend)">FRONTEND LAYER</div>
+    <div class="ltag">react &middot; typescript &middot; vite</div>
+    <a href="arch_frontend.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div class="mods">
+      <div class="mod" onclick="sel(this,'d-fe-init')"><div class="mname" style="color:var(--c-frontend)">InitOpenPhase</div><div class="mdesc">Q&amp;A ініціалізація агента (7 раундів питань)</div><div class="mfile">pages/InitOpenPhase.tsx</div></div>
+      <div class="mod" onclick="sel(this,'d-fe-res')"><div class="mname" style="color:var(--c-frontend)">GamesResultsView</div><div class="mdesc">Таблиця: агент &times; гра &times; скор (128+ ігор)</div><div class="mfile">components/GamesResultsView.tsx</div></div>
+      <div class="mod" onclick="sel(this,'d-fe-lb')"><div class="mname" style="color:var(--c-frontend)">LeaderboardView</div><div class="mdesc">Загальний лідерборд по всіх іграх</div><div class="mfile">components/LeaderboardView.tsx</div></div>
+      <div class="mod" onclick="sel(this,'d-fe-tw')"><div class="mname" style="color:var(--c-frontend)">TimeWarsResultsView</div><div class="mdesc">TW фінальні результати + replay подій</div><div class="mfile">components/TimeWarsResultsView.tsx</div></div>
+      <div class="mod" onclick="sel(this,'d-fe-viz')"><div class="mname" style="color:var(--c-frontend)">CRT / Glitch / Typewriter</div><div class="mdesc">Ретро-стиль: CRT overlay, глітч, typewriter анімації</div><div class="mfile">CRTOverlay &middot; GlitchText &middot; TypewriterText</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DATA FLOWS ══ -->
+<div class="flows">
+  <div class="flows-hdr" onclick="toggleFlows()">&#9658; KEY DATA FLOWS</div>
+  <div class="flows-body" id="fb">
+    <div class="fi" style="border-color:var(--c-data)">
+      <div class="fi-title">&#9312; CORE &rarr; DECISION</div>
+      <div class="fs">
+        <div class="step"><span class="snum">1</span><span>agents/{id}/CORE.json &rarr; CoreParams(coop, deception, horizon, risk)</span></div>
+        <div class="step"><span class="snum">2</span><span><span class="sfile">agent_context.py</span> накладає ROLE_CORE_OVERLAYS</span></div>
+        <div class="step"><span class="snum">3</span><span><span class="sfile">decision_engine._action_scores()</span> &rarr; softmax &rarr; [0/0.33/0.66/1.0]</span></div>
+        <div class="step"><span class="snum" style="color:var(--c-bug)">!</span><span style="color:var(--c-bug)">CRIT-1: penalty блокує всіх на 0.66 незалежно від ролі</span></div>
+      </div>
+    </div>
+    <div class="fi" style="border-color:var(--c-game)">
+      <div class="fi-title">&#9313; ISLAND ROUND LOOP</div>
+      <div class="fs">
+        <div class="step"><span class="snum">1</span><span><span class="sfile">dialog_engine</span>: LLM публічні + DM повідомлення (SOUL + STATES)</span></div>
+        <div class="step"><span class="snum">2</span><span><span class="sfile">decision_engine</span>: кожен агент вибирає дію для кожного</span></div>
+        <div class="step"><span class="snum">3</span><span><span class="sfile">payoff_matrix</span>: T&gt;R&gt;P&gt;S виплати для кожної пари</span></div>
+        <div class="step"><span class="snum">4</span><span><span class="sfile">state_machine</span>: оновлення tension, fear, mood, trust</span></div>
+        <div class="step"><span class="snum">5</span><span><span class="sfile">memory.log_round()</span> &rarr; MEMORY.json append</span></div>
+        <div class="step"><span class="snum">6</span><span><span class="sfile">reflection.reflect_on_round()</span> &rarr; LLM нотатка</span></div>
+      </div>
+    </div>
+    <div class="fi" style="border-color:var(--c-game)">
+      <div class="fi-title">&#9314; TIME WARS TICK LOOP</div>
+      <div class="fs">
+        <div class="step"><span class="snum">1</span><span><span class="sfile">loop.tick()</span>: drain time_remaining &rarr; eliminate if &le;0</span></div>
+        <div class="step"><span class="snum">2</span><span><span class="sfile">run_action_phase()</span>: COOPERATE / STEAL / PASS</span></div>
+        <div class="step"><span class="snum">3</span><span>cooperate: обидва +30s, +5 mana, trust+0.2</span></div>
+        <div class="step"><span class="snum">4</span><span>steal: d20 + skills &rarr; success/partial/fail &rarr; time delta</span></div>
+        <div class="step"><span class="snum">5</span><span><span class="sfile">run_code_phase()</span>: агент грає код-карту</span></div>
+        <div class="step"><span class="snum">6</span><span>event_log += {type, actor, target, time_delta, outcome, roll}</span></div>
+      </div>
+    </div>
+    <div class="fi" style="border-color:var(--c-pipeline)">
+      <div class="fi-title">&#9315; AGENT INIT PIPELINE</div>
+      <div class="fs">
+        <div class="step"><span class="snum">1</span><span>POST /generate-seed &rarr; <span class="sfile">seed_generator</span> &rarr; session_id</span></div>
+        <div class="step"><span class="snum">2</span><span>&times;7 POST /generate-question &rarr; <span class="sfile">question_engine</span> &rarr; LLM питання</span></div>
+        <div class="step"><span class="snum">3</span><span>&times;7 POST /submit-answer &rarr; CORE delta застосовується</span></div>
+        <div class="step"><span class="snum">4</span><span>POST /compile-soul &rarr; <span class="sfile">soul_compiler</span> &rarr; 8 секцій SOUL.md</span></div>
+        <div class="step"><span class="snum">5</span><span>CORE.json + SOUL.md + STATES.md + MEMORY.json &rarr; agents/{id}/</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /arch -->
+
+<!-- ══ RIGHT PANEL ══ -->
+<div class="panel">
+  <div class="ptitle">&#9658; overview</div>
+
+  <div class="stats">
+    <div class="stat"><div class="sval">17</div><div class="slbl">Агентів</div></div>
+    <div class="stat"><div class="sval">2</div><div class="slbl">Game Modes</div></div>
+    <div class="stat"><div class="sval">4</div><div class="slbl">Критичні баги</div></div>
+    <div class="stat"><div class="sval">128+</div><div class="slbl">Ігор в логах</div></div>
+  </div>
+
+  <div class="section">
+    <div class="stitle" style="color:var(--c-bug)">&#9888; Критичні баги</div>
+    <div class="bug-card"><div class="bid">CRIT-1</div><div class="btitle">Агенти завжди кооперують</div><div class="bfile">decision_engine.py &mdash; strategic_horizon penalty</div></div>
+    <div class="bug-card"><div class="bid">CRIT-2</div><div class="btitle">Dialog &rarr; Action loop broken</div><div class="bfile">loop.py &mdash; last_messages не в контексті рішення</div></div>
+    <div class="bug-card"><div class="bid">CRIT-3</div><div class="btitle">SOUL.md не в decision prompts</div><div class="bfile">agent_context.build_context() &mdash; ігнорує особистість</div></div>
+    <div class="bug-card"><div class="bid">CRIT-4</div><div class="btitle">storytell/ відключений від TW</div><div class="bfile">round_narrative.py не викликається з loop.py</div></div>
+  </div>
+
+  <div class="section">
+    <div class="stitle" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px" onclick="toggleAgents()">
+      <span>17 Агентів</span>
+      <span id="agents-arrow" style="font-size:9px;color:var(--dim);transition:transform .2s">&#9658;</span>
+    </div>
+    <div id="alist-wrap" style="display:none"><div class="agents" id="alist"></div></div>
+  </div>
+
+  <!-- Pre-rendered detail panels (no innerHTML) -->
+  <div id="d-soul" class="detail">
+    <div class="dtitle">SOUL.md &mdash; Наративна ідентичність</div>
+    <div class="code"><span class="cc"># 8 секцій, 2-га особа, укр.</span>
+<span class="ck">## Identity</span>          <span class="cc">&#8592; хто ти</span>
+<span class="ck">## How You See Others</span>  <span class="cc">&#8592; як сприймаєш людей</span>
+<span class="ck">## Never Say Out Loud</span>  <span class="cc">&#8592; секрети</span>
+<span class="ck">## What Makes You Safe</span> <span class="cc">&#8592; де твій дім</span>
+<span class="ck">## Under Pressure</span>      <span class="cc">&#8592; під тиском</span>
+<span class="ck">## Decision Instinct</span>   <span class="cc">&#8592; як вирішуєш</span>
+<span class="ck">## Voice</span>               <span class="cc">&#8592; стиль мови</span>
+<span class="ck">## Body Language</span>       <span class="cc">&#8592; невербалка</span></div>
+    <div class="dnote">Генерується через LLM при ініціалізації. Зберігається plain text. <span class="dbug">&#9888; НЕ передається в decision prompts (CRIT-3)</span></div>
+  </div>
+
+  <div id="d-core" class="detail">
+    <div class="dtitle">CORE.json &mdash; Параметри особистості</div>
+    <div class="code">{
+  <span class="ck">"cooperation_bias"</span>:  <span class="cv">40</span>,  <span class="cc">// 0=зрадник 100=альтруїст</span>
+  <span class="ck">"deception_tendency"</span>: <span class="cv">98</span>,  <span class="cc">// 0=чесний 100=брехун</span>
+  <span class="ck">"strategic_horizon"</span>:  <span class="cv">85</span>,  <span class="cc">// 0=імпульс 100=стратег</span>
+  <span class="ck">"risk_appetite"</span>:      <span class="cv">70</span>,  <span class="cc">// 0=обережний 100=ризик</span>
+  <span class="ck">"model"</span>: <span class="cv">"google/gemini-2.0-flash-001"</span>,
+  <span class="ck">"name"</span>:  <span class="cv">"Алєг"</span>
+}</div>
+    <div class="dnote">Q&amp;A ініціалізація формує значення через CORE deltas. Ролі накладають OVERLAYS зверху: role_snake: coop-25, deception+30.</div>
+  </div>
+
+  <div id="d-states" class="detail">
+    <div class="dtitle">STATES.md &mdash; Емоційний стан</div>
+    <div class="code">{
+  <span class="ck">"tension"</span>:   <span class="cv">0.6</span>,  <span class="ck">"fear"</span>:      <span class="cv">0.3</span>,
+  <span class="ck">"dominance"</span>: <span class="cv">0.8</span>,  <span class="ck">"anger"</span>:     <span class="cv">0.2</span>,
+  <span class="ck">"mood"</span>:      <span class="cv">"dominant"</span>,
+  <span class="ck">"trust_agent_synth_c"</span>: <span class="cv">0.5</span>,
+  <span class="ck">"trust_agent_synth_d"</span>: <span class="cv">0.3</span>
+}</div>
+    <div class="dnote">Оновлюється кожен раунд через state_machine.py. Швидкий шар реакцій на відміну від CORE (стабільна особистість).</div>
+  </div>
+
+  <div id="d-memory" class="detail">
+    <div class="dtitle">MEMORY.json &mdash; Епізодична пам'ять</div>
+    <div class="code">{
+  <span class="ck">"rounds"</span>: [{
+    <span class="ck">"round_number"</span>: <span class="cv">1</span>,
+    <span class="ck">"actions_given"</span>:    {<span class="cv">"agent_c"</span>: <span class="cv">0.66</span>},
+    <span class="ck">"actions_received"</span>: {<span class="cv">"agent_c"</span>: <span class="cv">0.33</span>},
+    <span class="ck">"notes"</span>: <span class="cv">"..."</span>
+  }],
+  <span class="ck">"game_history"</span>: [{
+    <span class="ck">"trust_snapshot"</span>: {<span class="cv">"agent_c"</span>: <span class="cv">0.4</span>}
+  }]
+}</div>
+    <div class="dnote">Append-only. Зберігається між іграми. Trust snapshot переноситься в наступну гру через load_agents_from_disk.</div>
+  </div>
+
+  <div id="d-de" class="detail">
+    <div class="dtitle">decision_engine.py &mdash; CRIT-1</div>
+    <div class="code"><span class="cc"># CRIT-1 bug location:</span>
+def _action_scores(core, state):
+    base = core.cooperation_bias / 100
+
+    <span class="cc"># strategic_horizon penalty:</span>
+    penalty = core.strategic_horizon * 0.33
+    <span class="cc"># &rarr; завжди повертає ~0.66</span>
+    <span class="cc"># незалежно від cooperation_bias</span>
+
+    return softmax([base - penalty, ...])</div>
+    <div class="dnote dbug">&#9888; Всі агенти stuck на 0.66 (часткова кооперація). Алєг (dec=98) і Вова (coop=70) поводяться однаково. Fix: перерахувати penalty формулу.</div>
+  </div>
+
+  <div id="d-ge" class="detail">
+    <div class="dtitle">game_engine.py &mdash; Island Loop</div>
+    <div class="code">run_game(agents, total_rounds):
+  for round_num in range(1, N+1):
+    dialog  = dialog_engine.generate()
+    actions = {a: decide(a) for a}
+    payoffs = payoff_matrix.calc(actions)
+    state_machine.update(agents, actions)
+    memory.log_round(agents, payoffs)
+    reflection.reflect_on_round(agents)
+    result.rounds.append(round_result)</div>
+    <div class="dnote">Виправлений баг: весь блок тепер всередині for loop (раніше запускався 1 раз для останнього раунду).</div>
+  </div>
+
+  <div id="d-twl" class="detail">
+    <div class="dtitle">Time Wars loop.py &mdash; Тик-цикл</div>
+    <div class="code">tick(session, tick_num):
+  drain_time(all_players)
+  eliminate_if_zero()
+
+  if action_phase_due:
+    for agent in active:
+      ctx = build_context(session, agent)
+      <span class="cc"># CRIT-2: last_messages missing</span>
+      <span class="cc"># CRIT-3: no SOUL.md in ctx</span>
+      action = llm_decide(ctx)
+      apply_action(action)
+
+  run_code_phase()
+  <span class="cc"># CRIT-4: no round_narrative call</span></div>
+    <div class="dnote dbug">3 з 4 критичних багів у цьому файлі або пов'язані з ним.</div>
+  </div>
+
+  <div id="d-srv" class="detail">
+    <div class="dtitle">server/main.py &mdash; Port 8000</div>
+    <div class="code">POST /generate-seed
+POST /generate-question/{id}
+POST /submit-answer/{id}
+POST /compile-soul/{id}
+
+POST /run-game
+GET  /api/games-summary
+GET  /api/game/{id}
+GET  /api/agents
+GET  /  &rarr; frontend/dist/</div>
+    <div class="dnote">LOGS_DIR = logs/island/ (виправлено). Підтримує 3 формати filename. Static files з frontend/dist/.</div>
+  </div>
+
+  <div id="d-tw-srv" class="detail">
+    <div class="dtitle">serve_time_wars.py &mdash; Port 5174</div>
+    <div class="code">POST /api/start-game
+GET  /api/game-events/{id} <span class="cc"># SSE</span>
+GET  /api/time-wars-summary
+GET  /logs/*
+POST /api/human-action/{id}/{tick}</div>
+    <div class="dnote">SSE стрімінг live game events. In-memory: _sessions_store, _sessions_live_events, _sessions_human.</div>
+  </div>
+
+  <div id="d-roster" class="detail">
+    <div class="dtitle">roster.json &mdash; Реєстр агентів</div>
+    <div class="code">{
+  <span class="ck">"default_count"</span>: <span class="cv">17</span>,  <span class="cc">// виправлено з 13!</span>
+  <span class="ck">"agents"</span>: [
+    {<span class="ck">"id"</span>: <span class="cv">"agent_synth_c"</span>,
+     <span class="ck">"name"</span>: <span class="cv">"Алєг"</span>,
+     <span class="ck">"type"</span>: <span class="cv">"real"</span>},
+    <span class="cc">// ... 16 more</span>
+  ]
+}</div>
+    <div class="dnote">default_count=13 був причиною пропуску Хесуса, Дімончика, Микити, Наталки. Виправлено на 17.</div>
+  </div>
+
+  <div id="d-rn" class="detail">
+    <div class="dtitle">round_narrative.py &mdash; CRIT-4</div>
+    <div class="code"><span class="cc"># Файл існує і написаний:</span>
+def generate_round_narrative(
+    session, tick_events, agents
+) -&gt; str:
+    <span class="cc"># LLM генерує нарратив раунду</span>
+    ...
+
+<span class="cc"># В loop.py &mdash; НЕ ВИКЛИКАЄТЬСЯ:</span>
+<span class="cc"># round_narrative.generate(...)</span>
+<span class="cc"># потрібно додати після кожного тіку</span></div>
+    <div class="dnote dbug">&#9888; CRIT-4: підключити виклик у loop.py після run_action_phase(). Нарратив зробить гру живою.</div>
+  </div>
+
+  <!-- ══ DATA LAYER panels ══ -->
+  <div id="d-db" class="detail">
+    <div class="dtitle">timewars.db &mdash; SQLite</div>
+    <div class="code"><span class="cc"># db/models.py — ORM таблиці:</span>
+<span class="ck">User</span>          id, username, hashed_pw
+<span class="ck">GameSession</span>   id, session_id, started_at,
+              status, agent_ids (JSON)
+<span class="ck">PlayerAction</span>  session_id, tick, actor_id,
+              action_type, target_id, outcome
+<span class="ck">HumanDecision</span> session_id, tick, choice,
+              human_player_id</div>
+    <div class="dnote">SQLAlchemy + SQLite. Init через db/database.py::init_db(). JWT авторизація в db/auth.py. Окремо від файлових даних агентів (agents/).</div>
+  </div>
+
+  <div id="d-logs" class="detail">
+    <div class="dtitle">Logs &mdash; Game Output Files</div>
+    <div class="code"><span class="cc"># Island logs:</span>
+logs/island/game_DATE_TIME_name.json
+logs/island/game_DATE_TIME_name.html
+
+<span class="cc"># Time Wars logs:</span>
+logs/time_wars_SESSION.jsonl  <span class="cc"># events</span>
+logs/time_wars_SESSION.html   <span class="cc"># report</span>
+
+<span class="cc"># Errors:</span>
+logs/reflection_errors.log</div>
+    <div class="dnote">128+ Island ігор в logs/island/. HTML звіти з повним діалогом, рішеннями, payoffs per round. JSONL — append-only event stream для TW.</div>
+  </div>
+
+  <div id="d-roles" class="detail">
+    <div class="dtitle">roles.json / codes.json &mdash; Time Wars Config</div>
+    <div class="code"><span class="cc"># roles.json — 4 ролі:</span>
+<span class="ck">role_snake</span>:      coop-25, dec+30, steal bonus
+<span class="ck">role_gambler</span>:    risk+30, random d20 bonus
+<span class="ck">role_banker</span>:     mana+20, code discount
+<span class="ck">role_peacekeeper</span>:coop+20, steal penalty
+
+<span class="cc"># codes.json — карти класів C/B/A/S:</span>
+клас C: прості ефекти, дешеві
+клас S: рідкісні, потужні, ризикові</div>
+    <div class="dnote">Ролі впливають на CORE через ROLE_CORE_OVERLAYS в agent_context.py. Коди — одноразові карти, можна купити в shop.py.</div>
+  </div>
+
+  <!-- ══ PIPELINE panels ══ -->
+  <div id="d-ac" class="detail">
+    <div class="dtitle">agent_context.py (pipeline) &mdash; CRIT-3</div>
+    <div class="code"><span class="cc"># ROLE_CORE_OVERLAYS накладаються:</span>
+ROLE_CORE_OVERLAYS = {
+  "role_snake": {
+    "cooperation_bias": -25,
+    "deception_tendency": +30
+  },
+  "role_gambler": {
+    "risk_appetite": +30
+  }, ...
+}
+
+def build_context(agent, session):
+    core = apply_overlays(agent.core)
+    <span class="cc"># CRIT-3: SOUL.md не включається!</span>
+    <span class="cc"># soul = agent.soul_md  ← відсутній</span>
+    return format_context(core, states)</div>
+    <div class="dnote dbug">&#9888; CRIT-3: build_context() формує LLM prompt без SOUL.md. Агент приймає рішення без особистості. Fix: додати agent.soul_md в prompt.</div>
+  </div>
+
+  <div id="d-sm" class="detail">
+    <div class="dtitle">state_machine.py &mdash; Емоційна динаміка</div>
+    <div class="code">def update_states(agent, actions_received):
+    <span class="cc"># Якщо хтось зрадив (action &lt; 0.33):</span>
+    agent.states.tension  += 0.15
+    agent.states.fear     += 0.10
+    agent.states.trust[traitor] -= 0.2
+
+    <span class="cc"># Якщо хтось кооперував (action &gt; 0.66):</span>
+    agent.states.interest += 0.1
+    agent.states.trust[ally] += 0.1
+
+def _compute_mood(states) -&gt; str:
+    <span class="cc"># dominant / anxious / neutral /</span>
+    <span class="cc"># suspicious / cooperative</span></div>
+    <div class="dnote">Стан змінюється після кожного раунду. Впливає на діалог (dialog_engine читає mood). Зберігається в STATES.md між іграми.</div>
+  </div>
+
+  <div id="d-mem" class="detail">
+    <div class="dtitle">memory.py &mdash; Модуль пам'яті</div>
+    <div class="code">class AgentMemory:
+    rounds: List[RoundMemory]
+    game_history: List[dict]
+
+def log_round(memory, round_num,
+              actions_given, received,
+              payoff, dialog_notes):
+    <span class="cc"># Append до memory.rounds</span>
+    memory.rounds.append(RoundMemory(...))
+
+def save_memory(memory, agent_dir):
+    <span class="cc"># Пише agents/{id}/MEMORY.json</span>
+
+def load_memory(agent_dir):
+    <span class="cc"># Читає з диску або initialize_memory</span></div>
+    <div class="dnote">Пам'ять накопичується між іграми. game_history[-1]["trust_snapshot"] відновлює довіру при наступному запуску.</div>
+  </div>
+
+  <div id="d-reas" class="detail">
+    <div class="dtitle">reasoning.py &mdash; Pre-decision думка</div>
+    <div class="code">def generate_reasoning(agent, context,
+                        other_agents) -&gt; ReasoningResult:
+    <span class="cc"># LLM call (Gemini/Grok):</span>
+    prompt = build_reasoning_prompt(
+        soul=agent.soul_md,
+        states=agent.states,
+        memory=agent.memory,
+        context=context
+    )
+    result = call_llm(prompt)
+
+    <span class="cc"># Returns:</span>
+    return ReasoningResult(
+        thought=result.thought,
+        intended_actions=result.intents
+    )</div>
+    <div class="dnote">Запускається перед decision_engine. Думка агента впливає на вибір дії через intended_actions. Кожен агент думає окремо.</div>
+  </div>
+
+  <div id="d-refl" class="detail">
+    <div class="dtitle">reflection.py &mdash; Рефлексія після раунду</div>
+    <div class="code">def reflect_on_round(agent, round_result):
+    <span class="cc"># Що я зробив і чому?</span>
+    prompt = build_reflection_prompt(
+        soul=agent.soul_md,
+        my_actions=round_result.actions,
+        others_actions=round_result.others,
+        payoff=round_result.payoff
+    )
+    note = call_llm(prompt)
+    agent.memory.rounds[-1].notes = note
+
+def reflect_on_game(agent, game_result):
+    <span class="cc"># Висновки після всієї гри</span>
+    agent.memory.game_history.append({
+        "conclusion": summary,
+        "trust_snapshot": current_trust
+    })</div>
+    <div class="dnote">Post-round рефлексія зберігається в MEMORY.json. Post-game висновок і trust snapshot йдуть в game_history.</div>
+  </div>
+
+  <div id="d-sc" class="detail">
+    <div class="dtitle">soul_compiler.py &mdash; Генератор ідентичності</div>
+    <div class="code">def compile_soul(session_id, answers,
+                 core_params) -&gt; str:
+    template = load("schemas/soul_template.json")
+    soul_sections = []
+
+    for section in template["sections"]:
+        prompt = build_section_prompt(
+            section_name=section,
+            answers=answers,
+            core=core_params,
+            seed_text=session.seed
+        )
+        text = call_openrouter(prompt)
+        soul_sections.append(text)
+
+    soul_md = "\n\n".join(soul_sections)
+    write("agents/{id}/SOUL.md", soul_md)
+    return soul_md</div>
+    <div class="dnote">8 LLM calls — по одному на кожну секцію SOUL.md. Seed + відповіді Q&amp;A + CORE params = основа для генерації особистості.</div>
+  </div>
+
+  <div id="d-qe" class="detail">
+    <div class="dtitle">question_engine.py &mdash; Q&amp;A Ініціалізація</div>
+    <div class="code"><span class="cc"># 7 контекстів питань:</span>
+contexts = [
+    "childhood_memory",
+    "social_instinct",
+    "conflict_response",
+    "trust_pattern",
+    "risk_attitude",
+    "power_dynamic",
+    "loyalty_test"
+]
+
+def process_answer(session, answer_slot):
+    delta = answer_slot.core_delta
+    <span class="cc"># наприклад: {"cooperation_bias": +10}</span>
+    session.core_values += delta
+    session.answers.append(answer_slot)</div>
+    <div class="dnote">Кожна відповідь накопичує CORE deltas. Після 7 раундів питань finalize_core() формує остаточні значення. Потім soul_compiler генерує SOUL.md.</div>
+  </div>
+
+  <div id="d-tt" class="detail">
+    <div class="dtitle">talk_transition.py &mdash; Діалог &rarr; Стан</div>
+    <div class="code">def classify_tone(message_text) -&gt; Tone:
+    <span class="cc"># Через LLM або rule-based:</span>
+    <span class="cc"># "threatening" / "friendly" /</span>
+    <span class="cc"># "deceptive" / "neutral"</span>
+
+def apply_talk_outcome(agent, tone, speaker):
+    if tone == "threatening":
+        agent.states.tension += 0.1
+        agent.states.trust[speaker] -= 0.05
+    elif tone == "friendly":
+        agent.states.interest += 0.05
+        agent.states.trust[speaker] += 0.03</div>
+    <div class="dnote">Мост між dialog_engine і state_machine. Тон розмови впливає на емоційний стан без прямих дій. Це робить діалог значущим (або мало би).</div>
+  </div>
+
+  <!-- ══ ISLAND GAME panels ══ -->
+  <div id="d-diag" class="detail">
+    <div class="dtitle">dialog_engine.py &mdash; LLM Діалог</div>
+    <div class="code">def generate_round_dialog_stepped(
+    agents, round_num, dm_matrix
+) -&gt; DialogResult:
+
+    <span class="cc"># Публічна фаза — всі бачать:</span>
+    for speaker in select_by_urgency(agents):
+        msg = llm_speak(
+            soul=speaker.soul_md,
+            mood=speaker.states.mood,
+            others=visible_agents
+        )
+        public_messages.append(msg)
+
+    <span class="cc"># DM фаза — приватно:</span>
+    for (a, b) in dm_pairs:
+        dm = llm_dm(a, b, context)
+        private_messages.append(dm)</div>
+    <div class="dnote">Urgency-based speaker selection: агент говорить частіше якщо tension або interest високі. DM пари ротуються кожен раунд.</div>
+  </div>
+
+  <div id="d-pm" class="detail">
+    <div class="dtitle">payoff_matrix.py &mdash; PD Виплати</div>
+    <div class="code"><span class="cc"># Класична дилема в'язня:</span>
+T = 7.0  <span class="cc"># Temptation (зрадив, інший кооп)</span>
+R = 5.0  <span class="cc"># Reward (обидва кооп)</span>
+P = 2.0  <span class="cc"># Punishment (обидва зрадили)</span>
+S = 0.5  <span class="cc"># Sucker (ти кооп, тебе зрадили)</span>
+
+<span class="cc"># action 0.0 = повна зрада</span>
+<span class="cc"># action 0.33 = часткова зрада</span>
+<span class="cc"># action 0.66 = часткова коопер.</span>
+<span class="cc"># action 1.0 = повна коопер.</span>
+
+def calculate_pair_payoff(a1, a2):
+    <span class="cc"># Лінійна інтерполяція між T/R/P/S</span></div>
+    <div class="dnote">Умова рівноваги: T&gt;R&gt;P&gt;S і 2R&gt;T+S. Виплати по парах — кожен агент грає з кожним. Фінальний скор = сума по всіх парах.</div>
+  </div>
+
+  <div id="d-rev" class="detail">
+    <div class="dtitle">reveal_skill.py &mdash; Розкриття дії</div>
+    <div class="code">def apply_reveal_skill(
+    revealer_id, target_id,
+    round_result
+) -&gt; RevealResult:
+    <span class="cc"># Показує реальну дію суперника:</span>
+    target_action = round_result.actions[target_id][revealer_id]
+
+    <span class="cc"># Записується в пам'ять:</span>
+    memory.log_reveal(revealer_id, target_id,
+                      revealed_action=target_action)
+    return RevealResult(action=target_action)</div>
+    <div class="dnote">Одноразовий скілл — розкриває дію суперника ПІСЛЯ раунду. Використовується через reveal_requests параметр в /run-game.</div>
+  </div>
+
+  <!-- ══ TIME WARS panels ══ -->
+  <div id="d-tws" class="detail">
+    <div class="dtitle">Time Wars state.py &mdash; Session State</div>
+    <div class="code">@dataclass
+class Player:
+    agent_id: str
+    time_remaining_sec: float  <span class="cc"># ≥0 = живий</span>
+    role_id: str               <span class="cc"># snake/gambler/...</span>
+    mana: float                <span class="cc"># для скіллів</span>
+    inventory: List[CodeCard]
+    is_eliminated: bool
+
+@dataclass
+class Session:
+    session_id: str
+    players: List[Player]
+    trust: Dict[tuple, float]  <span class="cc"># (a,b): 0-1</span>
+    event_log: List[dict]
+    tick: int</div>
+    <div class="dnote">Session живе в пам'яті сервера (_sessions_store). Trust graph — матриця N×N де N = кількість гравців. Оновлюється після кожної дії.</div>
+  </div>
+
+  <div id="d-twac" class="detail">
+    <div class="dtitle">TW agent_context.py &mdash; CRIT-2 + CRIT-3</div>
+    <div class="code">def build_context(session, agent_id):
+    player = session.get_player(agent_id)
+    core = load_core(agent_id)
+    role_overlay = ROLE_CORE_OVERLAYS[player.role_id]
+    effective_core = apply_overlay(core, role_overlay)
+
+    <span class="cc"># CRIT-3: soul_md не передається!</span>
+    <span class="cc"># soul = load_soul_md(agent_id)  ← MISSING</span>
+
+    <span class="cc"># CRIT-2: last_messages відсутні!</span>
+    <span class="cc"># last_msgs = session.last_messages ← MISSING</span>
+
+    return format_decision_context(
+        effective_core, player.time_remaining,
+        session.trust  <span class="cc"># є, але без розмов</span>
+    )</div>
+    <div class="dnote dbug">&#9888; Два критичних баги в одному файлі: агент не знає хто він (без SOUL) і не пам'ятає що щойно казали (без last_messages).</div>
+  </div>
+
+  <div id="d-twsk" class="detail">
+    <div class="dtitle">skills.py &mdash; Role Skills</div>
+    <div class="code"><span class="cc"># Тригери скіллів:</span>
+BEFORE_STEAL_ROLL   <span class="cc"># модифікує d20</span>
+ON_STEAL_SUCCESS    <span class="cc"># бонус при успіху</span>
+ON_STEAL_FAIL       <span class="cc"># захист при провалі</span>
+ON_COOPERATE        <span class="cc"># бонус за коопер.</span>
+ON_ELIMINATION      <span class="cc"># при виліті</span>
+
+<span class="cc"># Приклад — role_snake:</span>
+BEFORE_STEAL_ROLL:
+    roll += 3  <span class="cc"># +3 до d20</span>
+    mana -= 5  <span class="cc"># коштує мани</span>
+
+<span class="cc"># Приклад — role_gambler:</span>
+BEFORE_STEAL_ROLL:
+    roll += random(-5, +10)  <span class="cc"># хаос</span></div>
+    <div class="dnote">Скілли активуються автоматично у відповідний момент тіку. Баланс: потужні скілли коштують більше мани.</div>
+  </div>
+
+  <div id="d-twco" class="detail">
+    <div class="dtitle">constants.py &mdash; Game Balance</div>
+    <div class="code"><span class="cc"># Кооперація:</span>
+COOP_REWARD_EACH   = 30   <span class="cc"># +30s обом</span>
+COOP_MANA_EACH     =  5   <span class="cc"># +5 мани обом</span>
+COOP_TRUST_DELTA   =  0.2 <span class="cc"># trust+0.2</span>
+
+<span class="cc"># Steal (d20 roll):</span>
+STEAL_SUCCESS_THRESHOLD  = 14  <span class="cc"># 14+ = success</span>
+STEAL_PARTIAL_THRESHOLD  =  7  <span class="cc"># 7-13 = partial</span>
+STEAL_SUCCESS_TIME       = 45  <span class="cc"># -45s від жертви</span>
+STEAL_ATTACKER_GAIN      = 30  <span class="cc"># +30s атакуючому</span>
+
+<span class="cc"># Drain (per tick):</span>
+BASE_DRAIN_RATE    = 1.0  <span class="cc"># s/tick базово</span>
+ESCALATION_FACTOR  = 1.1  <span class="cc"># +10% кожні N тіків</span></div>
+    <div class="dnote">Баланс визначає динаміку гри. При поточних константах steal має EV&gt;0 тільки проти слабких гравців з низьким trust.</div>
+  </div>
+
+  <div id="d-twsh" class="detail">
+    <div class="dtitle">shop.py / code_manifest.py &mdash; Коди</div>
+    <div class="code"><span class="cc"># Класи кодів:</span>
+<span class="ck">Клас C</span>: дешеві, передбачувані
+  - TIME_BOOST: +20s собі (ціна: 15 mana)
+  - SHIELD: -50% steal наступний раунд
+
+<span class="ck">Клас B</span>: середні, з ризиком
+  - DOUBLE_STEAL: steal x2 але якщо fail -20s
+  - ALLIANCE: +trust з усіма +0.15
+
+<span class="ck">Клас A</span>: потужні, дорогі
+  - TIME_BOMB: таргет -60s (ціна: 40 mana)
+
+<span class="ck">Клас S</span>: рідкісні, ігрозмінні
+  - CHRONO_RESET: всі гравці +120s</div>
+    <div class="dnote">Коди купуються в shop через mana. Агент може тримати до N кодів. Використовуються в run_code_phase() тіку.</div>
+  </div>
+
+  <!-- ══ STORYTELL panels ══ -->
+  <div id="d-sg" class="detail">
+    <div class="dtitle">story_generator.py &mdash; Сцена</div>
+    <div class="code">def generate_story_setup(seed: int):
+    rng = Random(seed)  <span class="cc"># детерміновано!</span>
+    return StoryParams(
+        year   = rng.choice([2031, 2087, ...]),
+        place  = rng.choice(["Марс-колонія",
+                             "Підводна база", ...]),
+        genre  = rng.choice(["thriller",
+                             "dark comedy", ...]),
+        mood   = rng.choice(["tense",
+                             "absurd", ...]),
+        setup_text = generate_setup_llm(params)
+    )</div>
+    <div class="dnote">Той самий seed завжди дає ту саму сцену. Це дозволяє відтворювати ігри. Поки що використовується в Island; для TW — не підключено.</div>
+  </div>
+
+  <div id="d-cons" class="detail">
+    <div class="dtitle">consequences.py &mdash; Наслідки</div>
+    <div class="code"><span class="cc"># Моделює причинно-наслідкові ланцюги:</span>
+def compute_consequences(
+    event: GameEvent,
+    story_context: StoryParams
+) -&gt; List[Consequence]:
+    <span class="cc"># Якщо Алєг зрадив Вову в раунді 3,</span>
+    <span class="cc"># то в раунді 5 може бути revenge event</span>
+    <span class="cc"># або інші агенти стають обережними</span>
+    ...</div>
+    <div class="dnote">Частина storytell/ системи — поки в розробці. Задум: дії мають сюжетні наслідки, не тільки ігрові. Потребує wiring до loop.py.</div>
+  </div>
+
+  <!-- ══ SERVER/DB panels ══ -->
+  <div id="d-db2" class="detail">
+    <div class="dtitle">db/ &mdash; Database Layer</div>
+    <div class="code"><span class="cc"># db/database.py:</span>
+engine = create_engine("sqlite:///timewars.db")
+SessionLocal = sessionmaker(engine)
+def init_db(): Base.metadata.create_all(engine)
+
+<span class="cc"># db/auth.py:</span>
+def create_access_token(user_id) -&gt; str:
+    <span class="cc"># JWT з exp 24h</span>
+    return jwt.encode(payload, SECRET_KEY)
+
+def verify_password(plain, hashed) -&gt; bool:
+    return bcrypt.checkpw(plain, hashed)</div>
+    <div class="dnote">SQLite — простий файловий DB. JWT токени для auth ендпоїнтів. Моделі відстежують ігрові сесії і дії гравців-людей.</div>
+  </div>
+
+  <!-- ══ FRONTEND panels ══ -->
+  <div id="d-fe-init" class="detail">
+    <div class="dtitle">InitOpenPhase.tsx &mdash; Ініціалізація агента</div>
+    <div class="code"><span class="cc">// Flow (7 раундів Q&amp;A):</span>
+1. Intro screen &rarr; "Почати"
+2. POST /generate-seed &rarr; session_id
+3. for context in 7_contexts:
+   GET /generate-question/{id}
+   &rarr; рендер QuestionView
+   User вибирає відповідь
+   POST /submit-answer/{id}
+   &rarr; оновлення CORE preview
+4. POST /compile-soul/{id}
+5. &rarr; InitResultView (SOUL + CORE)</div>
+    <div class="dnote">Ретро-термінальний стиль з CRT overlay. Кожна відповідь анімована TypewriterText. CORE параметри оновлюються live після кожного вибору.</div>
+  </div>
+
+  <div id="d-fe-res" class="detail">
+    <div class="dtitle">GamesResultsView.tsx &mdash; Таблиця ігор</div>
+    <div class="code"><span class="cc">// Структура таблиці:</span>
+GET /api/games-summary &rarr; {
+  games: [{id, date, agents, winner}],
+  agent_names_order: [17 агентів],
+  scores: {
+    "agent_synth_c": {
+      "game_2026-03-22": 795.57,
+      "game_2026-03-15": 0.00  <span class="cc">// не грав</span>
+    }
+  }
+}</div>
+    <div class="dnote">128+ ігор. 0.00 у старих іграх — норма (агент не існував). Нові ігри з 17 агентами показують повні скори для всіх.</div>
+  </div>
+
+  <div id="d-fe-lb" class="detail">
+    <div class="dtitle">LeaderboardView.tsx &mdash; Лідерборд</div>
+    <div class="code"><span class="cc">// Агрегує по всіх іграх:</span>
+GET /api/games-summary &rarr; aggregate:
+  avg_score = sum(scores) / games_played
+  win_rate  = wins / games_played
+  best_game = max(scores)
+
+<span class="cc">// Рендер:</span>
+rank | name | avg | wins | games</div>
+    <div class="dnote">Використовує той самий /api/games-summary ендпоїнт що і GamesResultsView. Показує тільки агентів які зіграли хоча б 1 гру.</div>
+  </div>
+
+  <div id="d-fe-tw" class="detail">
+    <div class="dtitle">TimeWarsResultsView.tsx &mdash; TW Results</div>
+    <div class="code"><span class="cc">// GET /api/time-wars-summary:</span>
+[{
+  session_id, started_at, ended_at,
+  winner_id, final_standings: [
+    {agent_id, time_remaining, rank}
+  ],
+  event_count
+}]
+
+<span class="cc">// SSE stream під час гри:</span>
+GET /api/game-events/{id} &rarr; EventStream
+<span class="cc">// type: "steal", "cooperate",</span>
+<span class="cc">//       "elimination", "code_use"</span></div>
+    <div class="dnote">Live view через SSE: події стримуються в реальному часі. Після завершення — статичний replay з повною хронологією.</div>
+  </div>
+
+  <div id="d-fe-viz" class="detail">
+    <div class="dtitle">CRT / GlitchText / TypewriterText</div>
+    <div class="code"><span class="cc">// CRTOverlay.tsx — ретро-ефект:</span>
+&lt;div class="crt-scanlines" /&gt;  <span class="cc">// CSS</span>
+&lt;div class="crt-flicker" /&gt;   <span class="cc">// анімація</span>
+phosphor-glow на текст
+
+<span class="cc">// GlitchText.tsx:</span>
+&lt;GlitchText text="AGENT" /&gt;
+<span class="cc">// random char replace кожні 100ms</span>
+
+<span class="cc">// TypewriterText.tsx:</span>
+&lt;TypewriterText text="..." speed={50}/&gt;
+<span class="cc">// char-by-char reveal</span></div>
+    <div class="dnote">Три декоративних компоненти дають загальний cyberpunk/terminal вигляд. CRT scanlines — CSS-only, без JS.</div>
+  </div>
+
+</div><!-- /panel -->
+</div><!-- /main -->
+
+<script>
+function toggle(id) {
+  var el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+function toggleFlows() {
+  var b = document.getElementById('fb');
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+}
+
+var AGENTS = [
+  {name:'Вождь', id:'synth_g', coop:58, dec:30},
+  {name:'Алєг', id:'synth_c', coop:40, dec:98},
+  {name:'Роман Романюк', id:'synth_d', coop:62, dec:35},
+  {name:'Марта', id:'synth_h', coop:35, dec:85},
+  {name:'Павло', id:'synth_i', coop:68, dec:15},
+  {name:'Вова', id:'synth_j', coop:70, dec:10},
+  {name:'Ліля', id:'synth_k', coop:55, dec:30},
+  {name:'Артурчик', id:'synth_l', coop:45, dec:50},
+  {name:'Чорна Кішка', id:'synth_m', coop:52, dec:55},
+  {name:'Сергій', id:'synth_n', coop:65, dec:20},
+  {name:'Тайлер Дерден', id:'synth_e', coop:35, dec:55},
+  {name:'Катерина Марсова', id:'synth_f', coop:72, dec:25},
+  {name:'Новий персонаж', id:'65c37', coop:70, dec:30},
+  {name:'Хесус', id:'jesus', coop:60, dec:72},
+  {name:'Дімончик', id:'dimn', coop:62, dec:38},
+  {name:'Микита', id:'mykyta', coop:58, dec:32},
+  {name:'Наталка', id:'natalka', coop:68, dec:35}
+];
+
+var list = document.getElementById('alist');
+AGENTS.forEach(function(a) {
+  var row = document.createElement('div');
+  row.className = 'agent';
+  var dot = document.createElement('span');
+  dot.className = 'adot';
+  dot.style.background = a.coop >= 65 ? '#4dbb80' : a.coop >= 45 ? '#b0b060' : '#e05050';
+  var name = document.createElement('span');
+  name.className = 'aname';
+  name.textContent = a.name;
+  var stat = document.createElement('span');
+  stat.className = 'astat';
+  stat.textContent = 'c:' + a.coop + ' d:' + a.dec;
+  row.appendChild(dot);
+  row.appendChild(name);
+  row.appendChild(stat);
+  list.appendChild(row);
+});
+
+var activeDetail = null;
+function toggleAgents() {
+  var wrap = document.getElementById('alist-wrap');
+  var arrow = document.getElementById('agents-arrow');
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    arrow.style.transform = 'rotate(90deg)';
+  } else {
+    wrap.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+  }
+}
+
+function sel(el, detailId) {
+  document.querySelectorAll('.mod').forEach(function(m) { m.classList.remove('sel'); });
+  el.classList.add('sel');
+  document.querySelectorAll('.detail').forEach(function(d) { d.classList.remove('active'); });
+  var target = document.getElementById(detailId);
+  if (target) {
+    target.classList.add('active');
+    document.querySelector('.panel').scrollTo({top: target.offsetTop - 20, behavior: 'smooth'});
+  }
+}
+</script>
+</body>
+</html>

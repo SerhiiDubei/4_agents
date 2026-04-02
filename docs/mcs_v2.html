@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCS v2 — NPC Internals</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #060b18; color: #c9d4e8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; overflow-x: hidden; }
+
+/* HEADER */
+header { height: 52px; padding: 0 24px; background: #07101f; border-bottom: 1px solid #141f35; display: flex; align-items: center; gap: 12px; position: relative; z-index: 10; }
+.logo { font-size: 13px; font-weight: 700; color: #fff; }
+.logo em { font-style: normal; color: #a78bfa; }
+.badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #1a1040; color: #a78bfa; border: 1px solid #3d2080; letter-spacing: .06em; text-transform: uppercase; }
+.nav-link { margin-left: auto; font-size: 10px; color: #2a4d7a; text-decoration: none; border: 1px solid #141f35; padding: 4px 12px; border-radius: 5px; }
+.nav-link:hover { color: #4f9eff; border-color: #1a2d4a; }
+
+/* PAGE */
+.page { padding: 28px 32px; transition: margin-right .3s ease; }
+.page.drawer-open { margin-right: 370px; }
+.section-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #1e3a5a; margin-bottom: 10px; }
+
+/* PIPELINE */
+.pipeline { display: flex; align-items: center; margin-bottom: 32px; background: #070f1e; border: 1px solid #0d1a2d; border-radius: 10px; padding: 14px 20px; overflow-x: auto; }
+.pipe-step { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; }
+.pipe-box { padding: 6px 14px; border-radius: 6px; font-size: 10px; font-weight: 700; text-align: center; white-space: nowrap; }
+.pipe-box.input  { background: #0d1e10; border: 1px solid #1a4a22; color: #4ade80; }
+.pipe-box.math   { background: #150d28; border: 1px solid #3d2080; color: #a78bfa; }
+.pipe-box.output { background: #091d38; border: 1px solid #1a3d7a; color: #4f9eff; }
+.pipe-box.action { background: #1a1008; border: 1px solid #4a3010; color: #fbbf24; }
+.pipe-sub { font-size: 8px; color: #2a4060; text-align: center; }
+.pipe-arrow { font-size: 16px; color: #1a2d4a; padding: 0 6px; flex-shrink: 0; }
+
+/* NPC CARD */
+.npc-card { background: #070f1e; border: 1px solid #1a2d4a; border-radius: 12px; overflow: hidden; max-width: 680px; }
+.npc-header { padding: 14px 20px; background: #0a1628; border-bottom: 1px solid #0d1a2d; display: flex; align-items: center; gap: 14px; }
+.npc-avatar { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #3d2080, #1a3d7a); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.npc-name { font-size: 15px; font-weight: 700; color: #fff; }
+.npc-role { font-size: 10px; color: #3a5a7a; margin-top: 2px; }
+.npc-state { margin-left: auto; text-align: right; }
+.state-label { font-size: 8px; color: #2a4060; text-transform: uppercase; letter-spacing: .08em; }
+.state-val { font-size: 11px; font-weight: 700; margin-top: 2px; }
+.state-val.tense { color: #f87171; }
+.tick-bar { padding: 8px 20px; background: #050c1a; border-bottom: 1px solid #0d1a2d; display: flex; gap: 24px; align-items: center; }
+.tick-item { display: flex; flex-direction: column; gap: 2px; }
+.tick-key { font-size: 8px; color: #1e3a5a; text-transform: uppercase; letter-spacing: .08em; }
+.tick-val { font-size: 10px; font-weight: 600; color: #4a6a8a; font-family: monospace; }
+.tick-val.hl { color: #a78bfa; }
+.tick-sep { width: 1px; background: #0d1a2d; align-self: stretch; }
+
+/* PERSONAS */
+.personas { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.persona-row { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: border-color .18s, background .18s; }
+.persona-row:hover { background: #0a1628; border-color: #1a2d4a; }
+.persona-row.active { background: #0a1628; }
+.click-hint { font-size: 8px; color: #1e3a5a; margin-left: auto; opacity: 0; transition: opacity .15s; }
+.persona-row:hover .click-hint { opacity: 1; }
+.persona-top { display: flex; align-items: center; gap: 10px; }
+.persona-icon { font-size: 13px; width: 20px; flex-shrink: 0; }
+.persona-name { font-size: 11px; font-weight: 700; min-width: 76px; color: #c9d4e8; }
+.bar-wrap { flex: 1; height: 6px; background: #0d1a2d; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+.persona-weight { font-size: 11px; font-weight: 700; font-family: monospace; min-width: 36px; text-align: right; }
+.persona-delta { font-size: 9px; font-family: monospace; min-width: 44px; text-align: right; }
+.delta-up { color: #f87171; } .delta-down { color: #34d399; }
+.dominant-crown { font-size: 9px; color: #fbbf24; }
+.persona-meta { display: flex; align-items: center; gap: 8px; padding-left: 30px; flex-wrap: wrap; }
+.raw-label { font-size: 8px; color: #1e3a5a; text-transform: uppercase; letter-spacing: .06em; }
+.raw-val { font-size: 9px; font-family: monospace; color: #3a5a7a; }
+.ttag { font-size: 8px; padding: 1px 7px; border-radius: 3px; background: #0d1a2d; color: #3a5a7a; border: 1px solid #1a2d4a; white-space: nowrap; }
+.ttag.on { background: #0d1e10; color: #4ade80; border-color: #1a4a22; }
+.p-protector .bar-fill { background: linear-gradient(90deg, #f87171, #ef4444); }
+.p-protector .persona-weight, .p-protector.active .persona-name, .p-protector.dominant .persona-name { color: #f87171; }
+.p-protector.active { border-color: #f87171; }
+.p-instinct .bar-fill { background: linear-gradient(90deg, #fb923c, #f97316); }
+.p-instinct .persona-weight, .p-instinct.active .persona-name, .p-instinct.dominant .persona-name { color: #fb923c; }
+.p-instinct.active { border-color: #fb923c; }
+.p-thinker .bar-fill { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+.p-thinker .persona-weight, .p-thinker.active .persona-name, .p-thinker.dominant .persona-name { color: #60a5fa; }
+.p-thinker.active { border-color: #60a5fa; }
+.p-mask .bar-fill { background: linear-gradient(90deg, #a78bfa, #8b5cf6); }
+.p-mask .persona-weight, .p-mask.active .persona-name, .p-mask.dominant .persona-name { color: #a78bfa; }
+.p-mask.active { border-color: #a78bfa; }
+.card-divider { height: 1px; background: #0d1a2d; margin: 0 20px; }
+.event-feed { padding: 12px 20px 16px; }
+.event-feed-title { font-size: 9px; color: #1e3a5a; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.event-list { display: flex; flex-direction: column; gap: 5px; }
+.event-item { display: flex; align-items: center; gap: 8px; font-size: 9px; color: #2a4060; }
+.event-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.event-dot.threat { background: #f87171; } .event-dot.social { background: #a78bfa; } .event-dot.neutral { background: #2a4060; }
+.event-time { font-family: monospace; min-width: 32px; }
+.event-text { color: #3a5a7a; }
+
+/* ══════════════════════════════════
+   TICK FLOW STEPPER
+══════════════════════════════════ */
+.tick-flow { max-width: 680px; margin-top: 28px; margin-bottom: 28px; }
+.tf-steps { display: flex; align-items: center; margin-bottom: 0; background: #070f1e; border: 1px solid #0d1a2d; border-bottom: none; border-radius: 10px 10px 0 0; padding: 14px 20px; gap: 0; overflow-x: auto; }
+.tf-step { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 10px; border-radius: 6px; border: 1px solid transparent; transition: all .15s; flex-shrink: 0; }
+.tf-step:hover { border-color: #1a2d4a; background: #0a1628; }
+.tf-step.active { border-color: var(--sc, #4f9eff); background: #050c1a; }
+.tf-num { width: 20px; height: 20px; border-radius: 50%; background: #0d1a2d; border: 1px solid #1a2d4a; font-size: 9px; font-weight: 700; color: #2a4060; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tf-step.active .tf-num { background: var(--sc, #4f9eff); border-color: var(--sc, #4f9eff); color: #fff; }
+.tf-label { font-size: 10px; font-weight: 600; color: #2a4060; white-space: nowrap; }
+.tf-step.active .tf-label { color: var(--sc, #4f9eff); }
+.tf-sep { width: 20px; height: 1px; background: #0d1a2d; flex-shrink: 0; }
+
+.tf-body { background: #070f1e; border: 1px solid #0d1a2d; border-radius: 0 0 10px 10px; padding: 20px; min-height: 200px; }
+.tf-panel { display: none; flex-direction: column; gap: 16px; }
+.tf-panel.visible { display: flex; }
+
+.tf-nav { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid #0d1a2d; margin-top: 4px; }
+.tf-btn { padding: 6px 16px; border-radius: 6px; border: 1px solid #1a2d4a; background: #050c1a; color: #4a6a8a; font-size: 10px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
+.tf-btn:hover { border-color: #2a4d7a; color: #c9d4e8; background: #0a1628; }
+.tf-btn:disabled { opacity: .3; cursor: default; }
+.tf-progress { font-size: 9px; color: #1e3a5a; font-family: monospace; }
+
+/* tick flow content styles */
+.tf-row { display: flex; align-items: flex-start; gap: 14px; }
+.tf-col { flex: 1; }
+.tf-box { background: #050c1a; border: 1px solid #0d1a2d; border-radius: 8px; padding: 12px 14px; }
+.tf-box-title { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #1e3a5a; margin-bottom: 8px; }
+
+/* event card */
+.ev-card { background: #050c1a; border: 1px solid #1a2d4a; border-radius: 8px; padding: 14px 16px; }
+.ev-type { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: #f87171; margin-bottom: 6px; }
+.ev-desc { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; }
+.ev-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.ev-tag { font-size: 8px; padding: 2px 8px; border-radius: 3px; background: #1a0808; color: #f87171; border: 1px solid #4a1a1a; }
+.ev-tag.neutral { background: #0d1a2d; color: #4a6a8a; border-color: #1a2d4a; }
+.ev-severity { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.ev-sev-label { font-size: 9px; color: #2a4060; min-width: 60px; }
+.ev-sev-bar { flex: 1; height: 4px; background: #0d1a2d; border-radius: 2px; overflow: hidden; }
+.ev-sev-fill { height: 100%; border-radius: 2px; background: #f87171; }
+.ev-sev-num { font-size: 9px; font-family: monospace; color: #f87171; }
+
+/* scoring grid */
+.scoring-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sc-card { background: #050c1a; border: 1px solid #0d1a2d; border-radius: 7px; padding: 10px 12px; }
+.sc-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.sc-card-icon { font-size: 11px; }
+.sc-card-name { font-size: 10px; font-weight: 700; }
+.sc-formula { font-size: 9px; font-family: monospace; color: #3a5a7a; display: flex; flex-direction: column; gap: 3px; }
+.sc-formula .base { color: #4a6a8a; }
+.sc-formula .plus { color: #4ade80; }
+.sc-formula .minus { color: #2a4060; }
+.sc-formula .total { color: #c9d4e8; font-weight: 700; border-top: 1px solid #0d1a2d; padding-top: 3px; margin-top: 2px; }
+
+/* softmax */
+.sm-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sm-name { font-size: 9px; color: #4a6a8a; min-width: 70px; }
+.sm-raw { font-size: 9px; font-family: monospace; color: #3a5a7a; min-width: 36px; }
+.sm-arrow { font-size: 10px; color: #1e3a5a; }
+.sm-exp { font-size: 9px; font-family: monospace; color: #a78bfa; min-width: 44px; }
+.sm-weight { font-size: 10px; font-family: monospace; font-weight: 700; min-width: 36px; }
+.sm-bar { flex: 1; height: 5px; background: #0d1a2d; border-radius: 2px; overflow: hidden; }
+.sm-fill { height: 100%; border-radius: 2px; }
+.sm-formula-note { font-size: 9px; color: #1e3a5a; font-family: monospace; background: #050c1a; padding: 8px 10px; border-radius: 5px; margin-bottom: 12px; border: 1px solid #0d1a2d; }
+
+/* delta */
+.delta-compare { display: flex; flex-direction: column; gap: 8px; }
+.dc-row { display: flex; align-items: center; gap: 8px; }
+.dc-name { font-size: 9px; color: #4a6a8a; min-width: 70px; }
+.dc-prev { font-size: 9px; font-family: monospace; color: #2a4060; min-width: 36px; }
+.dc-arrow { font-size: 10px; color: #1e3a5a; }
+.dc-curr { font-size: 9px; font-family: monospace; color: #c9d4e8; min-width: 36px; }
+.dc-delta { font-size: 9px; font-family: monospace; min-width: 54px; text-align: right; }
+.dc-delta.up { color: #f87171; } .dc-delta.dn { color: #34d399; }
+.delta-meter { margin-top: 14px; }
+.dm-label { font-size: 9px; color: #1e3a5a; margin-bottom: 8px; }
+.dm-levels { display: flex; gap: 4px; }
+.dm-level { flex: 1; padding: 7px 6px; border-radius: 5px; border: 1px solid #0d1a2d; text-align: center; background: #050c1a; }
+.dm-level.current { border-color: #fbbf24; background: #1a1008; }
+.dm-lname { font-size: 9px; font-weight: 700; color: #2a4060; }
+.dm-level.current .dm-lname { color: #fbbf24; }
+.dm-ldesc { font-size: 7px; color: #1e3a5a; margin-top: 2px; }
+.dm-level.current .dm-ldesc { color: #4a3010; }
+
+/* decision tree */
+.decision-tree { display: flex; flex-direction: column; gap: 8px; }
+.dt-branch { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-radius: 7px; border: 1px solid #0d1a2d; background: #050c1a; }
+.dt-branch.active { border-color: #fbbf24; background: #0d0a00; }
+.dt-level { font-size: 9px; font-weight: 700; min-width: 72px; color: #2a4060; }
+.dt-branch.active .dt-level { color: #fbbf24; }
+.dt-action { font-size: 9px; color: #3a5a7a; line-height: 1.5; }
+.dt-branch.active .dt-action { color: #c9d4e8; }
+.dt-result { margin-top: 14px; background: #050c1a; border: 1px solid #1a2d4a; border-radius: 8px; padding: 12px 14px; }
+.dt-result-label { font-size: 8px; text-transform: uppercase; letter-spacing: .1em; color: #1e3a5a; margin-bottom: 6px; }
+.dt-result-text { font-size: 11px; color: #8ab8d8; line-height: 1.65; font-style: italic; }
+
+/* NOTE */
+.note-panel { margin-top: 28px; background: #070f1e; border: 1px dashed #1a2d4a; border-radius: 10px; padding: 16px 20px; max-width: 680px; }
+.note-title { font-size: 10px; color: #2a4d7a; margin-bottom: 8px; font-weight: 600; }
+.note-area { width: 100%; min-height: 80px; background: #050c1a; border: 1px solid #0d1a2d; border-radius: 6px; color: #8ab8d8; font-size: 11px; font-family: inherit; padding: 10px 12px; resize: vertical; outline: none; line-height: 1.6; }
+.note-area:focus { border-color: #1a3d7a; }
+.note-area::placeholder { color: #1e3a5a; }
+
+/* ══════════════════════════════════
+   DRAWER
+══════════════════════════════════ */
+.overlay { position: fixed; inset: 0; background: rgba(6,11,24,.5); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 40; }
+.overlay.on { opacity: 1; pointer-events: all; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 360px; background: #070f1e; border-left: 1px solid #1a2d4a; transform: translateX(100%); transition: transform .3s ease; z-index: 50; display: flex; flex-direction: column; overflow: hidden; }
+.drawer.open { transform: translateX(0); }
+.d-head { padding: 16px 18px; border-bottom: 1px solid #0d1a2d; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.d-icon { font-size: 22px; }
+.d-title { font-size: 15px; font-weight: 700; }
+.d-question { font-size: 10px; font-style: italic; margin-top: 2px; opacity: .8; }
+.d-close { margin-left: auto; width: 28px; height: 28px; border-radius: 6px; background: #0d1a2d; border: 1px solid #1a2d4a; color: #4a6a8a; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.d-close:hover { background: #1a2d4a; color: #c9d4e8; }
+.d-body { flex: 1; overflow-y: auto; }
+.d-body::-webkit-scrollbar { width: 4px; }
+.d-body::-webkit-scrollbar-thumb { background: #1a2d4a; border-radius: 2px; }
+.d-panel { display: none; padding: 18px; flex-direction: column; gap: 16px; }
+.d-panel.visible { display: flex; }
+.ds-title { font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #1e3a5a; margin-bottom: 8px; }
+.d-desc { font-size: 11px; color: #8ab8d8; line-height: 1.7; background: #050c1a; border-radius: 8px; padding: 12px 14px; }
+
+/* how it works box */
+.how-box { background: #050c1a; border: 1px solid #0d1a2d; border-radius: 8px; padding: 13px 14px; display: flex; flex-direction: column; gap: 8px; }
+.how-row { display: flex; gap: 10px; }
+.how-key { font-size: 9px; color: #2a4060; min-width: 90px; padding-top: 1px; }
+.how-val { font-size: 10px; color: #8ab8d8; line-height: 1.55; flex: 1; }
+.how-formula { font-size: 9px; font-family: monospace; color: #a78bfa; background: #0d0a1e; padding: 7px 10px; border-radius: 5px; border: 1px solid #1a1040; line-height: 1.7; }
+
+/* score rows */
+.score-rows { display: flex; flex-direction: column; gap: 6px; }
+.score-row { display: flex; align-items: center; gap: 10px; }
+.sc-label { font-size: 10px; color: #4a6a8a; min-width: 130px; }
+.sc-num { font-size: 10px; font-family: monospace; color: #c9d4e8; min-width: 36px; }
+.sc-bar { flex: 1; height: 4px; background: #0d1a2d; border-radius: 2px; overflow: hidden; }
+.sc-fill { height: 100%; border-radius: 2px; }
+.score-total { display: flex; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid #0d1a2d; margin-top: 2px; }
+.sc-tlabel { font-size: 10px; color: #2a4060; min-width: 130px; }
+.sc-tnum { font-size: 11px; font-family: monospace; font-weight: 700; }
+.trig-list { display: flex; flex-direction: column; gap: 6px; }
+.trig-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; background: #050c1a; border: 1px solid #0d1a2d; }
+.trig-item.on { border-color: #1a4a22; background: #0a1e0e; }
+.trig-dot { width: 6px; height: 6px; border-radius: 50%; background: #1a2d4a; flex-shrink: 0; }
+.trig-item.on .trig-dot { background: #4ade80; }
+.trig-name { font-size: 10px; color: #3a5a7a; flex: 1; }
+.trig-item.on .trig-name { color: #c9d4e8; }
+.trig-bonus { font-size: 9px; font-family: monospace; color: #1e3a5a; }
+.trig-item.on .trig-bonus { color: #4ade80; }
+.voice-box { background: #050c1a; border-radius: 8px; padding: 14px 16px; border: 1px solid #0d1a2d; }
+.voice-text { font-size: 11px; color: #8ab8d8; line-height: 1.75; font-style: italic; }
+.voice-note { margin-top: 8px; font-size: 9px; color: #2a4060; font-style: italic; }
+.hist-bars { display: flex; align-items: flex-end; gap: 3px; height: 36px; }
+.hb { flex: 1; border-radius: 2px 2px 0 0; opacity: .35; }
+.hb:last-child { opacity: 1; }
+.hist-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+.hl { font-size: 7px; color: #1e3a5a; font-family: monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MCS · <em>Multi-Consciousness System</em></div>
+  <span class="badge">v2 — NPC Internals</span>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <a class="nav-link" href="mcs_architecture_visual.html">← v1 Architecture</a>
+    <a class="nav-link" href="mcs_v3.html">v3 NPC Anatomy →</a>
+  </div>
+</header>
+
+<div class="overlay" id="overlay"></div>
+
+<!-- ═══════ DRAWER ═══════ -->
+<div class="drawer" id="drawer">
+  <div class="d-head">
+    <div class="d-icon" id="d-icon">🛡️</div>
+    <div>
+      <div class="d-title" id="d-title">Protector</div>
+      <div class="d-question" id="d-question">"Що треба захистити?"</div>
+    </div>
+    <button class="d-close" id="d-close">✕</button>
+  </div>
+  <div class="d-body">
+
+    <!-- PROTECTOR -->
+    <div class="d-panel" id="panel-protector">
+      <div>
+        <div class="ds-title">Суть персони</div>
+        <div class="d-desc" style="border-left:3px solid #f87171">
+          Охоронець цінностей NPC. Реагує на загрози, несправедливість і атаки на те, що NPC вважає важливим — власність, репутацію, близьких. Чим сильніша загроза, тим більше він домінує і пригнічує раціональне мислення.
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Як він функціонує</div>
+        <div class="how-box">
+          <div class="how-row"><span class="how-key">Алгоритм</span><span class="how-val">Сканує подію на ключові слова-тригери (загроза, удар, несправедливість). Кожен тригер додає бонус до raw score.</span></div>
+          <div class="how-formula">raw = base_trait<br>     + Σ(trigger_match × weight)<br><br>Aria: 0.65 + 1.00 + 0.45 = <strong>2.10</strong></div>
+          <div class="how-row"><span class="how-key">Пам'ять</span><span class="how-val">Зберігає список "порушень" — хто і коли завдав шкоди. Кожен новий інцидент з тим самим NPC підсилює наступний score.</span></div>
+          <div class="how-row"><span class="how-key">Вплив</span><span class="how-val">Якщо домінує — блокує Thinker. NPC реагує імпульсивно, логіка замовкає.</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Raw Score цього тіку</div>
+        <div class="score-rows">
+          <div class="score-row"><span class="sc-label">Base trait (Aria)</span><span class="sc-num">0.65</span><div class="sc-bar"><div class="sc-fill" style="width:65%;background:#f87171"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Загроза (сварка)</span><span class="sc-num">1.00</span><div class="sc-bar"><div class="sc-fill" style="width:100%;background:#f87171"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Несправедливість</span><span class="sc-num">0.45</span><div class="sc-bar"><div class="sc-fill" style="width:45%;background:#f87171"></div></div></div>
+          <div class="score-total"><span class="sc-tlabel">= Raw Score</span><span class="sc-tnum" style="color:#f87171">2.10</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Тригери</div>
+        <div class="trig-list">
+          <div class="trig-item on"><div class="trig-dot"></div><span class="trig-name">Фізична загроза</span><span class="trig-bonus">+1.0</span></div>
+          <div class="trig-item on"><div class="trig-dot"></div><span class="trig-name">Несправедливість</span><span class="trig-bonus">+0.45</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Загроза власності</span><span class="trig-bonus">+0.6</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Атака на близьких</span><span class="trig-bonus">+0.8</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Внутрішній голос зараз</div>
+        <div class="voice-box">
+          <div class="voice-text">"Це неприпустимо. Борис знову переходить межі. Я не можу просто стояти і дивитись."</div>
+          <div class="voice-note">(Thinker шепоче: "Стривай, це зашкодить торгівлі..." — але Protector не слухає)</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Вага за останні 8 тіків</div>
+        <div class="hist-bars">
+          <div class="hb" style="height:52%;background:#f87171"></div><div class="hb" style="height:57%;background:#f87171"></div><div class="hb" style="height:50%;background:#f87171"></div><div class="hb" style="height:60%;background:#f87171"></div><div class="hb" style="height:64%;background:#f87171"></div><div class="hb" style="height:71%;background:#f87171"></div><div class="hb" style="height:64%;background:#f87171"></div><div class="hb" style="height:100%;background:#f87171"></div>
+        </div>
+        <div class="hist-labels"><span class="hl">t−7</span><span class="hl">t−0</span></div>
+      </div>
+    </div>
+
+    <!-- INSTINCT -->
+    <div class="d-panel" id="panel-instinct">
+      <div>
+        <div class="ds-title">Суть персони</div>
+        <div class="d-desc" style="border-left:3px solid #fb923c">
+          Тіло і емоції NPC. Відповідає за фізичні стани: адреналін, страх, голод, біль, збудження. Instinct не думає і не планує — він відчуває і реагує. Коли тіло під стресом, Instinct посилюється незалежно від логіки чи соціального контексту.
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Як він функціонує</div>
+        <div class="how-box">
+          <div class="how-row"><span class="how-key">Алгоритм</span><span class="how-val">Читає фізичний стан NPC (hunger, fatigue, stress, pain). Кожен параметр що виходить за норму — додає бонус.</span></div>
+          <div class="how-formula">raw = base_trait<br>     + stress_level × 0.85<br>     + hunger × 0.40<br><br>Aria: 0.55 + 0.85 + 0.00 = <strong>1.40</strong></div>
+          <div class="how-row"><span class="how-key">Особливість</span><span class="how-val">Єдина персона що реагує на ФІЗИЧНИЙ стан, а не на події. Не можна відключити логікою — тіло є тіло.</span></div>
+          <div class="how-row"><span class="how-key">Вплив</span><span class="how-val">Посилює будь-яку реакцію що вже активна. Якщо Protector домінує + Instinct сильний = реакція різкіша.</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Raw Score цього тіку</div>
+        <div class="score-rows">
+          <div class="score-row"><span class="sc-label">Base trait (Aria)</span><span class="sc-num">0.55</span><div class="sc-bar"><div class="sc-fill" style="width:55%;background:#fb923c"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Адреналін (стрес)</span><span class="sc-num">0.85</span><div class="sc-bar"><div class="sc-fill" style="width:85%;background:#fb923c"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Голод</span><span class="sc-num">0.00</span><div class="sc-bar"><div class="sc-fill" style="width:0%;background:#fb923c"></div></div></div>
+          <div class="score-total"><span class="sc-tlabel">= Raw Score</span><span class="sc-tnum" style="color:#fb923c">1.40</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Тригери</div>
+        <div class="trig-list">
+          <div class="trig-item on"><div class="trig-dot"></div><span class="trig-name">Адреналін / стрес</span><span class="trig-bonus">+0.85</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Страх</span><span class="trig-bonus">+0.7</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Голод</span><span class="trig-bonus">+0.4</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Фізичний біль</span><span class="trig-bonus">+0.9</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Внутрішній голос зараз</div>
+        <div class="voice-box">
+          <div class="voice-text">"Серце б'ється швидше. Руки трохи тремтять від злості. Адреналін відчувається у горлі."</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Вага за останні 8 тіків</div>
+        <div class="hist-bars">
+          <div class="hb" style="height:100%;background:#fb923c"></div><div class="hb" style="height:93%;background:#fb923c"></div><div class="hb" style="height:96%;background:#fb923c"></div><div class="hb" style="height:89%;background:#fb923c"></div><div class="hb" style="height:86%;background:#fb923c"></div><div class="hb" style="height:93%;background:#fb923c"></div><div class="hb" style="height:86%;background:#fb923c"></div><div class="hb" style="height:100%;background:#fb923c"></div>
+        </div>
+        <div class="hist-labels"><span class="hl">t−7</span><span class="hl">t−0</span></div>
+      </div>
+    </div>
+
+    <!-- THINKER -->
+    <div class="d-panel" id="panel-thinker">
+      <div>
+        <div class="ds-title">Суть персони</div>
+        <div class="d-desc" style="border-left:3px solid #60a5fa">
+          Раціональний аналітик. Прораховує наслідки, будує плани, зважує ризики. У Арії Thinker зазвичай сильний — вона розумний торговець. Але зараз він пригнічений емоційним сплеском Protector та Instinct.
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Як він функціонує</div>
+        <div class="how-box">
+          <div class="how-row"><span class="how-key">Алгоритм</span><span class="how-val">Активується при складних ситуаціях де є вибір з наслідками. Аналізує контекст і виставляє бонус за складність рішення.</span></div>
+          <div class="how-formula">raw = base_trait<br>     + decision_complexity × 0.5<br>     + negotiation_context × 0.6<br><br>Aria: 0.70 + 0.20 = <strong>0.90</strong></div>
+          <div class="how-row"><span class="how-key">Особливість</span><span class="how-val">Єдина персона що може ЗНИЖУВАТИ імпульсивні реакції. Якщо Thinker сильний — NPC "думає перед тим як діяти".</span></div>
+          <div class="how-row"><span class="how-key">Вплив</span><span class="how-val">Пригнічений зараз. Але його вага 0.18 означає що 18% рішення Арії все одно буде раціональним.</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Raw Score цього тіку</div>
+        <div class="score-rows">
+          <div class="score-row"><span class="sc-label">Base trait (Aria)</span><span class="sc-num">0.70</span><div class="sc-bar"><div class="sc-fill" style="width:70%;background:#60a5fa"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Складний вибір</span><span class="sc-num">0.20</span><div class="sc-bar"><div class="sc-fill" style="width:20%;background:#60a5fa"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Аналіз ризиків</span><span class="sc-num">0.00</span><div class="sc-bar"><div class="sc-fill" style="width:0%;background:#60a5fa"></div></div></div>
+          <div class="score-total"><span class="sc-tlabel">= Raw Score</span><span class="sc-tnum" style="color:#60a5fa">0.90</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Тригери</div>
+        <div class="trig-list">
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Складний вибір</span><span class="trig-bonus">+0.5</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Переговори</span><span class="trig-bonus">+0.6</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Планування</span><span class="trig-bonus">+0.4</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Аналіз ризиків</span><span class="trig-bonus">+0.3</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Внутрішній голос зараз</div>
+        <div class="voice-box">
+          <div class="voice-text">"Зачекай... якщо я зараз відреагую агресивно — Олег бачить все. Це може зашкодити репутації."</div>
+          <div class="voice-note">(Голос тихий — Protector перебиває його цього тіку)</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Вага за останні 8 тіків</div>
+        <div class="hist-bars">
+          <div class="hb" style="height:100%;background:#60a5fa"></div><div class="hb" style="height:97%;background:#60a5fa"></div><div class="hb" style="height:94%;background:#60a5fa"></div><div class="hb" style="height:97%;background:#60a5fa"></div><div class="hb" style="height:91%;background:#60a5fa"></div><div class="hb" style="height:89%;background:#60a5fa"></div><div class="hb" style="height:83%;background:#60a5fa"></div><div class="hb" style="height:51%;background:#60a5fa"></div>
+        </div>
+        <div class="hist-labels"><span class="hl">t−7</span><span class="hl">t−0</span></div>
+      </div>
+    </div>
+
+    <!-- MASK -->
+    <div class="d-panel" id="panel-mask">
+      <div>
+        <div class="ds-title">Суть персони</div>
+        <div class="d-desc" style="border-left:3px solid #a78bfa">
+          Соціальна оболонка. Слідкує за репутацією, очікуваннями оточення і соціальними нормами. Коли є свідки або важливий соціальний контекст — Mask посилюється і "тримає обличчя". Зараз пригнічений.
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Як він функціонує</div>
+        <div class="how-box">
+          <div class="how-row"><span class="how-key">Алгоритм</span><span class="how-val">Сканує кількість свідків, соціальний статус присутніх, важливість репутації в поточному контексті.</span></div>
+          <div class="how-formula">raw = base_trait<br>     + witness_count × 0.15<br>     + social_importance × 0.6<br><br>Aria: 0.45 + 0.15 = <strong>0.60</strong></div>
+          <div class="how-row"><span class="how-key">Особливість</span><span class="how-val">Єдина персона що залежить від ЗОВНІШНЬОГО погляду. Якщо NPC один — Mask майже не активний.</span></div>
+          <div class="how-row"><span class="how-key">Вплив</span><span class="how-val">Стримує різкі реакції, робить відповідь NPC "соціально прийнятною". Конфліктує з Protector і Instinct.</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Raw Score цього тіку</div>
+        <div class="score-rows">
+          <div class="score-row"><span class="sc-label">Base trait (Aria)</span><span class="sc-num">0.45</span><div class="sc-bar"><div class="sc-fill" style="width:45%;background:#a78bfa"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Свідок (Олег)</span><span class="sc-num">0.15</span><div class="sc-bar"><div class="sc-fill" style="width:15%;background:#a78bfa"></div></div></div>
+          <div class="score-row"><span class="sc-label">+ Важливість контексту</span><span class="sc-num">0.00</span><div class="sc-bar"><div class="sc-fill" style="width:0%;background:#a78bfa"></div></div></div>
+          <div class="score-total"><span class="sc-tlabel">= Raw Score</span><span class="sc-tnum" style="color:#a78bfa">0.60</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Тригери</div>
+        <div class="trig-list">
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Соціальний свідок</span><span class="trig-bonus">+0.15/особа</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Публічна репутація</span><span class="trig-bonus">+0.5</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Взаємодія з клієнтом</span><span class="trig-bonus">+0.4</span></div>
+          <div class="trig-item"><div class="trig-dot"></div><span class="trig-name">Репутаційний ризик</span><span class="trig-bonus">+0.6</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Внутрішній голос зараз</div>
+        <div class="voice-box">
+          <div class="voice-text">"Олег дивиться на нас. Що він подумає? Я маю тримати обличчя..."</div>
+          <div class="voice-note">(Mask намагається говорити, але Protector зараз набагато голосніший)</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-title">Вага за останні 8 тіків</div>
+        <div class="hist-bars">
+          <div class="hb" style="height:79%;background:#a78bfa"></div><div class="hb" style="height:84%;background:#a78bfa"></div><div class="hb" style="height:100%;background:#a78bfa"></div><div class="hb" style="height:84%;background:#a78bfa"></div><div class="hb" style="height:89%;background:#a78bfa"></div><div class="hb" style="height:68%;background:#a78bfa"></div><div class="hb" style="height:100%;background:#a78bfa"></div><div class="hb" style="height:63%;background:#a78bfa"></div>
+        </div>
+        <div class="hist-labels"><span class="hl">t−7</span><span class="hl">t−0</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════ PAGE ═══════ -->
+<div class="page" id="page">
+
+  <div class="section-label">Як формуються ваги персон</div>
+  <div class="pipeline">
+    <div class="pipe-step"><div class="pipe-box input">World Events</div><div class="pipe-sub">загроза / соціум / фізика</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box input">Base Traits</div><div class="pipe-sub">вроджена особистість NPC</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box math">Raw Scores</div><div class="pipe-sub">базис + тригери = число</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box math">softmax()</div><div class="pipe-sub">нормалізація → сума = 1.0</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box output">Weights</div><div class="pipe-sub">частка уваги кожної персони</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box output">delta Δ</div><div class="pipe-sub">зміна від попереднього тіку</div></div>
+    <div class="pipe-arrow">›</div>
+    <div class="pipe-step"><div class="pipe-box action">Action / LLM</div><div class="pipe-sub">якщо delta = EXPLOSIVE</div></div>
+  </div>
+
+  <div class="section-label">NPC · поточний стан &nbsp;<span style="color:#2a4060;font-weight:400">— клікни на міністра щоб розкрити</span></div>
+  <div class="npc-card">
+    <div class="npc-header">
+      <div class="npc-avatar">🧑</div>
+      <div><div class="npc-name">Aria</div><div class="npc-role">Торговець · Ринкова площа</div></div>
+      <div class="npc-state"><div class="state-label">Емоційний стан</div><div class="state-val tense">НАПРУЖЕНА</div></div>
+    </div>
+    <div class="tick-bar">
+      <div class="tick-item"><div class="tick-key">Тік</div><div class="tick-val hl">#2847</div></div>
+      <div class="tick-sep"></div>
+      <div class="tick-item"><div class="tick-key">Delta рівень</div><div class="tick-val" style="color:#fbbf24">HIGH</div></div>
+      <div class="tick-sep"></div>
+      <div class="tick-item"><div class="tick-key">LLM виклик</div><div class="tick-val">ні (поріг не досягнуто)</div></div>
+      <div class="tick-sep"></div>
+      <div class="tick-item"><div class="tick-key">Остання подія</div><div class="tick-val">сварка на ринку</div></div>
+    </div>
+    <div class="personas">
+      <div class="persona-row p-protector dominant" data-persona="protector">
+        <div class="persona-top">
+          <div class="persona-icon">🛡️</div><div class="persona-name">Protector</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:62%"></div></div>
+          <div class="persona-weight">0.42</div><div class="persona-delta delta-up">▲ +0.15</div>
+          <div class="dominant-crown">★ домінує</div><div class="click-hint">деталі →</div>
+        </div>
+        <div class="persona-meta"><span class="raw-label">raw</span><span class="raw-val">2.10</span><span class="ttag on">загроза → сварка</span><span class="ttag on">несправедливість</span></div>
+      </div>
+      <div class="persona-row p-instinct" data-persona="instinct">
+        <div class="persona-top">
+          <div class="persona-icon">⚡</div><div class="persona-name">Instinct</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:41%"></div></div>
+          <div class="persona-weight">0.28</div><div class="persona-delta delta-up">▲ +0.04</div>
+          <div class="click-hint">деталі →</div>
+        </div>
+        <div class="persona-meta"><span class="raw-label">raw</span><span class="raw-val">1.40</span><span class="ttag on">адреналін</span><span class="ttag">голод (неактивний)</span></div>
+      </div>
+      <div class="persona-row p-thinker" data-persona="thinker">
+        <div class="persona-top">
+          <div class="persona-icon">🧠</div><div class="persona-name">Thinker</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:26%"></div></div>
+          <div class="persona-weight">0.18</div><div class="persona-delta delta-down">▼ −0.11</div>
+          <div class="click-hint">деталі →</div>
+        </div>
+        <div class="persona-meta"><span class="raw-label">raw</span><span class="raw-val">0.90</span><span class="ttag">вибір (неактивний)</span><span class="ttag">аналіз</span></div>
+      </div>
+      <div class="persona-row p-mask" data-persona="mask">
+        <div class="persona-top">
+          <div class="persona-icon">🎭</div><div class="persona-name">Mask</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:18%"></div></div>
+          <div class="persona-weight">0.12</div><div class="persona-delta delta-down">▼ −0.08</div>
+          <div class="click-hint">деталі →</div>
+        </div>
+        <div class="persona-meta"><span class="raw-label">raw</span><span class="raw-val">0.60</span><span class="ttag">свідок (Олег)</span></div>
+      </div>
+    </div>
+    <div class="card-divider"></div>
+    <div class="event-feed">
+      <div class="event-feed-title">Події цього тіку</div>
+      <div class="event-list">
+        <div class="event-item"><div class="event-dot threat"></div><div class="event-time">t−3</div><div class="event-text">Сусід Борис вдарив кулаком по прилавку Арії</div></div>
+        <div class="event-item"><div class="event-dot social"></div><div class="event-time">t−1</div><div class="event-text">Покупець Олег став свідком — Aria це помітила</div></div>
+        <div class="event-item"><div class="event-dot neutral"></div><div class="event-time">t−0</div><div class="event-text">Тік #2847 обчислено (рівень 1 — без LLM)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TICK FLOW ═══════════════ -->
+  <div class="tick-flow" style="margin-top:28px">
+    <div class="section-label">Тік #2847 — крок за кроком</div>
+    <div class="tf-steps">
+      <div class="tf-step active" data-step="0" style="--sc:#4ade80"><div class="tf-num">1</div><div class="tf-label">Подія</div></div>
+      <div class="tf-sep"></div>
+      <div class="tf-step" data-step="1" style="--sc:#a78bfa"><div class="tf-num">2</div><div class="tf-label">Scoring</div></div>
+      <div class="tf-sep"></div>
+      <div class="tf-step" data-step="2" style="--sc:#a78bfa"><div class="tf-num">3</div><div class="tf-label">Softmax</div></div>
+      <div class="tf-sep"></div>
+      <div class="tf-step" data-step="3" style="--sc:#4f9eff"><div class="tf-num">4</div><div class="tf-label">Delta</div></div>
+      <div class="tf-sep"></div>
+      <div class="tf-step" data-step="4" style="--sc:#fbbf24"><div class="tf-num">5</div><div class="tf-label">Рішення</div></div>
+    </div>
+
+    <div class="tf-body">
+
+      <!-- STEP 1: Подія -->
+      <div class="tf-panel visible" id="tf-0">
+        <div class="tf-box-title">Що прийшло в MCS цього тіку</div>
+        <div class="ev-card">
+          <div class="ev-type">⚡ EVENT · threat</div>
+          <div class="ev-desc">"Борис вдарив кулаком по прилавку Арії"</div>
+          <div class="ev-tags">
+            <span class="ev-tag">threat:physical</span>
+            <span class="ev-tag">injustice</span>
+            <span class="ev-tag">public</span>
+            <span class="ev-tag neutral">witness:Oleh</span>
+            <span class="ev-tag neutral">location:market</span>
+          </div>
+          <div class="ev-severity" style="margin-top:12px">
+            <span class="ev-sev-label">Severity</span>
+            <div class="ev-sev-bar"><div class="ev-sev-fill" style="width:85%"></div></div>
+            <span class="ev-sev-num">0.85</span>
+          </div>
+          <div class="ev-severity">
+            <span class="ev-sev-label">Priority</span>
+            <div class="ev-sev-bar"><div class="ev-sev-fill" style="width:70%;background:#fbbf24"></div></div>
+            <span class="ev-sev-num" style="color:#fbbf24">MEDIUM</span>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#3a5a7a;background:#050c1a;border-radius:7px;padding:10px 12px;border:1px solid #0d1a2d;">
+          MCS отримав цю подію з черги Redis (MEDIUM priority). Тепер кожна з 4 персон незалежно аналізує її і виставляє свій raw score на наступному кроці.
+        </div>
+      </div>
+
+      <!-- STEP 2: Scoring -->
+      <div class="tf-panel" id="tf-1">
+        <div class="tf-box-title">Кожна персона незалежно рахує свій raw score</div>
+        <div class="scoring-grid">
+          <div class="sc-card">
+            <div class="sc-card-head"><span class="sc-card-icon">🛡️</span><span class="sc-card-name" style="color:#f87171">Protector</span></div>
+            <div class="sc-formula">
+              <span class="base">0.65  ← base trait</span>
+              <span class="plus">+1.00 ← threat:physical</span>
+              <span class="plus">+0.45 ← injustice</span>
+              <span class="total">= 2.10</span>
+            </div>
+          </div>
+          <div class="sc-card">
+            <div class="sc-card-head"><span class="sc-card-icon">⚡</span><span class="sc-card-name" style="color:#fb923c">Instinct</span></div>
+            <div class="sc-formula">
+              <span class="base">0.55  ← base trait</span>
+              <span class="plus">+0.85 ← stress/adrenaline</span>
+              <span class="minus">+0.00 ← hunger (inactive)</span>
+              <span class="total">= 1.40</span>
+            </div>
+          </div>
+          <div class="sc-card">
+            <div class="sc-card-head"><span class="sc-card-icon">🧠</span><span class="sc-card-name" style="color:#60a5fa">Thinker</span></div>
+            <div class="sc-formula">
+              <span class="base">0.70  ← base trait</span>
+              <span class="plus">+0.20 ← choice complexity</span>
+              <span class="minus">+0.00 ← no negotiation</span>
+              <span class="total">= 0.90</span>
+            </div>
+          </div>
+          <div class="sc-card">
+            <div class="sc-card-head"><span class="sc-card-icon">🎭</span><span class="sc-card-name" style="color:#a78bfa">Mask</span></div>
+            <div class="sc-formula">
+              <span class="base">0.45  ← base trait</span>
+              <span class="plus">+0.15 ← witness:Oleh</span>
+              <span class="minus">+0.00 ← low social stake</span>
+              <span class="total">= 0.60</span>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#3a5a7a;background:#050c1a;border-radius:7px;padding:10px 12px;border:1px solid #0d1a2d;">
+          Raw scores — це "голоси" персон. Але вони ще не нормалізовані. Сума 2.10 + 1.40 + 0.90 + 0.60 = <strong style="color:#c9d4e8">5.00</strong>. Наступний крок — softmax.
+        </div>
+      </div>
+
+      <!-- STEP 3: Softmax -->
+      <div class="tf-panel" id="tf-2">
+        <div class="tf-box-title">softmax() — перетворення raw scores у ймовірності</div>
+        <div class="sm-formula-note">weight[i] = e^raw[i] / Σ(e^raw[j])  &nbsp;→&nbsp;  сума всіх weights = 1.0</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="sm-row">
+            <span class="sm-name" style="color:#f87171">🛡️ Protector</span>
+            <span class="sm-raw">2.10</span>
+            <span class="sm-arrow">→ e²·¹⁰ =</span>
+            <span class="sm-exp">8.17</span>
+            <span class="sm-arrow">÷ 16.5 =</span>
+            <span class="sm-weight" style="color:#f87171">0.42</span>
+            <div class="sm-bar"><div class="sm-fill" style="width:62%;background:#f87171"></div></div>
+          </div>
+          <div class="sm-row">
+            <span class="sm-name" style="color:#fb923c">⚡ Instinct</span>
+            <span class="sm-raw">1.40</span>
+            <span class="sm-arrow">→ e¹·⁴⁰ =</span>
+            <span class="sm-exp">4.05</span>
+            <span class="sm-arrow">÷ 16.5 =</span>
+            <span class="sm-weight" style="color:#fb923c">0.28</span>
+            <div class="sm-bar"><div class="sm-fill" style="width:42%;background:#fb923c"></div></div>
+          </div>
+          <div class="sm-row">
+            <span class="sm-name" style="color:#60a5fa">🧠 Thinker</span>
+            <span class="sm-raw">0.90</span>
+            <span class="sm-arrow">→ e⁰·⁹⁰ =</span>
+            <span class="sm-exp">2.46</span>
+            <span class="sm-arrow">÷ 16.5 =</span>
+            <span class="sm-weight" style="color:#60a5fa">0.18</span>
+            <div class="sm-bar"><div class="sm-fill" style="width:27%;background:#60a5fa"></div></div>
+          </div>
+          <div class="sm-row">
+            <span class="sm-name" style="color:#a78bfa">🎭 Mask</span>
+            <span class="sm-raw">0.60</span>
+            <span class="sm-arrow">→ e⁰·⁶⁰ =</span>
+            <span class="sm-exp">1.82</span>
+            <span class="sm-arrow">÷ 16.5 =</span>
+            <span class="sm-weight" style="color:#a78bfa">0.12</span>
+            <div class="sm-bar"><div class="sm-fill" style="width:18%;background:#a78bfa"></div></div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#3a5a7a;background:#050c1a;border-radius:7px;padding:10px 12px;border:1px solid #0d1a2d;">
+          Σ = <strong style="color:#c9d4e8">0.42 + 0.28 + 0.18 + 0.12 = 1.00 ✓</strong><br>
+          <span style="color:#2a4060">Softmax важливий: невелика різниця в raw scores → більша різниця у вагах. Протектор з 2.10 не просто "найсильніший" — він домінує у 3.5 рази над Маскою.</span>
+        </div>
+      </div>
+
+      <!-- STEP 4: Delta -->
+      <div class="tf-panel" id="tf-3">
+        <div class="tf-box-title">Delta — наскільки змінився стан Арії за один тік</div>
+        <div class="delta-compare">
+          <div style="display:flex;gap:8px;font-size:8px;color:#1e3a5a;padding:0 0 4px 72px;text-transform:uppercase;letter-spacing:.08em">
+            <span style="min-width:46px">t−1</span>
+            <span style="min-width:46px">t−0</span>
+            <span>Δ</span>
+          </div>
+          <div class="dc-row"><span class="dc-name" style="color:#f87171">🛡️ Protector</span><span class="dc-prev">0.27</span><span class="dc-arrow">→</span><span class="dc-curr">0.42</span><span class="dc-delta up">▲ +0.15</span></div>
+          <div class="dc-row"><span class="dc-name" style="color:#fb923c">⚡ Instinct</span><span class="dc-prev">0.24</span><span class="dc-arrow">→</span><span class="dc-curr">0.28</span><span class="dc-delta up">▲ +0.04</span></div>
+          <div class="dc-row"><span class="dc-name" style="color:#60a5fa">🧠 Thinker</span><span class="dc-prev">0.29</span><span class="dc-arrow">→</span><span class="dc-curr">0.18</span><span class="dc-delta dn">▼ −0.11</span></div>
+          <div class="dc-row"><span class="dc-name" style="color:#a78bfa">🎭 Mask</span><span class="dc-prev">0.20</span><span class="dc-arrow">→</span><span class="dc-curr">0.12</span><span class="dc-delta dn">▼ −0.08</span></div>
+        </div>
+        <div class="delta-meter" style="margin-top:16px">
+          <div class="dm-label">Загальний рівень delta = <strong style="color:#fbbf24">HIGH (0.38)</strong></div>
+          <div class="dm-levels">
+            <div class="dm-level"><div class="dm-lname">LOW</div><div class="dm-ldesc">&lt; 0.10</div><div class="dm-ldesc" style="margin-top:3px;color:#2a4060">тихий тік</div></div>
+            <div class="dm-level"><div class="dm-lname">MID</div><div class="dm-ldesc">0.10–0.25</div><div class="dm-ldesc" style="margin-top:3px;color:#2a4060">помітна зміна</div></div>
+            <div class="dm-level current"><div class="dm-lname">HIGH</div><div class="dm-ldesc">0.25–0.50</div><div class="dm-ldesc" style="margin-top:3px">← зараз тут</div></div>
+            <div class="dm-level"><div class="dm-lname">EXPLOSIVE</div><div class="dm-ldesc">&gt; 0.50</div><div class="dm-ldesc" style="margin-top:3px;color:#2a4060">виклик LLM</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: Рішення -->
+      <div class="tf-panel" id="tf-4">
+        <div class="tf-box-title">Що MCS вирішує на основі delta рівня</div>
+        <div class="decision-tree">
+          <div class="dt-branch"><div class="dt-level">EXPLOSIVE</div><div class="dt-action">Викликати LLM негайно · генерувати повну відповідь · HIGH priority queue</div></div>
+          <div class="dt-branch active"><div class="dt-level">HIGH ← зараз</div><div class="dt-action">Записати новий стан в пам'ять · поставити MEDIUM priority тік · NPC "пам'ятає" але не реагує вголос цього тіку</div></div>
+          <div class="dt-branch"><div class="dt-level">MID</div><div class="dt-action">Оновити внутрішній стан · LOW priority тік · без зовнішньої реакції</div></div>
+          <div class="dt-branch"><div class="dt-level">LOW</div><div class="dt-action">Тихо оновити стан · наступний тік по розкладу</div></div>
+        </div>
+        <div class="dt-result">
+          <div class="dt-result-label">Що робить Aria після тіку #2847</div>
+          <div class="dt-result-text">"Aria запам'ятала інцидент. Protector зафіксував Бориса як загрозу. Вголос вона нічого не каже цього тіку — але наступний тік коли Борис зробить будь-що, її реакція буде сильнішою. Thinker записав що Олег бачив все."</div>
+        </div>
+      </div>
+
+      <!-- NAV -->
+      <div class="tf-nav">
+        <button class="tf-btn" id="tf-prev" disabled>← Назад</button>
+        <span class="tf-progress" id="tf-progress">1 / 5</span>
+        <button class="tf-btn" id="tf-next">Далі →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-panel">
+    <div class="note-title">💬 Коментарі</div>
+    <textarea class="note-area" placeholder="Залиш коментар тут — що змінити, що додати, що не так..."></textarea>
+  </div>
+
+</div>
+
+<script>
+/* ── TICK STEPPER ── */
+let tfStep = 0;
+const TF_TOTAL = 5;
+
+function tfGo(n) {
+  document.getElementById('tf-' + tfStep).classList.remove('visible');
+  document.querySelectorAll('.tf-step')[tfStep].classList.remove('active');
+  tfStep = n;
+  document.getElementById('tf-' + tfStep).classList.add('visible');
+  document.querySelectorAll('.tf-step')[tfStep].classList.add('active');
+  document.getElementById('tf-prev').disabled = tfStep === 0;
+  document.getElementById('tf-next').disabled = tfStep === TF_TOTAL - 1;
+  document.getElementById('tf-progress').textContent = (tfStep + 1) + ' / ' + TF_TOTAL;
+}
+
+document.getElementById('tf-prev').addEventListener('click', function() { if (tfStep > 0) tfGo(tfStep - 1); });
+document.getElementById('tf-next').addEventListener('click', function() { if (tfStep < TF_TOTAL - 1) tfGo(tfStep + 1); });
+document.querySelectorAll('.tf-step').forEach(function(btn) {
+  btn.addEventListener('click', function() { tfGo(parseInt(this.dataset.step)); });
+});
+
+/* ── DRAWER ── */
+const DRAWER_META = {
+  protector: { icon: '🛡️', title: 'Protector', question: '"Що треба захистити?"', color: '#f87171' },
+  instinct:  { icon: '⚡',  title: 'Instinct',  question: '"Що я відчуваю зараз?"', color: '#fb923c' },
+  thinker:   { icon: '🧠', title: 'Thinker',   question: '"Які наслідки?"', color: '#60a5fa' },
+  mask:      { icon: '🎭', title: 'Mask',      question: '"Що від мене очікують?"', color: '#a78bfa' },
+};
+let current = null;
+
+function openDrawer(key) {
+  const m = DRAWER_META[key];
+  if (!m) return;
+  document.getElementById('d-icon').textContent     = m.icon;
+  document.getElementById('d-title').textContent    = m.title;
+  document.getElementById('d-title').style.color    = m.color;
+  document.getElementById('d-question').textContent = m.question;
+  document.getElementById('d-question').style.color = m.color;
+  document.querySelectorAll('.d-panel').forEach(function(p) { p.classList.remove('visible'); });
+  const panel = document.getElementById('panel-' + key);
+  if (panel) panel.classList.add('visible');
+  document.querySelectorAll('.persona-row').forEach(function(r) { r.classList.remove('active'); });
+  const row = document.querySelector('[data-persona="' + key + '"]');
+  if (row) row.classList.add('active');
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('page').classList.add('drawer-open');
+  current = key;
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('page').classList.remove('drawer-open');
+  document.querySelectorAll('.persona-row').forEach(function(r) { r.classList.remove('active'); });
+  current = null;
+}
+
+document.querySelectorAll('.persona-row').forEach(function(row) {
+  row.addEventListener('click', function() {
+    var key = this.dataset.persona;
+    if (current === key) { closeDrawer(); } else { openDrawer(key); }
+  });
+});
+document.getElementById('d-close').addEventListener('click', closeDrawer);
+document.getElementById('overlay').addEventListener('click', closeDrawer);
+</script>
+</body>
+</html>

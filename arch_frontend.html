@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / FRONTEND LAYER — Component Tree</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0a0a0f; --bg2:#111118; --border:#2a2a3a;
+  --text:#c8c8e0; --dim:#5a5a7a; --accent:#7c6dfa;
+  --c-data:#4dbb80; --c-pipeline:#5b9bd5; --c-game:#b06ee0;
+  --c-server:#e0944a; --c-frontend:#4dbba0; --c-story:#b0b060;
+  --c-bug:#e05050;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; display:flex; flex-direction:column; }
+
+header { padding:18px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-shrink:0; }
+.logo { font-size:18px; font-weight:bold; color:var(--c-frontend); letter-spacing:2px; }
+.sub { font-size:10px; color:var(--dim); margin-top:2px; }
+.navtabs { margin-left:auto; display:flex; gap:6px; }
+.ntab { font-size:10px; padding:5px 12px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:4px; color:var(--dim); text-decoration:none; transition:all .15s; }
+.ntab:hover { color:var(--text); border-color:var(--c-frontend); }
+
+.layout { display:grid; grid-template-columns:1fr 240px; flex:1; min-height:0; overflow:hidden; }
+
+/* MAIN TREE AREA */
+.main-area { overflow-y:auto; padding:24px 28px 80px; display:flex; flex-direction:column; gap:20px; }
+.panel-label { font-size:9px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:16px; }
+
+/* SVG Tree */
+.tree-container { position:relative; }
+svg.tree-svg { position:absolute; top:0; left:0; pointer-events:none; }
+.tree-nodes { position:relative; }
+
+/* Component boxes */
+.comp-box {
+  position:absolute;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:7px 11px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.comp-box:hover { border-color:var(--c-frontend); background:rgba(77,187,160,.06); }
+.comp-box.selected { border-color:var(--c-frontend); background:rgba(77,187,160,.12); box-shadow:0 0 12px rgba(77,187,160,.2); }
+.comp-box.root-node { border-color:var(--c-frontend); background:rgba(77,187,160,.08); }
+.comp-name { font-size:11px; font-weight:bold; }
+.comp-route { font-size:9px; color:var(--dim); margin-top:1px; }
+.comp-api { font-size:8px; color:var(--c-server); margin-top:2px; }
+
+/* Tooltip */
+.tooltip {
+  background:var(--bg2);
+  border:1px solid var(--c-frontend);
+  border-radius:6px;
+  padding:14px 16px;
+  max-width:500px;
+  display:none;
+}
+.tooltip.visible { display:block; }
+.tt-name { font-size:13px; font-weight:bold; color:var(--c-frontend); margin-bottom:6px; }
+.tt-desc { font-size:10px; color:var(--dim); line-height:1.7; }
+.tt-api-row { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+.tt-method { font-size:9px; padding:2px 6px; border-radius:3px; font-weight:bold; }
+.tt-get { background:rgba(77,187,128,.15); color:#4dbb80; }
+.tt-post { background:rgba(91,155,213,.15); color:#5b9bd5; }
+.tt-sse { background:rgba(224,148,74,.15); color:#e0944a; }
+.tt-endpoint { font-size:9px; color:var(--text); font-family:'Courier New',monospace; }
+.tt-port { font-size:9px; color:var(--dim); }
+
+/* Tech stack */
+.tech-stack { border:1px solid var(--border); border-radius:6px; padding:16px 18px; background:rgba(255,255,255,.01); }
+.tech-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:10px; }
+.tech-item { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:5px; padding:10px 12px; text-align:center; }
+.tech-name { font-size:11px; font-weight:bold; color:var(--c-frontend); }
+.tech-ver { font-size:9px; color:var(--dim); margin-top:2px; }
+
+/* RIGHT: page flow sidebar */
+.sidebar { border-left:1px solid var(--border); overflow-y:auto; padding:16px 14px; }
+.flow-node {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px 12px;
+  margin-bottom:4px;
+  position:relative;
+}
+.flow-node.active { border-color:var(--c-frontend); background:rgba(77,187,160,.06); }
+.flow-route { font-size:10px; color:var(--c-frontend); font-weight:bold; margin-bottom:2px; }
+.flow-comp { font-size:10px; color:var(--text); }
+.flow-desc { font-size:9px; color:var(--dim); margin-top:3px; line-height:1.5; }
+.flow-arrow { text-align:center; color:var(--dim); font-size:12px; margin:4px 0; }
+.flow-api-badge { display:inline-block; margin-top:5px; padding:2px 6px; background:rgba(224,148,74,.1); border:1px solid rgba(224,148,74,.25); border-radius:3px; font-size:8px; color:var(--c-server); }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">FRONTEND LAYER — Component Tree</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <div class="main-area">
+    <div>
+      <div class="panel-label">React Component Tree — click any node to inspect</div>
+
+      <!-- SVG + absolute-positioned boxes are built by JS below -->
+      <div class="tree-container" id="tree-container"></div>
+    </div>
+
+    <!-- Tooltip detail panel (shown on component click) -->
+    <div class="tooltip" id="tooltip">
+      <div class="tt-name" id="tt-name">Component</div>
+      <div class="tt-desc" id="tt-desc"></div>
+      <div class="tt-api-row" id="tt-api-row"></div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="tech-stack">
+      <div class="panel-label" style="margin-bottom:0">Tech Stack</div>
+      <div class="tech-grid">
+        <div class="tech-item"><div class="tech-name">React</div><div class="tech-ver">v18</div></div>
+        <div class="tech-item"><div class="tech-name">TypeScript</div><div class="tech-ver">strict mode</div></div>
+        <div class="tech-item"><div class="tech-name">Vite</div><div class="tech-ver">dev + build</div></div>
+        <div class="tech-item"><div class="tech-name">CSS Modules</div><div class="tech-ver">scoped styles</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR: page flow -->
+  <div class="sidebar">
+    <div class="panel-label">Page Flow</div>
+
+    <div class="flow-node active">
+      <div class="flow-route">/init</div>
+      <div class="flow-comp">InitOpenPhase</div>
+      <div class="flow-desc">7-round Q&amp;A to seed agent personality. Compiles SOUL + CORE on completion.</div>
+      <div class="flow-api-badge">POST :8000</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+
+    <div class="flow-node">
+      <div class="flow-route">/results</div>
+      <div class="flow-comp">GamesResultsView</div>
+      <div class="flow-desc">Agent × game score matrix. Reads aggregated game summary from API.</div>
+      <div class="flow-api-badge">GET :8000</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+
+    <div class="flow-node">
+      <div class="flow-route">/leaderboard</div>
+      <div class="flow-comp">LeaderboardView</div>
+      <div class="flow-desc">17-agent ranked table by total score across all game modes.</div>
+      <div class="flow-api-badge">GET :8000</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+
+    <div class="flow-node">
+      <div class="flow-route">/timewars</div>
+      <div class="flow-comp">TimeWarsResultsView</div>
+      <div class="flow-desc">Live event timeline via SSE stream. Final standings after game ends.</div>
+      <div class="flow-api-badge">SSE :5174</div>
+    </div>
+
+    <div style="margin-top:24px; padding:10px; background:rgba(77,187,160,.05); border:1px solid rgba(77,187,160,.15); border-radius:5px;">
+      <div style="font-size:9px; color:var(--c-frontend); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Global Components</div>
+      <div style="font-size:9px; color:var(--dim); line-height:2;">
+        CRTOverlay — scanline filter<br>
+        GlitchText — glitch animation<br>
+        TypewriterText — char-by-char
+      </div>
+    </div>
+
+    <div style="margin-top:14px; padding:10px; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:5px;">
+      <div style="font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Entry Point</div>
+      <div style="font-size:9px; color:var(--dim); line-height:1.8;">
+        frontend/src/main.tsx<br>
+        App.tsx → Router<br>
+        Port: 5173 (dev)
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Component tree data: each node has id, label, optional route/api, parent, x, y
+var NODES = [
+  {id:'app',       label:'App',               sub:'root',         x:340, y:10,  w:100, parent:null,      api:[]},
+  {id:'router',    label:'Router',            sub:'BrowserRouter', x:320, y:75,  w:120, parent:'app',     api:[]},
+  {id:'crt',       label:'CRTOverlay',        sub:'global fx',    x:80,  y:75,  w:130, parent:'app',     api:[]},
+  {id:'glitch',    label:'GlitchText',        sub:'reusable',     x:230, y:155, w:110, parent:'app',     api:[]},
+  {id:'typewriter',label:'TypewriterText',    sub:'reusable',     x:350, y:155, w:130, parent:'app',     api:[]},
+
+  {id:'init',      label:'InitOpenPhase',     sub:'/init',        x:20,  y:240, w:140, parent:'router',  api:[
+    {m:'POST',e:'/generate-seed',p:8000},
+    {m:'POST',e:'/generate-question',p:8000},
+    {m:'POST',e:'/submit-answer',p:8000},
+    {m:'POST',e:'/compile-soul',p:8000}
+  ]},
+  {id:'results',   label:'GamesResultsView',  sub:'/results',     x:200, y:240, w:150, parent:'router',  api:[
+    {m:'GET',e:'/api/games-summary',p:8000}
+  ]},
+  {id:'leader',    label:'LeaderboardView',   sub:'/leaderboard', x:380, y:240, w:150, parent:'router',  api:[
+    {m:'GET',e:'/api/games-summary',p:8000}
+  ]},
+  {id:'timewars',  label:'TimeWarsResultsView',sub:'/timewars',   x:560, y:240, w:170, parent:'router',  api:[
+    {m:'SSE',e:'/api/game-events/{id}',p:5174}
+  ]},
+
+  {id:'qview',     label:'QuestionView',      sub:'×7 Q&A rounds',x:0,   y:335, w:130, parent:'init',    api:[]},
+  {id:'cprev',     label:'CorePreview',       sub:'live CORE bars',x:145, y:335, w:120, parent:'init',   api:[]},
+  {id:'iresult',   label:'InitResultView',    sub:'SOUL+CORE display',x:0, y:415, w:140, parent:'init',  api:[]},
+  {id:'score',     label:'ScoreTable',        sub:'agent × game matrix',x:200, y:335, w:140, parent:'results', api:[]},
+  {id:'rankrow',   label:'RankRow',           sub:'×17 agents',   x:390, y:335, w:110, parent:'leader',  api:[]},
+  {id:'timeline',  label:'EventTimeline',     sub:'SSE stream',   x:555, y:335, w:120, parent:'timewars',api:[]},
+  {id:'standings', label:'FinalStandings',    sub:'post-game',    x:555, y:415, w:120, parent:'timewars',api:[]}
+];
+
+var DESCRIPTIONS = {
+  app: 'Root component. Wraps everything in the CRT visual filter and sets up BrowserRouter. Entry point: frontend/src/App.tsx.',
+  router: 'React Router v6 BrowserRouter. Defines 4 main routes and handles navigation between game phases.',
+  crt: 'Full-viewport SVG/CSS overlay that applies a CRT scanline effect globally. Always rendered regardless of route.',
+  glitch: 'Reusable text component that applies randomized glitch animation to any string. Used throughout for sci-fi aesthetic.',
+  typewriter: 'Reusable component that reveals text character-by-character with configurable speed. Used in InitOpenPhase and results screens.',
+  init: 'Main initialization flow. Runs 7 Q&A rounds to build agent personality, then compiles SOUL.md + CORE.json via pipeline API on port 8000.',
+  results: 'Displays the results of all game sessions as a scrollable matrix: agent rows × game columns, with cooperation/betrayal scores.',
+  leader: 'Ranked leaderboard showing all 17 agents sorted by total accumulated score across Island + Time Wars game modes.',
+  timewars: 'Live Time Wars game viewer. Subscribes to SSE stream on port 5174, renders events as they arrive, shows final standings on game end.',
+  qview: 'Renders a single question card with multiple choice or free-text answer. Receives question data from InitOpenPhase and emits answer up.',
+  cprev: 'Live visualization of current CORE parameter estimates as horizontal bars, updating in real time as Q&A rounds progress.',
+  iresult: 'Final initialization screen. Shows the compiled SOUL.md narrative and CORE.json param values after the 7-round Q&A completes.',
+  score: 'Agent × game score matrix component. Renders a table with color-coded cells for cooperation/betrayal outcomes per game session.',
+  rankrow: 'Single row in the leaderboard table. Shows agent name, archetype color dot, score breakdown, and rank delta.',
+  timeline: 'Streams and renders Time Wars tick events in real time via SSE. Each event appears as a styled log entry with agent name and action.',
+  standings: 'Final standings table shown after Time Wars game ends. Displays rank, agent name, final time balance, and game outcome.'
+};
+
+// Build the tree
+var container = document.getElementById('tree-container');
+
+// Compute total height needed
+var maxY = 0;
+NODES.forEach(function(n) { if (n.y + 60 > maxY) maxY = n.y + 60; });
+var totalW = 760;
+var totalH = maxY + 30;
+
+container.style.width = totalW + 'px';
+container.style.height = totalH + 'px';
+container.style.position = 'relative';
+
+// Build lookup
+var nodeMap = {};
+NODES.forEach(function(n) { nodeMap[n.id] = n; });
+
+// Create SVG for lines
+var svgNS = 'http://www.w3.org/2000/svg';
+var svg = document.createElementNS(svgNS, 'svg');
+svg.setAttribute('width', totalW);
+svg.setAttribute('height', totalH);
+svg.style.position = 'absolute';
+svg.style.top = '0';
+svg.style.left = '0';
+svg.style.pointerEvents = 'none';
+container.appendChild(svg);
+
+// Draw lines from each child to parent
+var BOX_H = 52;
+NODES.forEach(function(n) {
+  if (!n.parent) return;
+  var parent = nodeMap[n.parent];
+  if (!parent) return;
+
+  var px = parent.x + parent.w / 2;
+  var py = parent.y + BOX_H;
+  var cx = n.x + n.w / 2;
+  var cy = n.y;
+
+  // Draw curved path
+  var midY = (py + cy) / 2;
+  var d = 'M ' + px + ' ' + py +
+          ' C ' + px + ' ' + midY + ' ' +
+          cx + ' ' + midY + ' ' +
+          cx + ' ' + cy;
+
+  var path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#2a2a3a');
+  path.setAttribute('stroke-width', '1.5');
+  svg.appendChild(path);
+});
+
+// Create component boxes
+var selectedBox = null;
+
+NODES.forEach(function(n) {
+  var box = document.createElement('div');
+  box.className = 'comp-box' + (n.id === 'app' ? ' root-node' : '');
+  box.style.left = n.x + 'px';
+  box.style.top = n.y + 'px';
+  box.style.width = n.w + 'px';
+
+  var nameEl = document.createElement('div');
+  nameEl.className = 'comp-name';
+  nameEl.textContent = n.label;
+  box.appendChild(nameEl);
+
+  if (n.sub) {
+    var subEl = document.createElement('div');
+    subEl.className = 'comp-route';
+    subEl.textContent = n.sub;
+    box.appendChild(subEl);
+  }
+
+  if (n.api && n.api.length > 0) {
+    var apiEl = document.createElement('div');
+    apiEl.className = 'comp-api';
+    apiEl.textContent = n.api[0].m + ' :' + n.api[0].p;
+    if (n.api.length > 1) {
+      apiEl.textContent += ' +' + (n.api.length - 1);
+    }
+    box.appendChild(apiEl);
+  }
+
+  box.addEventListener('click', function() {
+    if (selectedBox) selectedBox.classList.remove('selected');
+    box.classList.add('selected');
+    selectedBox = box;
+    showTooltip(n);
+  });
+
+  container.appendChild(box);
+});
+
+// Tooltip logic
+var tooltip = document.getElementById('tooltip');
+var ttName = document.getElementById('tt-name');
+var ttDesc = document.getElementById('tt-desc');
+var ttApiRow = document.getElementById('tt-api-row');
+
+function showTooltip(n) {
+  ttName.textContent = n.label + (n.sub ? '  —  ' + n.sub : '');
+  ttDesc.textContent = DESCRIPTIONS[n.id] || 'Component in the 4 AGENTS React frontend.';
+
+  // Clear and rebuild API row using DOM
+  while (ttApiRow.firstChild) { ttApiRow.removeChild(ttApiRow.firstChild); }
+
+  if (n.api && n.api.length > 0) {
+    n.api.forEach(function(a) {
+      var method = document.createElement('span');
+      method.className = 'tt-method tt-' + a.m.toLowerCase();
+      method.textContent = a.m;
+      ttApiRow.appendChild(method);
+
+      var ep = document.createElement('span');
+      ep.className = 'tt-endpoint';
+      ep.textContent = a.e;
+      ttApiRow.appendChild(ep);
+
+      var port = document.createElement('span');
+      port.className = 'tt-port';
+      port.textContent = ':' + a.p;
+      ttApiRow.appendChild(port);
+    });
+  }
+
+  tooltip.classList.add('visible');
+}
+</script>
+</body>
+</html>

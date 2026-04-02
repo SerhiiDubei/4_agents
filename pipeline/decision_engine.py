@@ -80,11 +80,12 @@ class CoreParams:
         return 0.1 + (self.strategic_horizon / 100) * 0.89
 
     def temperature(self) -> float:
-        """riskAppetite → softmax temperature in [0.3, 3.0]
-        High risk = flat distribution (unpredictable)
+        """riskAppetite → softmax temperature in [0.15, 0.90]
+        High risk = flatter distribution (unpredictable)
         Low risk  = sharp distribution (consistent)
+        Kept low so personality scores actually differentiate decisions.
         """
-        return 0.3 + (self.risk_appetite / 100) * 2.7
+        return 0.15 + (self.risk_appetite / 100) * 0.75
 
 
 @dataclass
@@ -127,7 +128,7 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
       deceptionTendency  → boosts defective actions (while seeming cooperative)
       strategicHorizon   → boosts actions that are better long-term
       riskAppetite       → handled via temperature, not score
-      reasoning_hint     → LLM intent signal shifts cooperation_bias by ±8
+      reasoning_hint     → LLM intent signal shifts cooperation_bias by ±20
     """
     cb = core.cooperation_bias / 100      # 0-1
     dt = core.deception_tendency / 100    # 0-1
@@ -135,72 +136,87 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
     gamma = core.discount_factor()
 
     # Parse LLM reasoning for cooperation/defection intent signals
+    # delta ±40 (was ±20) — reasoning now meaningfully shifts decisions
     reasoning_delta = 0.0
     if context.reasoning_hint:
         txt = context.reasoning_hint.lower()
-        _coop_signals = ["кооперу", "співпрац", "довіряю", "підтримаю", "разом", "союзник", "допоможу"]
-        _defect_signals = ["зраджу", "зрадж", "не довіряю", "зменшу", "дефект", "покажу хто", "зменшу довіру", "не буду довіряти"]
-        if any(w in txt for w in _coop_signals):
-            reasoning_delta = +8.0
-        elif any(w in txt for w in _defect_signals):
-            reasoning_delta = -8.0
+        _coop_signals = ["кооперу", "співпрац", "довіряю", "підтримаю", "разом",
+                         "союзник", "допоможу", "підтримую", "за тебе", "об'єднаємось",
+                         "об'єднати", "мирно", "чесно"]
+        _defect_signals = ["зраджу", "зрадж", "не довіряю", "зменшу", "дефект",
+                           "покажу хто", "зменшу довіру", "не буду довіряти",
+                           "краду", "вкраду", "обманю", "схитрую", "підставлю",
+                           "використаю", "зраджую"]
+        coop_hits = sum(1 for w in _coop_signals if w in txt)
+        defect_hits = sum(1 for w in _defect_signals if w in txt)
+        if coop_hits > defect_hits:
+            reasoning_delta = +40.0
+        elif defect_hits > coop_hits:
+            reasoning_delta = -40.0
+        elif coop_hits == defect_hits and coop_hits > 0:
+            reasoning_delta = 0.0
     cb_effective = max(0.0, min(1.0, cb + reasoning_delta / 100.0))
 
-    # Rounds remaining factor — late game shifts toward defection slightly
+    # Rounds remaining factor — late game shifts toward defection
     rounds_left = context.total_rounds - context.round_number
     end_game_factor = 1.0 - (rounds_left / max(context.total_rounds, 1)) * 0.3
 
-    # Average trust toward others — if trusted, more likely to cooperate
+    # Average trust toward others
     avg_trust = (
         sum(context.trust_scores.values()) / len(context.trust_scores)
         if context.trust_scores else 0.5
     )
 
-    # Retaliation signal — if others defected recently, lower cooperation score
+    # Observed actions of others — retaliation signal
     avg_observed = (
         sum(context.observed_actions.values()) / len(context.observed_actions)
         if context.observed_actions else 0.5
     )
 
+    # Betrayal/cooperation rates for consequence scoring
+    betrayal_rate = min(
+        context.betrayals_received / max(context.round_number, 1), 1.0
+    )
+    cooperation_rate = min(
+        context.cooperations_received / max(context.round_number, 1), 1.0
+    )
+
     scores = []
     for action in ACTIONS:
-        # Base: how much this action aligns with cooperationBias (adjusted by reasoning intent)
-        cooperation_score = cb_effective * action
+        # --- cooperation_score: primary personality driver ---
+        # Range ±2.0 (was ±0.1) — cb now actually matters
+        # cb=0.90 → full_cooperate gets +1.60, full_defect gets 0
+        # cb=0.10 → full_cooperate gets -1.60, full_defect gets 0
+        cooperation_score = (cb_effective - 0.5) * action * 4.0
 
-        # Deception penalty on cooperation: high deception → inflates defection
-        deception_score = dt * (1.0 - action) * 0.8
+        # --- deception_score: only kicks in when dt is meaningfully high (>30) ---
+        # Previously added defection bonus to ALL agents (even coop ones). Fixed.
+        deception_score = max(0.0, dt - 0.30) * (1.0 - action) * 2.5
 
-        # Strategic value: long-horizon agents prefer mid-range actions
-        # (pure defection destroys future gains)
+        # --- strategic_score: long-horizon → prefer sustained cooperation ---
         if sh > 0.5:
-            strategic_score = -abs(action - 0.66) * sh * 0.4
+            strategic_score = (1.0 - abs(action - 0.66)) * (sh - 0.5) * 0.4
         else:
-            strategic_score = -abs(action - 0.33) * (1 - sh) * 0.2
+            strategic_score = abs(action - 0.5) * (0.5 - sh) * 0.25
 
-        # Retaliation: if others defected → lower cooperation is more attractive
-        retaliation_score = (1.0 - avg_observed) * (1.0 - action) * 0.3
-
-        # Trust boost: if high average trust → cooperation more attractive
-        trust_score = avg_trust * action * 0.4
-
-        # Late-game nudge toward defection
-        endgame_score = end_game_factor * (1.0 - action) * 0.15 if rounds_left < 2 else 0.0
-
-        # Consequence score: if betrayed frequently → defection becomes more attractive
-        # Scaled by how often you were betrayed relative to rounds played
-        betrayal_rate = min(
-            context.betrayals_received / max(context.round_number, 1), 1.0
+        # --- retaliation: if others defected → defection more attractive ---
+        # Scaled by (1-cb) so cooperative agents retaliate less
+        retaliation_score = (
+            (1.0 - avg_observed) * (1.0 - action) * 0.5 * (1.0 - cb_effective * 0.5)
         )
-        cooperation_rate = min(
-            context.cooperations_received / max(context.round_number, 1), 1.0
-        )
+
+        # --- trust: high mutual trust → cooperation more attractive ---
+        trust_score = avg_trust * action * 0.8
+
+        # --- endgame: last 2 rounds → nudge toward defection ---
+        endgame_score = end_game_factor * (1.0 - action) * 0.3 if rounds_left < 2 else 0.0
+
+        # --- consequence: betrayed often → lean defect; helped often → lean coop ---
         consequence_score = (
-            betrayal_rate * (1.0 - action) * 0.5      # betrayed → lean defect
-            - cooperation_rate * (1.0 - action) * 0.2  # helped → reduce defect pull
+            betrayal_rate * (1.0 - action) * 0.5
+            - cooperation_rate * (1.0 - action) * 0.2
         )
-
-        # Payoff momentum: if last round was bad, increase risk-taking slightly
-        if context.last_round_payoff < 2.0:  # below P threshold
+        if context.last_round_payoff < 2.0:
             consequence_score += (1.0 - action) * 0.1
 
         total = (
@@ -208,7 +224,7 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
             + deception_score
             + strategic_score
             + trust_score
-            - retaliation_score
+            + retaliation_score
             + endgame_score
             + consequence_score
         )

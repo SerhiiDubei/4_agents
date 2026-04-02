@@ -349,14 +349,40 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                 dialog_html += f'<div class="msg dm"><span class="dm-label">[DM]</span> <span class="sender">{sender}</span> → <span class="sender">{target}</span>: &ldquo;{text}&rdquo;</div>\n'
         dialog_html += "</div>"
 
-    # Decisions section (supports multi-dim: cooperation + support)
+    # Decisions section — matrix (усі рішення в таблиці) + детальний список
     decisions_html = ""
     if actions:
-        decisions_html = '<div class="section-label">DECISIONS</div><div class="decisions">'
+        agent_ids = list(actions.keys())
+        targets = agent_ids  # кожен гравець приймає рішення щодо всіх інших
+
+        # Матриця рішень: рядки = хто рішує, стовпці = щодо кого, клітинка = cooperation
+        decisions_html = '<div class="section-label">РІШЕННЯ (матриця: хто → щодо кого, 0=зрада 1=співпраця)</div>'
+        decisions_html += '<div class="decisions-matrix-wrap"><table class="decisions-matrix">'
+        decisions_html += "<thead><tr><th></th>"
+        for t_id in targets:
+            decisions_html += f'<th title="{escape(t_id)}">{dn(t_id)}</th>'
+        decisions_html += "</tr></thead><tbody>"
+        for agent_id in agent_ids:
+            decisions_html += f'<tr><th>{dn(agent_id)}</th>'
+            agent_acts = actions.get(agent_id, {})
+            for target_id in targets:
+                if target_id == agent_id:
+                    decisions_html += '<td class="self-cell">—</td>'
+                else:
+                    val = agent_acts.get(target_id, 0.5)
+                    coop = _cooperation_value(val)
+                    color_cls = _action_color_class(coop)
+                    label = _action_label(coop)
+                    decisions_html += f'<td class="{color_cls}" title="{label}">{coop:.2f}</td>'
+            decisions_html += "</tr>"
+        decisions_html += "</tbody></table></div>"
+
+        # Детальний список (розгорнутий)
+        decisions_html += '<div class="section-label">РІШЕННЯ (детально)</div><div class="decisions">'
         for agent_id, agent_acts in actions.items():
             sid = dn(agent_id)
             decisions_html += f'<div class="decision-row"><span class="agent-name">{sid}</span> →'
-            for target_id, val in agent_acts.items():
+            for target_id, val in sorted(agent_acts.items(), key=lambda x: x[0]):
                 tid = dn(target_id)
                 coop = _cooperation_value(val)
                 label = _action_label(coop)
@@ -605,6 +631,21 @@ body {
 .act-coop   { color: #4ade80; font-weight: bold; }
 .bar-filled { color: #818cf8; }
 .bar-empty  { color: #1e293b; }
+
+/* Decisions matrix (heatmap) */
+.decisions-matrix-wrap { overflow-x: auto; margin: 10px 0; }
+.decisions-matrix {
+    width: 100%; min-width: 400px; border-collapse: collapse; font-size: 0.9em;
+}
+.decisions-matrix th, .decisions-matrix td {
+    border: 1px solid #334155; padding: 4px 8px; text-align: center;
+}
+.decisions-matrix th { background: #1e293b; color: #94a3b8; min-width: 60px; }
+.decisions-matrix td.self-cell { background: #1a1a1a; color: #4b5563; }
+.decisions-matrix td.act-betray { background: #7f1d1d; color: #fca5a5; }
+.decisions-matrix td.act-softd { background: #78350f; color: #fde68a; }
+.decisions-matrix td.act-softc { background: #14532d; color: #86efac; }
+.decisions-matrix td.act-coop { background: #1e3a5f; color: #93c5fd; font-weight: bold; }
 
 /* Payoffs */
 .payoff-row { margin: 2px 0; }

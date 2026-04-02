@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Pyright перевіряє типи...",
+            "command": "python3 -c \"\nimport json, sys, subprocess, os\nd = json.load(sys.stdin)\nf = d.get('tool_input', {}).get('file_path', '') or d.get('tool_response', {}).get('filePath', '')\nif not f.endswith('.py'):\n    sys.exit(0)\nresult = subprocess.run(['python3', '-m', 'pyright', f, '--outputjson'], capture_output=True, text=True)\ntry:\n    out = json.loads(result.stdout)\n    errors = [x for x in out.get('generalDiagnostics',[]) if x['severity']=='error']\n    if errors:\n        msgs = '; '.join(f\\\"L{x['range']['start']['line']+1}: {x['message']}\\\" for x in errors[:3])\n        print(json.dumps({'systemMessage': f\\\"Pyright [{os.path.basename(f)}]: {len(errors)} помилок — {msgs}\\\"}))\nexcept Exception:\n    pass\n\" 2>/dev/null || true",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"\nimport json, sys, os\nd = json.load(sys.stdin)\nf = d.get('tool_input', {}).get('file_path', '')\nname = os.path.basename(f)\nif name in ('.env', 'openrouter_keys.txt'):\n    print(json.dumps({'continue': False, 'stopReason': f'ЗАХИСТ: редагування {name} заблоковано — тут API ключі. Використовуй .env.example для шаблону.'}))\n\""
+          }
+        ]
+      }
+    ]
+  }
+}

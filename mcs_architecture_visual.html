@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCS — Architecture Layers</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#060b18;color:#c9d4e8;font-family:'Inter','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column}
+
+header{height:52px;padding:0 18px;background:#07101f;border-bottom:1px solid #141f35;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.logo h1{font-size:13px;font-weight:700;color:#fff;white-space:nowrap}
+.logo h1 em{font-style:normal;color:#4f9eff}
+.logo p{font-size:9px;color:#2a3e5a;margin-top:1px}
+.tabs{display:flex;gap:4px}
+.tab{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;border:1px solid #1a2d4a;background:transparent;color:#4a6a8a;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;transition:all .18s;white-space:nowrap}
+.tab:hover{color:#8ab8d8;border-color:#2a4d7a}
+.tab .tn{font-size:9px;opacity:.55;margin-right:2px}
+.tab.l1{--ac:#4f9eff}.tab.l2{--ac:#a78bfa}.tab.l3{--ac:#fbbf24}.tab.l4{--ac:#34d399}
+.tab.active{border-color:var(--ac);color:var(--ac);background:rgba(255,255,255,.04)}
+.vtgl{margin-left:auto;display:flex;background:#0d1a2d;border:1px solid #1a2d4a;border-radius:6px;overflow:hidden}
+.vtgl button{padding:5px 12px;background:transparent;border:none;color:#4a6a8a;cursor:pointer;font-size:10px;font-weight:600;font-family:inherit;transition:all .15s}
+.vtgl button.active{background:#1a2d4a;color:#c9d4e8}
+
+.lhdr{padding:7px 18px 6px;border-bottom:1px solid #0d1a2d;flex-shrink:0}
+.lhdr h2{font-size:12px;font-weight:700;color:#fff}
+.lhdr .ds{font-size:9.5px;color:#3a5a7a;margin-top:2px;line-height:1.4}
+.lhdr .ds.tech{font-family:'Courier New',monospace;font-size:9px;color:#2a4a6a}
+.hidden{display:none!important}
+
+main{flex:1;position:relative;overflow:hidden;min-height:0;display:flex;flex-direction:column}
+.layer{position:absolute;inset:0;display:none;flex-direction:column}
+.layer.active{display:flex}
+
+.diagram-area{flex:1;position:relative;overflow:hidden}
+.diagram-inner{position:relative;height:100%}
+.scrollable-x{overflow-x:auto;overflow-y:hidden}
+.scrollable-x .diagram-inner{min-height:320px}
+
+.zone-band{position:absolute;left:0;right:0;pointer-events:none}
+.zone-lbl{position:absolute;font-size:8px;font-family:monospace;font-weight:700;pointer-events:none;padding:4px 10px;letter-spacing:.5px}
+
+.node{position:absolute;transform:translate(-50%,-50%);border-radius:8px;padding:8px 13px;cursor:pointer;text-align:center;transition:box-shadow .15s;z-index:2;min-width:88px;max-width:152px;border-style:solid;user-select:none}
+.node:hover{filter:brightness(1.15);z-index:10}
+.node.selected{outline:1.5px solid rgba(255,255,255,.25);outline-offset:3px;z-index:10}
+.node.decision{border-radius:4px;border-style:dashed}
+.nd-step{font-size:8px;color:#2a3e5a;margin-bottom:3px;font-family:monospace;letter-spacing:.5px}
+.nd-title{font-size:11px;font-weight:700;white-space:nowrap}
+.nd-sub{font-size:8px;color:#4a6a8a;margin-top:3px;line-height:1.3}
+.nd-sub2{font-size:7px;color:#2a3a5a;margin-top:2px;line-height:1.3}
+
+.edges-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1}
+
+/* ── SIDE PANEL ── */
+.side-panel{position:absolute;top:0;right:0;bottom:0;width:360px;background:rgba(6,11,24,.97);border-left:1px solid #141f35;transform:translateX(100%);transition:transform .22s;overflow-y:auto;z-index:30;display:flex;flex-direction:column}
+.side-panel.open{transform:translateX(0)}
+.sp-head{padding:14px 16px 10px;border-bottom:1px solid #0d1a2d;flex-shrink:0;display:flex;align-items:flex-start;gap:10px}
+.sp-emoji{font-size:26px;line-height:1;flex-shrink:0;margin-top:2px}
+.sp-titles{flex:1;min-width:0}
+.sp-title{font-size:14px;font-weight:700;color:#fff}
+.sp-tagline{font-size:10px;color:#4a6a8a;margin-top:3px;line-height:1.4}
+.sp-close{background:none;border:none;color:#2a3e5a;cursor:pointer;font-size:18px;padding:0;flex-shrink:0;line-height:1;margin-top:2px}
+.sp-close:hover{color:#c9d4e8}
+.sp-body{padding:0 0 20px;flex:1}
+.sp-section{padding:12px 16px;border-bottom:1px solid #0a1628}
+.sp-section:last-child{border-bottom:none}
+.sp-sec-title{font-size:9px;font-weight:700;letter-spacing:.8px;color:#2a4a6a;text-transform:uppercase;margin-bottom:6px}
+.sp-text{font-size:10.5px;color:#8ab8d8;line-height:1.65}
+.sp-tech{font-family:'Courier New',monospace;font-size:9px;color:#4a7aaa;line-height:1.6;background:#040810;padding:8px 10px;border-radius:5px;margin-top:6px}
+.sp-flow{display:flex;flex-direction:column;gap:6px}
+.sp-flow-row{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.5}
+.sp-flow-arrow{color:#2a4a6a;flex-shrink:0;font-size:12px;margin-top:1px}
+.sp-flow-content{color:#8ab8d8}
+.sp-chain{background:#040d1a;border:1px solid #0d1a2d;border-radius:6px;padding:10px 12px;font-size:9px;font-family:'Courier New',monospace;color:#4a7aaa;line-height:1.7;margin-top:6px;word-break:break-word}
+.sp-why{font-size:9.5px;color:#5a7a5a;line-height:1.6;font-style:italic}
+.sp-drills{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.sp-drill-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:6px;border:1px solid #1a2d4a;background:#040d1a;cursor:pointer;font-family:inherit;transition:all .18s;text-align:left}
+.sp-drill-btn:hover{border-color:var(--dc);background:#070f1e}
+.sp-drill-btn .db-badge{font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--dc);color:#060b18;white-space:nowrap}
+.sp-drill-btn .db-label{font-size:10px;color:#8ab8d8;flex:1}
+.sp-drill-btn .db-arrow{font-size:12px;color:#2a4a6a}
+.node.has-drill .nd-badge{display:inline-block;font-size:7px;font-weight:700;background:#a78bfa22;color:#a78bfaaa;border:1px solid #a78bfa33;border-radius:3px;padding:1px 5px;margin-top:4px;letter-spacing:.4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <h1>MCS · <em>Multi-Consciousness System</em></h1>
+    <p>Interactive architecture · 4 layers · click nodes for details</p>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab l1 active" data-layer="1"><span class="tn">L1</span>System</button>
+    <button class="tab l2" data-layer="2"><span class="tn">L2</span>Parliament</button>
+    <button class="tab l3" data-layer="3"><span class="tn">L3</span>Desires</button>
+    <button class="tab l4" data-layer="4"><span class="tn">L4</span>Tick</button>
+  </nav>
+  <div class="vtgl">
+    <button class="active" data-mode="simple">Simple</button>
+    <button data-mode="tech">Tech</button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════
+//  LAYER LAYOUT DATA
+// ══════════════════════════════════════════════════
+var LAYERS = {
+  1: {
+    title:'L1 — System Architecture',
+    ds_simple:'Весь оркестр системи. Гравець або Світ запускають подію → вона проходить через Redis та Celery → MCS обробляє → результат зберігається.',
+    ds_tech:'FastAPI:8000 → Redis queues(HIGH/MED/LOW) → Celery workers → MCS core → PostgreSQL / LLM',
+    zoneBands:[
+      {top:0,  h:28, bg:'rgba(79,158,255,.04)',  lbl:'INPUT',      lc:'#4f9eff33', lx:'1%'},
+      {top:28, h:28, bg:'rgba(167,139,250,.04)', lbl:'TRANSPORT',  lc:'#a78bfa33', lx:'1%'},
+      {top:56, h:21, bg:'rgba(79,158,255,.04)',  lbl:'PROCESSING', lc:'#4f9eff33', lx:'1%'},
+      {top:77, h:23, bg:'rgba(52,211,153,.04)',  lbl:'STORAGE',    lc:'#34d39933', lx:'1%'}
+    ],
+    nodes:[
+      {id:'player',        title:'PLAYER',         sub:'REST / WebSocket',         sub2:'',                       x:12, y:15, c:'#4f9eff',  bg:'#091d38', bw:2},
+      {id:'fastapi',       title:'FastAPI  :8000',  sub:'REST + SSE streaming',     sub2:'gateway · auth',         x:46, y:15, c:'#7ad8ff',  bg:'#091d38', bw:2},
+      {id:'world-engine',  title:'WORLD ENGINE',   sub:'events · time · economy',  sub2:'',                       x:80, y:15, c:'#4f9eff88',bg:'#060f1c', bw:1.5},
+      {id:'celery-beat',   title:'Celery Beat',    sub:'periodic scheduler',       sub2:'idle life ticks',        x:12, y:43, c:'#4f9effaa',bg:'#060f1c', bw:1.5},
+      {id:'redis',         title:'Redis',          sub:'HIGH · MED · LOW queues',  sub2:'pub/sub · ~0.1ms',       x:46, y:43, c:'#a78bfa',  bg:'#150d28', bw:2},
+      {id:'social-fabric', title:'Social Fabric',  sub:'NPC-to-NPC relations',     sub2:'rumors · reputation',    x:80, y:43, c:'#a78bfaaa',bg:'#0d0d1a', bw:1.5},
+      {id:'celery-workers',title:'Celery Workers', sub:'NPC_A · NPC_B · NPC_C …',  sub2:'окремі OS processes',    x:46, y:66, c:'#7ad8ff',  bg:'#091d38', bw:2},
+      {id:'llm',           title:'LLM  (local)',   sub:'conditional · same server', sub2:'RAPID / EXPLOSIVE only', x:14, y:88, c:'#fbbf24bb',bg:'#1a1200', bw:1.5},
+      {id:'mcs',           title:'MCS Core',       sub:'4 personas · softmax · Δ', sub2:'↓ Parliament · Desires · Tick', x:46, y:88, c:'#c4b5fd', bg:'#150d28', bw:2, hasDrill:true},
+      {id:'postgresql',    title:'PostgreSQL',     sub:'persistent memory',        sub2:'history · arc',          x:78, y:88, c:'#34d399bb',bg:'#001a0d', bw:1.5}
+    ],
+    edges:[
+      {from:'player',       to:'fastapi',        lbl:'HIGH queue',  c:'#4f9effcc', thick:true, anim:true},
+      {from:'world-engine', to:'fastapi',        lbl:'MED queue',   c:'#4f9eff55'},
+      {from:'fastapi',      to:'redis',          lbl:'enqueue',     c:'#4f9effbb', thick:true, anim:true},
+      {from:'celery-beat',  to:'redis',          lbl:'LOW tick',    c:'#4f9eff44'},
+      {from:'redis',        to:'social-fabric',  lbl:'pub/sub',     c:'#a78bfa55'},
+      {from:'redis',        to:'celery-workers', lbl:'dequeue',     c:'#a78bfabb', thick:true, anim:true},
+      {from:'celery-workers',to:'mcs',           lbl:'run_tick()',  c:'#a78bfabb', thick:true, anim:true},
+      {from:'mcs',          to:'llm',            lbl:'if RAPID+',   c:'#fbbf2455', dashed:true},
+      {from:'mcs',          to:'postgresql',     lbl:'persist()',   c:'#34d39966'}
+    ]
+  },
+
+  2: {
+    title:'L2 — The Parliament (4 Personas)',
+    ds_simple:'4 голоси в голові NPC — завжди активні, завжди сперечаються. Softmax у центрі "підраховує голоси". Ніхто не замовкає — тільки домінує.',
+    ds_tech:'softmax(scores)→weights[0..1] sum=1 · delta=|new−prev| · blend=0.7×new+0.3×prev',
+    nodes:[
+      {id:'input-event',  title:'INCOMING EVENT', sub:'player · world · idle beat', sub2:'',                          x:46, y:6,  c:'#4f9effcc', bg:'#091d38', bw:1.5},
+      {id:'protector',    title:'🛡 Protector',   sub:'"Що треба захистити?"',      sub2:'загрози · несправедливість', x:14, y:36, c:'#f87171',  bg:'#1a0d0d', bw:2},
+      {id:'instinct',     title:'⚡ Instinct',    sub:'"Що я відчуваю зараз?"',     sub2:'тіло · емоції · hunger',     x:46, y:27, c:'#fbbf24',  bg:'#1a1200', bw:2},
+      {id:'thinker',      title:'🧠 Thinker',     sub:'"Які будуть наслідки?"',     sub2:'аналіз · стратегія',         x:78, y:36, c:'#4f9eff',  bg:'#001528', bw:2},
+      {id:'mask',         title:'🎭 Mask',        sub:'"Що від мене очікують?"',    sub2:'соціальний контекст',         x:46, y:55, c:'#4ade80',  bg:'#0d1a08', bw:2},
+      {id:'softmax',      title:'Softmax',        sub:'рахує ваги 0→1, сума = 1',  sub2:'σ(z_i) = e^z_i / Σ e^z_j',   x:46, y:40, c:'#a78bfa',  bg:'#150d28', bw:2.5},
+      {id:'delta',        title:'Delta  Δ',       sub:'наскільки сильна зміна?',   sub2:'STABLE/GRADUAL/RAPID/EXPL',  x:82, y:58, c:'#fbbf24bb',bg:'#1a1200', bw:1.5},
+      {id:'inertia',      title:'Inertia  70/30', sub:'70% нового + 30% старого',  sub2:'особистість не міняється різко',x:46, y:72, c:'#4ade80aa',bg:'#0d150d', bw:1.5},
+      {id:'output-action',title:'ACTION / WHISPER',sub:'результат тіку',           sub2:'strong→дія  weak→шепіт',      x:46, y:88, c:'#34d399bb',bg:'#001a10', bw:1.5}
+    ],
+    edges:[
+      {from:'input-event', to:'protector',    c:'#f8717155', anim:true},
+      {from:'input-event', to:'instinct',     c:'#fbbf2455', anim:true},
+      {from:'input-event', to:'thinker',      c:'#4f9eff55', anim:true},
+      {from:'input-event', to:'mask',         c:'#4ade8055'},
+      {from:'protector',   to:'softmax',      c:'#f8717188'},
+      {from:'instinct',    to:'softmax',      c:'#fbbf2488'},
+      {from:'thinker',     to:'softmax',      c:'#4f9eff88'},
+      {from:'mask',        to:'softmax',      c:'#4ade8088'},
+      {from:'softmax',     to:'delta',        lbl:'Δ score',  c:'#fbbf2466'},
+      {from:'softmax',     to:'inertia',      lbl:'blend',    c:'#a78bfaaa', thick:true, anim:true},
+      {from:'inertia',     to:'output-action',lbl:'→',        c:'#34d399aa', thick:true, anim:true},
+      {from:'protector',   to:'thinker',      lbl:'gut vs logic',  c:'#f8717133', dashed:true},
+      {from:'instinct',    to:'mask',         lbl:'raw vs social', c:'#fbbf2433', dashed:true}
+    ]
+  },
+
+  3: {
+    title:'L3 — Desire Engine (Proactive Layer)',
+    ds_simple:'NPC хоче щось, навіть якщо гравця немає. Чим довше не може досягти — тим сильніше тягне. Може прокрастинувати або зламатись.',
+    ds_tech:'desire_pull = gap × frustration × (1−resistance) · if desire_pull > obligation×1.5 → procrastinate()',
+    nodes:[
+      {id:'gap',          title:'gap',              sub:'current vs desired',      sub2:'0.0 → 1.0',                x:10, y:17, c:'#fbbf24',  bg:'#1a1200', bw:2},
+      {id:'frustration',  title:'frustration',      sub:'+0.05 per tick unmet',    sub2:'resets on satisfaction',   x:34, y:17, c:'#f87171',  bg:'#1a0800', bw:2},
+      {id:'resistance',   title:'(1 − resistance)', sub:'fear · habit · fatigue',  sub2:'особистий бар\'єр',         x:60, y:17, c:'#a78bfacc',bg:'#150d28', bw:2},
+      {id:'desire-pull',  title:'desire_pull',      sub:'proactive impulse',       sub2:'може перевищити 1.0',       x:84, y:17, c:'#fbbf24',  bg:'#1a1200', bw:2},
+      {id:'compare',      title:'COMPARE',          sub:'desire vs obligation',    sub2:'',                          x:84, y:43, c:'#a78bfa',  bg:'#150d28', bw:1.5},
+      {id:'fork',         title:'? fork',           sub:'desire > oblig × 1.5?',   sub2:'',                          x:84, y:67, c:'#fbbf24',  bg:'#1a1200', bw:2, decision:true},
+      {id:'learned-h',    title:'Learned Helplessness', sub:'Protector fails repeatedly', sub2:'→ weight penalty',  x:22, y:60, c:'#f87171aa',bg:'#1a0808', bw:1.5},
+      {id:'procrastinate',title:'PROCRASTINATE',    sub:'delay · excuse · distract',sub2:'',                         x:55, y:88, c:'#f87171',  bg:'#1a0808', bw:2},
+      {id:'action',       title:'ACTION',           sub:'move toward desire',      sub2:'autonomous life',           x:84, y:88, c:'#34d399',  bg:'#001a10', bw:2}
+    ],
+    edges:[
+      {from:'gap',        to:'frustration',  lbl:'×',         c:'#fbbf2466'},
+      {from:'frustration',to:'resistance',   lbl:'×',         c:'#fbbf2466'},
+      {from:'resistance', to:'desire-pull',  lbl:'= pull',    c:'#fbbf24aa', thick:true, anim:true},
+      {from:'desire-pull',to:'compare',      lbl:'',          c:'#fbbf24aa', thick:true, anim:true},
+      {from:'compare',    to:'fork',         lbl:'',          c:'#fbbf24aa', thick:true, anim:true},
+      {from:'fork',       to:'procrastinate',lbl:'desire>oblig×1.5', c:'#f8717177'},
+      {from:'fork',       to:'action',       lbl:'balanced',  c:'#34d39977'},
+      {from:'learned-h',  to:'gap',          lbl:'weakens',   c:'#f8717133', dashed:true}
+    ]
+  },
+
+  4: {
+    title:'L4 — NPC Tick Lifecycle  ← scroll →',
+    ds_simple:'Один тік — повний цикл NPC від події до результату. Кроки 1–5 завжди (математика). Крок 6 тільки при сильній зміні. Все зберігається.',
+    ds_tech:'L1: O(personas) math always · L2: LLM only RAPID|EXPLOSIVE|schedule · persist→publish loop',
+    scrollX:true, scrollW:1820,
+    zoneBands:[
+      {top:0,  h:56, bg:'rgba(79,158,255,.04)',  lbl:'КРОК 1–5: L1 — МАТЕМАТИКА (завжди, мілісекунди)', lc:'#4f9eff44', lx:'1%'},
+      {top:56, h:44, bg:'rgba(251,191,36,.04)',  lbl:'КРОК 6+: L2 — LLM (тільки при значній зміні)',    lc:'#fbbf2444', lx:'1%'}
+    ],
+    nodes:[
+      {id:'tick-event',    step:'КРОК 1', title:'EVENT',          sub:'player / world / idle',  sub2:'three sources',          px:90,   y:26, c:'#4f9effcc', bg:'#091d38', bw:1.5},
+      {id:'priority-queue',step:'КРОК 2', title:'Redis Queue',    sub:'HIGH / MED / LOW',       sub2:'priority order',         px:300,  y:26, c:'#a78bfacc', bg:'#150d28', bw:1.5},
+      {id:'worker',        step:'КРОК 3', title:'Celery Worker',  sub:'NPC process picks up',   sub2:'exclusive ownership',    px:510,  y:26, c:'#7ad8ff',  bg:'#091d38', bw:2},
+      {id:'l1-math',       step:'КРОК 4', title:'L1 Math Tick',   sub:'softmax · scores · Δ',   sub2:'no LLM · milliseconds',  px:720,  y:26, c:'#c4b5fd',  bg:'#150d28', bw:2},
+      {id:'delta-check',   step:'КРОК 5', title:'Δ  level?',      sub:'STABLE → skip LLM',      sub2:'RAPID → викликає LLM',   px:950,  y:26, c:'#fbbf24',  bg:'#1a1200', bw:2, decision:true},
+      {id:'state-update',  step:'КРОК 6', title:'State Update',   sub:'new weights · emotions', sub2:'in-memory',               px:1160, y:26, c:'#34d399',  bg:'#0d150d', bw:2},
+      {id:'l2-llm',        step:'КРОК 6b',title:'L2: LLM',        sub:'dialogue · whispers',    sub2:'context + soul + event',  px:1160, y:72, c:'#fbbf24',  bg:'#1a1200', bw:2},
+      {id:'persist-db',    step:'КРОК 7', title:'Persist to DB',  sub:'PostgreSQL snapshot',    sub2:'survives restart',        px:1380, y:26, c:'#34d399bb',bg:'#001a0d', bw:1.5},
+      {id:'publish-redis', step:'КРОК 8', title:'Publish → Redis',sub:'Social Fabric hears it', sub2:'NPC-to-NPC ripple',       px:1600, y:26, c:'#a78bfacc', bg:'#150d28',bw:1.5}
+    ],
+    edges:[
+      {from:'tick-event',    to:'priority-queue', c:'#34d399aa', anim:true},
+      {from:'priority-queue',to:'worker',         c:'#34d399aa', anim:true},
+      {from:'worker',        to:'l1-math',        c:'#34d399aa', anim:true},
+      {from:'l1-math',       to:'delta-check',    c:'#34d399aa', thick:true, anim:true},
+      {from:'delta-check',   to:'state-update',   lbl:'STABLE/GRADUAL', c:'#34d39966'},
+      {from:'delta-check',   to:'l2-llm',         lbl:'RAPID/EXPLOSIVE',c:'#fbbf2466'},
+      {from:'l2-llm',        to:'state-update',   lbl:'response',       c:'#fbbf2466'},
+      {from:'state-update',  to:'persist-db',     lbl:'new state',      c:'#34d39977', anim:true},
+      {from:'persist-db',    to:'publish-redis',  lbl:'publish',        c:'#a78bfa77', anim:true}
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════
+//  NODE INFO — rich content for side panel
+// ══════════════════════════════════════════════════
+var NI = {
+  'player':{emoji:'🎮',title:'PLAYER',
+    tagline:'Найвищий пріоритет — гравець ніколи не чекає',
+    analogy:'Як VIP клієнт у банку: є спеціальне вікно без черги. Будь-хто інший — може зачекати.',
+    story:'Гравець пише NPC або робить дію. Запит моментально потрапляє в Redis HIGH чергу — вона обробляється раніше за будь-які автоматичні події. NPC відповідає гравцю першочергово.',
+    from:'— (початок ланцюга)',
+    to:'FastAPI → Redis HIGH → Celery Worker → MCS',
+    chain:'Player → POST /speak\n→ FastAPI validates\n→ Redis HIGH queue\n→ Celery Worker dequeues\n→ MCS run_tick()\n→ response + persist',
+    tech:'HTTP POST /action або /speak → FastAPI:8000 → redis.lpush("celery.high", task_json)'},
+
+  'fastapi':{emoji:'🚪',title:'FastAPI :8000',
+    tagline:'Єдині ворота в систему — всі входять тут',
+    analogy:'Як охоронець на вході: перевіряє хто прийшов, вирішує в яку чергу поставити, і тільки потім пускає далі.',
+    story:'FastAPI отримує запити від гравця та World Engine, перевіряє автентифікацію, визначає пріоритет події і кладе задачу в відповідну Redis чергу. Також стримує SSE-потік (Server-Sent Events) до клієнта.',
+    from:'Player (HIGH) · World Engine (MED)',
+    to:'Redis queues · SSE stream до клієнта',
+    chain:'POST /action → validate auth\n→ detect priority\n→ Redis.lpush(queue, task)',
+    tech:'FastAPI + Uvicorn. Ендпоінти: /action, /speak, /sse. SSE stream: EventSource для real-time updates.'},
+
+  'world-engine':{emoji:'🌍',title:'WORLD ENGINE',
+    tagline:'Світ живе без гравця — події генеруються автоматично',
+    analogy:'Як погода: не питає дозволу у гравця. Прийшла буря — всі NPCі реагують, незалежно від гравця.',
+    story:'World Engine генерує події що впливають на всіх: смерть персонажа, зміна цін на ринку, прихід армії, нічний час. Ці події йдуть у MEDIUM чергу — важливо, але не критично терміново.',
+    from:'— (autonomous, triggered by time/logic)',
+    to:'FastAPI → Redis MED queue',
+    chain:'World event fires\n→ POST /world_event\n→ FastAPI → Redis MED queue\n→ dispatched to affected NPCs',
+    tech:'Окремий сервіс що генерує WorldEvent(type, scope, intensity). Events: death, weather, economy_shift, time_of_day.'},
+
+  'celery-beat':{emoji:'⏰',title:'Celery Beat',
+    tagline:'Годинник системи — кожні N секунд "живіть далі"',
+    analogy:'Як серцебиття: рівномірно, незалежно від того що відбувається. NPCі не "завмирають" без гравця.',
+    story:'Celery Beat кожні N секунд (наприклад 30с) запускає idle_life_tick для всіх NPC. Це дозволяє NPCям жити своїм життям: відчувати голод, нудьгу, діяти на основі своїх бажань — навіть якщо гравець відсутній.',
+    from:'— (autonomous timer)',
+    to:'Redis LOW queue',
+    chain:'Every N seconds:\nidle_life_tick.apply_async(\n  args=[npc_id],\n  queue="celery.low"\n)',
+    tech:'Celery Beat scheduler. celeryconfig: beat_schedule = {idle_tick: {task, schedule: timedelta(seconds=30)}}'},
+
+  'redis':{emoji:'⚡',title:'Redis',
+    tagline:'Нерви системи — 0.1ms, 1 мільйон операцій/сек',
+    analogy:'Як нервова система: сигнали летять миттєво в будь-яку точку. Повільна кров (PostgreSQL) — для довгострокової пам\'яті, але нерви (Redis) — для швидкості.',
+    story:'Redis виконує дві ролі: (1) черги задач з пріоритетами HIGH/MED/LOW — Celery Workers звідти беруть задачі; (2) pub/sub шина — NPC публікує дію, Social Fabric та інші NPCі підписані і миттєво реагують.',
+    from:'FastAPI · Celery Beat · MCS (publish)',
+    to:'Celery Workers (dequeue) · Social Fabric (pub/sub)',
+    chain:'Redis має 3 черги:\ncelery.high  ← Player actions\ncelery.medium ← World events\ncelery.low   ← Idle life ticks\n\n+ pub/sub channel:\nnpc:{id}:actions',
+    tech:'Redis 7.x. Lists для черг (LPUSH/BRPOP). Pub/Sub для NPC broadcasts. ~0.1ms latency, ~1M ops/sec in-memory.'},
+
+  'social-fabric':{emoji:'🕸',title:'Social Fabric',
+    tagline:'NPCі чують одне одного — чутки, репутація, емоції',
+    analogy:'Як чутки в маленькому місті: один NPC зробив щось — інші дізналися через 5 хвилин, навіть без прямого контакту.',
+    story:'Social Fabric підписаний на pub/sub канали всіх NPC. Коли NPC_A діє, Social Fabric оновлює відносини: репутацію, рівень довіри, емоційне зараження. NPC_B може змінити поведінку через дії NPC_A, яку навіть не бачив.',
+    from:'Redis pub/sub (NPC actions)',
+    to:'NPC relationship graphs · reputation updates',
+    chain:'MCS completes tick\n→ PUBLISH npc:kateryna:actions {...}\n→ Social Fabric receives\n→ updates trust[kateryna][ivan]\n→ spreads rumor if relevant',
+    tech:'Redis subscriber. Updates: relationship_graph, reputation_scores, emotional_contagion. O(connections) per event.'},
+
+  'celery-workers':{emoji:'💪',title:'Celery Workers',
+    tagline:'М\'язи системи — кожен NPC окремий процес',
+    analogy:'Як окремі кімнати в будинку: NPC_A і NPC_B живуть у різних кімнатах паралельно, не заважаючи одне одному.',
+    story:'Кожен NPC — окремий Celery Worker (OS процес, не thread). Вони беруть задачі з Redis черг і виконують. Завдяки ізоляції процесів: race condition неможливий, один NPC не блокує іншого, автоматичний retry при збої.',
+    from:'Redis queues (HIGH/MED/LOW)',
+    to:'MCS Core (run_tick per NPC)',
+    chain:'Worker.dequeue() → task = {npc_id, event}\n→ mcs = MCS(npc_id)\n→ mcs.run_tick(event)\n→ return result',
+    tech:'Celery workers з pre-fork concurrency. Кожен worker має свій NPC context в пам\'яті. Redis broker + results backend.'},
+
+  'mcs':{emoji:'🧠',title:'MCS Core',
+    tagline:'Мозок NPC — 4 персони сперечаються, softmax вирішує',
+    analogy:'Як парламент: кожен депутат (персона) кричить своє, але є підрахунок голосів (softmax) — і хтось домінує.',
+    story:'Кожен тік: 4 персони отримують подію і видають свої "бали впливу". Softmax нормалізує їх у ваги (сума = 1). Delta вимірює наскільки сильно змінився стан. Inertia не дає характеру мінятись різко. Без LLM на кожен тік — тільки математика.',
+    from:'Celery Worker (task)',
+    to:'State update · LLM (conditional) · PostgreSQL',
+    chain:'run_tick(event):\n  scores = [p.score(event) for p in personas]\n  weights = softmax(scores)\n  delta = |weights - prev_weights|\n  final = 0.7*weights + 0.3*prev\n  if delta > RAPID: enqueue_llm()',
+    tech:'Pure Python. O(4). score()→softmax()→delta()→blend(70/30). Triggered by Celery Worker. No I/O in hot path.',
+    drillLinks:[
+      {n:2, lbl:'Parliament — як 4 персони приймають рішення', badge:'L2', dc:'#a78bfa'},
+      {n:3, lbl:'Desire Engine — чому NPC діє без гравця',      badge:'L3', dc:'#fbbf24'},
+      {n:4, lbl:'Tick Lifecycle — повний цикл кроку за кроком', badge:'L4', dc:'#34d399'}
+    ]},
+
+  'llm':{emoji:'🤖',title:'LLM (local)',
+    tagline:'Говорить лише коли справді важливо',
+    analogy:'Як психолог якого кличуть тільки при кризі — не на кожен чих. Звичайний день NPC проходить без нього.',
+    story:'LLM викликається тільки коли delta ≥ RAPID (сильна внутрішня зміна) або за розкладом (раз на день — "сон": консолідація пам\'яті). Отримує soul, поточний стан, подію. Генерує діалог, внутрішній монолог, новий memory fragment.',
+    from:'MCS Core (delta trigger) · Celery Beat (schedule)',
+    to:'State Update · Memory fragments',
+    chain:'if delta >= RAPID:\n  prompt = build_prompt(soul, state, event)\n  response = llm(prompt)\n  → dialogue\n  → inner_monologue\n  → memory_fragment',
+    tech:'Local LLM (Ollama / vLLM). Same server — мінімальна latency. Prompt: {soul, persona_weights, event, whispers}. Returns JSON.'},
+
+  'postgresql':{emoji:'🗄',title:'PostgreSQL',
+    tagline:'Довгострокова пам\'ять — NPC пам\'ятає все між сесіями',
+    analogy:'Як щоденник: все що пережив, всі стосунки, всі рішення. Навіть якщо сервер перезапустити — NPC пам\'ятає.',
+    story:'PostgreSQL зберігає: знімок стану NPC після кожного тіку, граф відносин між персонажами, лог подій, fragments пам\'яті від LLM, character arc. Це дозволяє NPC "зростати" між сесіями і справді мати біографію.',
+    from:'MCS Core (persist)',
+    to:'MCS Core (load on startup) · Character arc queries',
+    chain:'INSERT npc_states (id, weights, emotions, timestamp)\nINSERT event_log (npc_id, event, response)\nINSERT memory_fragments (text, importance)',
+    tech:'PostgreSQL + SQLAlchemy async. Tables: npc_states, relationships, event_log, memory_fragments, character_arcs. Async write (non-blocking).'},
+
+  'input-event':{emoji:'📨',title:'INCOMING EVENT',
+    tagline:'Стартовий сигнал тіку — що саме трапилось',
+    analogy:'Як ping: прийшов сигнал → всі 4 персони одночасно отримують інформацію і починають реагувати.',
+    story:'Будь-яка подія — від гравця, від World Engine, або внутрішній idle beat — розсилається всім 4 персонам одночасно. Кожна персона оцінює подію зі своєї точки зору і видає свій бал.',
+    from:'Player · World Engine · Celery Beat (idle)',
+    to:'Всі 4 персони одночасно',
+    chain:'event = {type: "player_spoke", text: "...",\n  source: "player", intensity: 0.8}\n→ broadcast to all 4 personas',
+    tech:'Event dataclass: {type, source, intensity, context_dict}. Passed to each Persona.score(event) simultaneously.'},
+
+  'protector':{emoji:'🛡',title:'Protector',
+    tagline:'Перший реагує на загрозу і несправедливість',
+    analogy:'Як охоронець: постійно сканує на загрози. Почув підозріле — одразу підвищує тривогу, навіть якщо інші кажуть "все окей".',
+    story:'Protector відповідає на загрози, несправедливість, уразливість. Якщо хтось образив NPC або щось виглядає небезпечним — Protector набирає найбільший бал і домінує. Його конфлікт — з Thinker: "треба діяти зараз" vs "давай спочатку подумаємо".',
+    from:'Incoming Event',
+    to:'Softmax (score)',
+    chain:'score(event):\n  if threat detected: +0.8\n  if injustice: +0.7\n  if vulnerability: +0.6\n  return weighted_score',
+    tech:'Persona.score() → float. High score on: threats, injustice, vulnerability. Core conflict: Protector vs Thinker (speed vs accuracy).'},
+
+  'instinct':{emoji:'⚡',title:'Instinct',
+    tagline:'Тіло говорить першим — без фільтрів і аналізу',
+    analogy:'Як спрага: не питає дозволу у мозку. Просто є. NPC голодний — Instinct вже кричить про це.',
+    story:'Instinct реагує на фізичні стимули і сильні емоції: голод, втому, біль, жагу, страх. Це найшвидший сигнал — але найменш соціально прийнятний. Його конфлікт з Mask: "хочу зараз" vs "але що скажуть люди".',
+    from:'Incoming Event',
+    to:'Softmax (score)',
+    chain:'score(event):\n  if physical_discomfort: +0.9\n  if strong_emotion: +0.8\n  if immediate_desire: +0.7\n  return weighted_score',
+    tech:'Fastest persona to respond. High score on: hunger, fatigue, immediate stimuli. Conflict axis: Instinct vs Mask (raw drive vs social filtering).'},
+
+  'thinker':{emoji:'🧠',title:'Thinker',
+    tagline:'Аналізує наслідки — повільний, але точний',
+    analogy:'Як шахіст: не поспішає, рахує наперед. Програє в паніці, але незамінний при складному виборі.',
+    story:'Thinker вмикається при складних рішеннях, кількох варіантах, довгострокових ставках. Він стримує імпульсивні дії Protector і Instinct. В кризі програє (бо повільний), але у стратегічних ситуаціях — домінує.',
+    from:'Incoming Event',
+    to:'Softmax (score)',
+    chain:'score(event):\n  if complex_choice: +0.85\n  if long_term_consequence: +0.8\n  if multiple_options: +0.7\n  return weighted_score',
+    tech:'High score on: complex choices, long-term stakes, ambiguity. Conflict axis: Thinker vs Protector (analysis vs gut reaction).'},
+
+  'mask':{emoji:'🎭',title:'Mask',
+    tagline:'Соціальна маска — що від мене очікують?',
+    analogy:'Як актор: завжди грає роль для аудиторії. Навіть коли сам не хоче — маска диктує поведінку.',
+    story:'Mask активується у соціальних ситуаціях: є спостерігачі, репутація під загрозою, соціальний контекст важливий. Вона фільтрує "справжні" бажання через призму "прийнятності". Конфлікт з Instinct: маска хоче виглядати добре, інстинкт — просто бути собою.',
+    from:'Incoming Event',
+    to:'Softmax (score)',
+    chain:'score(event):\n  if observers_present: +0.85\n  if reputation_at_stake: +0.8\n  if social_context: +0.75\n  return weighted_score',
+    tech:'High score on: social situations, public behavior, reputation management. Conflict axis: Mask vs Instinct (presentation vs authenticity).'},
+
+  'softmax':{emoji:'⚖',title:'Softmax Normalization',
+    tagline:'Підраховує голоси — ніхто не зникає, всі шепочуть',
+    analogy:'Як демократичне голосування: кожен голос враховується, але є більшість. Навіть 5% Mask завжди присутній у рішенні.',
+    story:'Softmax бере 4 сирих бали персон і перетворює їх у ваги, що в сумі дають 1.0. Якщо Protector = 0.65, Thinker = 0.25, Instinct = 0.07, Mask = 0.03 — Protector домінує, але інші не мовчать. Це і є "характер".',
+    from:'4 persona scores',
+    to:'Weighted blend · Delta calculation',
+    chain:'scores = [0.8, 0.4, 0.2, 0.1]\nweights = softmax(scores)\n# = [0.507, 0.272, 0.148, 0.073]\n# sum = 1.0, all > 0',
+    tech:'σ(z_i) = e^z_i / Σ e^z_j. Input: 4 raw scores. Output: 4 weights [0..1], sum=1. No winner takes all.'},
+
+  'delta':{emoji:'📊',title:'Delta  Δ',
+    tagline:'Термометр змін — наскільки сильно змінився NPC?',
+    analogy:'Як сейсмограф: звичайні коливання ігноруємо, але якщо трясе сильно — треба реагувати.',
+    story:'Delta вимірює різницю між новим станом і попереднім. Якщо зміна мала (STABLE/GRADUAL) — LLM не викликається, NPC обробляється тільки математикою. Якщо RAPID або EXPLOSIVE — NPC переживає щось важливе, потрібен LLM для осмислення.',
+    from:'Softmax (before/after comparison)',
+    to:'LLM trigger decision',
+    chain:'delta = |new_weights - prev_weights|\nif delta < 0.1: STABLE\nif delta < 0.3: GRADUAL\nif delta < 0.6: RAPID → LLM!\nif delta >= 0.6: EXPLOSIVE → LLM!',
+    tech:'L1-norm або cosine distance між weight vectors. Thresholds: STABLE<0.1, GRADUAL<0.3, RAPID<0.6, EXPLOSIVE≥0.6.'},
+
+  'inertia':{emoji:'🌊',title:'Inertia  70/30',
+    tagline:'Характер не міняється різко — плавна еволюція',
+    analogy:'Як характер людини: не змінюється за один день. Сильна подія — чуть змістилась рівновага, але не перевернула все.',
+    story:'Після softmax inertia блендує: 70% новий стан + 30% попередній. Це запобігає різким стрибкам особистості. NPC може поступово еволюціонувати через сотні тіків — але не стати іншою людиною за один тік.',
+    from:'Softmax weights',
+    to:'Final state (action/whisper)',
+    chain:'new_state = 0.7 * computed + 0.3 * prev_state\n# Зміна за один тік максимум 70%\n# За 10 тіків — може змінитись суттєво',
+    tech:'Exponential moving average variant. 70/30 split is tuneable per NPC. Models personality memory / inertia.'},
+
+  'output-action':{emoji:'🎯',title:'ACTION / WHISPER',
+    tagline:'Результат тіку — дія або підпорогова думка',
+    analogy:'Як айсберг: дія — видима частина. Але шепіт — підводна, і впливає на всі наступні тіки.',
+    story:'Сильний домінуючий сигнал → NPC виконує явну дію (говорить, рухається, вирішує). Слабкий сигнал → шепіт: внутрішня думка що не виявляється назовні, але зберігається і впливає на наступні рішення.',
+    from:'Inertia blend',
+    to:'Dialogue system · next tick context',
+    chain:'if max_weight > 0.5: overt action\nelse: inner whisper\n# whispers accumulate over ticks\n# → influence future scores',
+    tech:'Action threshold: configurable (default 0.5). Whispers stored in NPC context, passed to next tick. Strong whispers can become actions later.'},
+
+  'gap':{emoji:'📏',title:'gap',
+    tagline:'Відстань між "де NPC є" і "де хоче бути"',
+    analogy:'Як голод: 0 = ситий, 1 = критично голодний. Якщо Катерина хоче поговорити з Іваном, але не може — gap зростає.',
+    story:'gap вимірює незадоволеність конкретного бажання. Оновлюється кожен тік: система перевіряє чи стан NPC відповідає його бажанням. Чим більше gap — тим сильніший потенційний drive.',
+    from:'NPC state vs desired state comparison',
+    to:'desire_pull calculation (× frustration × (1−resistance))',
+    chain:'gap = abs(desired_state - current_state)\n# e.g. wants_connection=1.0\n# has_connection=0.3\n# gap = 0.7',
+    tech:'Calculated per desire. desired_state from CORE.json goals. current_state from NPC state snapshot. Range [0,1].'},
+
+  'frustration':{emoji:'🌡',title:'frustration',
+    tagline:'Зростає кожен тік поки бажання не задоволено',
+    analogy:'Як кип\'яток: поки не кипить — терпимо. Але якщо довго не задовольняти бажання — frustration може перевалити за 1.0 і стати підсилювачем.',
+    story:'Frustration += 0.05 кожен тік поки бажання не виконане. Скидається в 0 при задоволенні. Може перевалити за 1.0 — тоді стає підсилювачем desire_pull. Саме тому NPC що "давно не бачив рідних" буде набагато сильніше рватись до зустрічі.',
+    from:'Time (ticks without satisfaction)',
+    to:'desire_pull (as multiplier)',
+    chain:'frustration += 0.05  # per unmet tick\nif satisfied: frustration = 0\n# after 20 ticks: frustration = 1.0\n# after 30 ticks: frustration = 1.5 (!)',
+    tech:'Accumulator: +0.05/tick unmet, reset on satisfaction. No upper cap — allows >1.0 amplification. Key to "desperation" behavior.'},
+
+  'resistance':{emoji:'🧱',title:'(1 − resistance)',
+    tagline:'Особистий бар\'єр — страх, звичка, втома',
+    analogy:'Як трус що хоче стрибнути з парашута: бажання є, але страх (resistance) гасить impulse.',
+    story:'resistance ∈ [0,1]. Чим більше — тим більше бар\'єр гасить бажання. Джерела: риси особистості (CORE.json), травматичні досвіди, накопичена втома. Висока resistance означає що навіть при великому gap та frustration — NPC не діє.',
+    from:'Personality (CORE.json) · past trauma · fatigue',
+    to:'desire_pull (as damper: × (1−resistance))',
+    chain:'resistance = base_personality * 0.4\n         + trauma_weight * 0.4\n         + fatigue * 0.2\n# final: desire_pull *= (1 - resistance)',
+    tech:'Composite: personality traits + trauma accumulation + current fatigue. Range [0,1]. Applied as (1-resistance) multiplier in desire formula.'},
+
+  'desire-pull':{emoji:'🧲',title:'desire_pull',
+    tagline:'Результуюча внутрішня сила — без зовнішнього тригера',
+    analogy:'Як магніт: NPC тягне до бажаного навіть без підказки від гравця. Це і є "автономне життя".',
+    story:'desire_pull = gap × frustration × (1−resistance). Якщо всі три фактори максимальні — NPC ДУЖЕ сильно хоче щось зробити. Якщо desire_pull > 0.3 — NPC починає "думати про це" навіть без зовнішньої події. Це основа проактивної поведінки.',
+    from:'gap · frustration · (1−resistance)',
+    to:'Compare (vs obligation_pull)',
+    chain:'desire_pull = gap * frustration * (1-resistance)\n# gap=0.8, frustration=1.2, resistance=0.2\n# = 0.8 * 1.2 * 0.8 = 0.768\n# Сильний pull — NPC рватиметься діяти',
+    tech:'Main proactive formula. Can exceed 1.0 when frustrated. Compared against obligation_pull to determine behavior.'},
+
+  'compare':{emoji:'⚖',title:'COMPARE',
+    tagline:'desire vs obligation — що переважає?',
+    analogy:'Як вибір між "хочу піти на вечірку" і "треба здати звіт": якщо різниця велика — NPC ігнорує обов\'язок.',
+    story:'Система порівнює desire_pull (що NPC ХОЧЕ) з obligation_pull (що NPC МАЄ робити через зовнішній тиск, обов\'язки, страх). Якщо desire >> obligation × 1.5 — NPC прокрастинує. Якщо obligation сильніший — виконує обов\'язок.',
+    from:'desire_pull · obligation_pull (external)',
+    to:'Decision fork',
+    chain:'if desire_pull > obligation_pull * 1.5:\n  → PROCRASTINATE\nelif obligation_pull > desire_pull:\n  → fulfill obligation\nelse:\n  → act on desire',
+    tech:'obligation_pull = function(duty, fear_of_consequences, social_pressure). Threshold 1.5x is configurable.'},
+
+  'fork':{emoji:'🔀',title:'Decision Fork',
+    tagline:'Якщо бажання сильніше обов\'язку в 1.5 рази — прокрастинація',
+    analogy:'Як студент що має здавати курсову: якщо "хочу гуляти" в 1.5 рази сильніше за "треба писати" — починаємо читати щось в інтернеті.',
+    story:'Це і є механіка прокрастинації. NPC не "ламається" — просто знаходить більш привабливе заняття. Реалістично і непередбачувано. Гравець бачить NPC що "забув" про обов\'язок.',
+    from:'Compare result',
+    to:'PROCRASTINATE або ACTION',
+    chain:'if desire_pull > obligation * 1.5:\n  npc.procrastinate(\n    excuse=generate_excuse(),\n    seek=find_gratification()\n  )',
+    tech:'Threshold 1.5x is tunable. procrastinate() generates context-appropriate excuse + redirects behavior.'},
+
+  'learned-h':{emoji:'💔',title:'Learned Helplessness',
+    tagline:'Protector накопичує провали → перестає намагатись',
+    analogy:'Як людина що кілька разів намагалась і програла: врешті перестає пробувати. "Навіщо, все одно не вийде."',
+    story:'Кожен раз коли Protector намагається захистити NPC і зазнає невдачі — лічильник failure_count зростає. Після N невдач — Protector починає отримувати weight penalty у softmax. NPC стає пасивним навіть при очевидних загрозах. Потрібна "recovery event" щоб відновити.',
+    from:'Protector failure events',
+    to:'Protector weight penalty in Softmax',
+    chain:'on protector_failure:\n  failure_count += 1\n  if failure_count > threshold:\n    protector.weight_penalty += 0.1\n    # weakens Protector in softmax',
+    tech:'Persistent counter per NPC. Threshold: configurable (default 5 failures). Recovery: positive_outcome_event resets counter gradually.'},
+
+  'procrastinate':{emoji:'🛋',title:'PROCRASTINATE',
+    tagline:'NPC знаходить привід не робити що треба',
+    analogy:'Мабуть пояснень не треба 😅. Ми всі знаємо.',
+    story:'NPC генерує обгрунтування: "потім", "не зараз", "спочатку ще це зроблю". Шукає більш привабливе заняття. Додає реалізм — гравець бачить NPC що веде себе як справжня людина, не як робот.',
+    from:'Decision fork (desire > obligation × 1.5)',
+    to:'Gratifying alternative action',
+    chain:'procrastinate():\n  excuse = f"Зараз не найкращий час..."\n  alternative = find_pleasant_activity()\n  npc.current_action = alternative\n  obligation_pull -= 0.1  # fades',
+    tech:'Generates excuse via LLM or template. Selects alternative from desire pool. obligation_pull decays 0.1/tick while procrastinating.'},
+
+  'action':{emoji:'🚀',title:'ACTION',
+    tagline:'NPC рухається до бажаного — автономне життя',
+    analogy:'Як людина що нарешті зважилась: встає і робить. Без підказки від гравця.',
+    story:'Проактивна дія — серце концепції "живих NPC". NPC сам ініціює: пішов до крамниці, написав листа, поговорив з іншим NPC. Гравець може прийти і знайти NPC вже зайнятим своїми справами.',
+    from:'Decision fork (balanced or desire wins)',
+    to:'Behavior execution · Social Fabric notification',
+    chain:'act_on_desire():\n  action = desire.get_action()\n  npc.execute(action)\n  publish_to_redis(action)',
+    tech:'Action selection from desire → behavior mapping. Publishes to Redis pub/sub. Social Fabric propagates to other NPCs.'},
+
+  'tick-event':{emoji:'📡',title:'EVENT',
+    tagline:'Три джерела старту тіку',
+    analogy:'Як дзвінок що запускає всю систему. Джерел три: гравець (терміново), світ (важливо), час (звичайно).',
+    story:'Кожен тік починається з події. HIGH = гравець написав або зробив щось. MEDIUM = World Engine щось трапилось в світі. LOW = просто пройшов час, Celery Beat каже "живіть далі". Це запускає весь pipeline обробки для конкретного NPC.',
+    from:'Player · World Engine · Celery Beat',
+    to:'Redis Priority Queue',
+    chain:'EVENT sources:\n  Player → HIGH (гравець важливіший)\n  World  → MED  (події світу)\n  Timer  → LOW  (idle life)',
+    tech:'Wrapped as Celery task: {npc_id, event_type, source, intensity, context}. Routed to appropriate queue.'},
+
+  'priority-queue':{emoji:'📬',title:'Redis Priority Queue',
+    tagline:'Черга з пріоритетами — HIGH завжди першим',
+    analogy:'Як черга в лікарні: екстрена — без черги, планова — чекай. NPC завжди відповість гравцю раніше ніж обробить "просто живіть далі".',
+    story:'Redis тримає три черги. Celery Workers завжди спочатку перевіряють HIGH, потім MEDIUM, і тільки якщо немає нічого — беруть LOW. Це гарантує що гравець не відчуває затримки навіть якщо система обробляє багато idle тіків.',
+    from:'FastAPI (player/world) · Celery Beat (idle)',
+    to:'Celery Worker (dequeue)',
+    chain:'celery.high   ← LPUSH (player actions)\ncelery.medium ← LPUSH (world events)\ncelery.low    ← LPUSH (idle ticks)\n\nWorker: BRPOP high → medium → low',
+    tech:'Redis lists. LPUSH to add, BRPOP to dequeue with priority. Worker configured: queues=["celery.high","celery.medium","celery.low"].'},
+
+  'worker':{emoji:'⚙',title:'Celery Worker',
+    tagline:'Бере задачу з черги і є "тілом" конкретного NPC',
+    analogy:'Як окремий офіс для кожного NPC: NPC_A і NPC_B обробляються паралельно, не знаючи один про одного.',
+    story:'Кожен NPC має свій dedicated worker (OS process). Worker бере задачу з черги, завантажує контекст NPC (стан, пам\'ять) і передає в MCS для обробки. Race condition неможливий — один worker на один NPC в один момент.',
+    from:'Redis Priority Queue',
+    to:'MCS Core (run_tick)',
+    chain:'@celery.task\ndef process_npc_tick(npc_id, event):\n  context = load_npc_context(npc_id)\n  result = mcs.run_tick(context, event)\n  save_result(npc_id, result)',
+    tech:'Celery pre-fork concurrency. Task locking: redis.setnx(f"lock:{npc_id}", 1, ex=30). Prevents concurrent processing of same NPC.'},
+
+  'l1-math':{emoji:'🔢',title:'L1 Math Tick',
+    tagline:'Чиста математика — без LLM, мілісекунди',
+    analogy:'Як рефлекс: не думаєш — просто рука відсмикується. Швидко і автоматично.',
+    story:'L1 — гарячий шлях. Чотири функції score(), softmax(), delta(), blend() — чиста Python математика, O(4). Жодних мережевих запитів. Займає мілісекунди. Виконується на КОЖЕН тік для КОЖНОГО NPC. Саме це дозволяє мати багато NPC без великих витрат.',
+    from:'Celery Worker (NPC context + event)',
+    to:'Delta Check · State update (if STABLE/GRADUAL)',
+    chain:'def run_tick(context, event):\n  scores = [p.score(event) for p in personas]\n  weights = softmax(scores)\n  delta = compute_delta(weights, context.prev)\n  final = blend(weights, context.prev, 0.7)\n  return TIckResult(final, delta)',
+    tech:'Pure Python, no I/O. O(4 personas). score()→softmax()→delta()→blend(). Typical execution: <1ms.'},
+
+  'delta-check':{emoji:'🌡',title:'Δ level?',
+    tagline:'Після математики — вирішуємо чи потрібен LLM',
+    analogy:'Як термостат: якщо температура в нормі — нічого не робимо. Якщо різко змінилась — вмикаємо систему.',
+    story:'Delta Check дивиться на результат L1: наскільки сильно змінились ваги персон. STABLE/GRADUAL — просто оновлюємо стан, LLM не чіпаємо. RAPID/EXPLOSIVE — щось важливе сталось, NPC потребує "осмислення" через LLM.',
+    from:'L1 Math result (delta value)',
+    to:'State Update (stable) · L2 LLM (rapid/explosive)',
+    chain:'if result.delta < 0.1: → STABLE, skip LLM\nif result.delta < 0.3: → GRADUAL, skip LLM\nif result.delta < 0.6: → RAPID, call LLM!\nif result.delta >= 0.6: → EXPLOSIVE, call LLM!',
+    tech:'Thresholds configurable in config.py. 95% of ticks → STABLE/GRADUAL (no LLM). ~5% → RAPID/EXPLOSIVE (LLM). Keeps costs/latency low.'},
+
+  'state-update':{emoji:'💾',title:'State Update',
+    tagline:'Новий стан NPC зафіксований — до persist',
+    analogy:'Як RAM комп\'ютера: новий стан вже в пам\'яті, але ще не записаний на диск.',
+    story:'State Update фіксує всі зміни від цього тіку: нові ваги персон, емоційний стан, поточний намір, нову дію або шепіт. Все ще в пам\'яті процесу (Redis + in-process). Наступний крок — зберегти в PostgreSQL.',
+    from:'Delta Check (stable path) · L2 LLM (after response)',
+    to:'Persist DB',
+    chain:'npc.state.persona_weights = final_weights\nnpc.state.emotional_state = calc_emotions()\nnpc.state.current_intent = determine_intent()\nnpc.state.action_log.append(action)',
+    tech:'In-memory update. Async: state update non-blocking. Batched persist: updates accumulated, written to PG every N ticks or on significant change.'},
+
+  'l2-llm':{emoji:'💬',title:'L2: LLM Call',
+    tagline:'Тільки при сильній зміні — осмислення через мову',
+    analogy:'Як коли людина переживає щось важливе і "треба поговорити": LLM — це той самий момент усвідомлення.',
+    story:'LLM отримує: soul NPC (хто він), поточний стан після L1, подію що сталась, накопичені шепоти. Генерує: діалог (якщо є з ким), внутрішній монолог, новий memory fragment. Потім результат іде в State Update.',
+    from:'Delta Check (RAPID/EXPLOSIVE trigger)',
+    to:'State Update (with LLM response)',
+    chain:'prompt = build_prompt(\n  soul=npc.soul_md,\n  state=npc.current_state,\n  event=event,\n  whispers=npc.whispers[-5:]\n)\nresponse = llm.generate(prompt)',
+    tech:'Async Celery sub-task. Prompt template: SOUL.md + state JSON + event + whispers. Returns: {dialogue?, inner_monologue, memory_fragment, updated_weights?}.'},
+
+  'persist-db':{emoji:'🗄',title:'Persist to PostgreSQL',
+    tagline:'Зберігаємо — NPC пам\'ятатиме навіть після рестарту',
+    analogy:'Як записати в щоденник: RAM забуде, але база — ніколи.',
+    story:'Async запис в PostgreSQL: знімок стану NPC, новий запис в лог подій, memory fragment якщо є. Async — не блокує обробку наступного тіку. Навіть якщо сервер впаде — наступного разу NPC відновиться з останнього збереженого стану.',
+    from:'State Update',
+    to:'Publish Redis (then done)',
+    chain:'await db.execute(\n  INSERT npc_states VALUES(...),\n  INSERT event_log VALUES(...),\n  INSERT memory_fragments VALUES(...)\n)',
+    tech:'SQLAlchemy async. Tables: npc_states (snapshot), event_log (history), memory_fragments (LLM outputs). Non-blocking: fire-and-forget pattern.'},
+
+  'publish-redis':{emoji:'📢',title:'Publish → Redis',
+    tagline:'Оголошуємо результат — інші NPCі чують',
+    analogy:'Як крикнути на базарі: "Іван пішов на ринок!" — всі хто знає Івана можуть відреагувати.',
+    story:'Після збереження стану, дія NPC публікується в Redis pub/sub канал. Social Fabric підписаний і миттєво оновлює відносини між персонажами. Якщо NPC зробив щось значне — інші NPCі отримують сигнал і можуть змінити поведінку.',
+    from:'Persist DB (after save)',
+    to:'Social Fabric · other NPC contexts',
+    chain:'await redis.publish(\n  f"npc:{npc_id}:actions",\n  json.dumps({\n    "action": action,\n    "emotion": state.emotion,\n    "intensity": delta\n  })\n)',
+    tech:'Redis PUBLISH. Subscribers: Social Fabric service + any NPC watchers. Enables emergent behavior without direct NPC-NPC calls.'}
+};
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+var currentLayer = 1;
+var viewMode = 'simple';
+var particles = [];
+var panelNodeId = null;
+
+// ══════════════════════════════════════════════════
+//  BUILD DOM
+// ══════════════════════════════════════════════════
+function el(tag, cls, id) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (id) e.id = id;
+  return e;
+}
+
+function buildLayers() {
+  var main = document.getElementById('main');
+  for (var n = 1; n <= 4; n++) {
+    var def = LAYERS[n];
+    var section = el('section', 'layer' + (n === 1 ? ' active' : ''), 'layer-' + n);
+
+    // header
+    var lhdr = el('div', 'lhdr');
+    var h2 = el('h2'); h2.textContent = def.title;
+    var dsSm = el('p', 'ds simple'); dsSm.textContent = def.ds_simple;
+    var dsTe = el('p', 'ds tech hidden'); dsTe.textContent = def.ds_tech;
+    lhdr.appendChild(h2); lhdr.appendChild(dsSm); lhdr.appendChild(dsTe);
+    section.appendChild(lhdr);
+
+    // diagram area
+    var area = el('div', 'diagram-area' + (def.scrollX ? ' scrollable-x' : ''), 'area-' + n);
+
+    // inner container (fixed px width for scrollable, 100% otherwise)
+    var inner = el('div', 'diagram-inner', 'inner-' + n);
+    if (def.scrollX) {
+      inner.style.width = def.scrollW + 'px';
+      inner.style.minHeight = '100%';
+    } else {
+      inner.style.width = '100%';
+    }
+
+    // zone bands
+    if (def.zoneBands) {
+      def.zoneBands.forEach(function(z) {
+        var band = el('div', 'zone-band');
+        band.style.top = z.top + '%';
+        band.style.height = z.h + '%';
+        band.style.background = z.bg;
+        inner.appendChild(band);
+        var lbl = el('div', 'zone-lbl');
+        lbl.style.top = z.top + '%';
+        lbl.style.left = z.lx || '1%';
+        lbl.style.color = z.lc;
+        lbl.textContent = z.lbl;
+        inner.appendChild(lbl);
+      });
+    }
+
+    // nodes
+    def.nodes.forEach(function(nd) {
+      var div = el('div', 'node' + (nd.decision ? ' decision' : ''));
+      div.dataset.id = nd.id;
+      div.dataset.layer = n;
+      // position
+      if (def.scrollX) {
+        div.style.left = nd.px + 'px';
+      } else {
+        div.style.left = nd.x + '%';
+      }
+      div.style.top = nd.y + '%';
+      div.style.background = nd.bg || '#0d1a2d';
+      div.style.borderColor = nd.c;
+      div.style.borderWidth = (nd.bw || 1.5) + 'px';
+      if (nd.bw >= 2) div.style.boxShadow = '0 0 20px ' + nd.c + '1a';
+
+      if (nd.step) {
+        var step = el('div', 'nd-step'); step.textContent = nd.step;
+        div.appendChild(step);
+      }
+      var title = el('div', 'nd-title'); title.style.color = nd.c; title.textContent = nd.title;
+      div.appendChild(title);
+      if (nd.sub) { var sub = el('div', 'nd-sub'); sub.textContent = nd.sub; div.appendChild(sub); }
+      if (nd.sub2) { var sub2 = el('div', 'nd-sub2'); sub2.textContent = nd.sub2; div.appendChild(sub2); }
+      if (nd.hasDrill) {
+        div.classList.add('has-drill');
+        var badge = el('div', 'nd-badge'); badge.textContent = '◎ розкрити';
+        div.appendChild(badge);
+      }
+
+      div.addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.querySelectorAll('.node.selected').forEach(function(x) { x.classList.remove('selected'); });
+        div.classList.add('selected');
+        openPanel(nd.id);
+      });
+      inner.appendChild(div);
+    });
+
+    // SVG for edges
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('edges-layer');
+    svg.id = 'svg-' + n;
+    if (def.scrollX) {
+      svg.style.width = def.scrollW + 'px';
+    }
+    inner.appendChild(svg);
+
+    // side panel (per layer)
+    var panel = el('div', 'side-panel', 'panel-' + n);
+    // head
+    var spHead = el('div', 'sp-head', 'sp-head-' + n);
+    var spEmoji = el('div', 'sp-emoji', 'sp-emoji-' + n); spEmoji.textContent = '●';
+    var spTitles = el('div', 'sp-titles');
+    var spTitle = el('div', 'sp-title', 'sp-title-' + n);
+    var spTagline = el('div', 'sp-tagline', 'sp-tagline-' + n);
+    var spClose = el('button', 'sp-close'); spClose.textContent = '×';
+    spClose.addEventListener('click', function() { closePanel(n); });
+    spTitles.appendChild(spTitle); spTitles.appendChild(spTagline);
+    spHead.appendChild(spEmoji); spHead.appendChild(spTitles); spHead.appendChild(spClose);
+    panel.appendChild(spHead);
+    var spBody = el('div', 'sp-body', 'sp-body-' + n);
+    panel.appendChild(spBody);
+    area.appendChild(panel);
+
+    area.appendChild(inner);
+    section.appendChild(area);
+    main.appendChild(section);
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  SIDE PANEL
+// ══════════════════════════════════════════════════
+function openPanel(nodeId) {
+  var info = NI[nodeId];
+  if (!info) return;
+  panelNodeId = nodeId;
+  var panel = document.getElementById('panel-' + currentLayer);
+  if (!panel) return;
+
+  document.getElementById('sp-emoji-' + currentLayer).textContent = info.emoji || '●';
+  document.getElementById('sp-title-' + currentLayer).textContent = info.title;
+  document.getElementById('sp-tagline-' + currentLayer).textContent = info.tagline || '';
+
+  var body = document.getElementById('sp-body-' + currentLayer);
+  while (body.firstChild) body.removeChild(body.firstChild);
+
+  function section(title, content, isTech, isChain, isWhy) {
+    var sec = el('div', 'sp-section');
+    var st = el('div', 'sp-sec-title'); st.textContent = title; sec.appendChild(st);
+    var txt = el('div', isWhy ? 'sp-why' : (isTech ? 'sp-tech' : (isChain ? 'sp-chain' : 'sp-text')));
+    txt.textContent = content;
+    sec.appendChild(txt);
+    body.appendChild(sec);
+  }
+
+  function flowSection() {
+    var sec = el('div', 'sp-section');
+    var st = el('div', 'sp-sec-title'); st.textContent = 'ПОТІК ДАНИХ'; sec.appendChild(st);
+    var flow = el('div', 'sp-flow');
+    if (info.from) {
+      var r1 = el('div', 'sp-flow-row');
+      var a1 = el('div', 'sp-flow-arrow'); a1.textContent = '←';
+      var c1 = el('div', 'sp-flow-content'); c1.textContent = 'від: ' + info.from;
+      r1.appendChild(a1); r1.appendChild(c1); flow.appendChild(r1);
+    }
+    if (info.to) {
+      var r2 = el('div', 'sp-flow-row');
+      var a2 = el('div', 'sp-flow-arrow'); a2.textContent = '→';
+      var c2 = el('div', 'sp-flow-content'); c2.textContent = 'до: ' + info.to;
+      r2.appendChild(a2); r2.appendChild(c2); flow.appendChild(r2);
+    }
+    sec.appendChild(flow);
+    body.appendChild(sec);
+  }
+
+  var mainText = viewMode === 'simple' ? info.analogy : info.tech;
+  var subText = viewMode === 'simple' ? info.story : info.analogy;
+
+  section(viewMode === 'simple' ? '🎯 АНАЛОГІЯ' : '⚙ ТЕХНІЧНО', mainText, viewMode === 'tech');
+  section('📖 ЩО ВІДБУВАЄТЬСЯ', subText);
+  flowSection();
+  if (info.chain) section('🔗 ЛАНЦЮГ ВИКЛИКУ', info.chain, false, true);
+
+  if (info.drillLinks && info.drillLinks.length) {
+    var dSec = el('div', 'sp-section');
+    var dTitle = el('div', 'sp-sec-title'); dTitle.textContent = '🔍 РОЗКРИТИ ПІДШАРИ';
+    dSec.appendChild(dTitle);
+    var dList = el('div', 'sp-drills');
+    info.drillLinks.forEach(function(dl) {
+      var btn = el('button', 'sp-drill-btn');
+      btn.style.setProperty('--dc', dl.dc);
+      var badge = el('span', 'db-badge'); badge.textContent = dl.badge; badge.style.background = dl.dc;
+      var lbl = el('span', 'db-label'); lbl.textContent = dl.lbl;
+      var arrow = el('span', 'db-arrow'); arrow.textContent = '→';
+      btn.appendChild(badge); btn.appendChild(lbl); btn.appendChild(arrow);
+      btn.addEventListener('click', function() { switchLayer(dl.n); });
+      dList.appendChild(btn);
+    });
+    dSec.appendChild(dList);
+    body.appendChild(dSec);
+  }
+
+  panel.classList.add('open');
+}
+
+function closePanel(n) {
+  var panel = document.getElementById('panel-' + (n || currentLayer));
+  if (panel) panel.classList.remove('open');
+  document.querySelectorAll('.node.selected').forEach(function(x) { x.classList.remove('selected'); });
+  panelNodeId = null;
+}
+
+// ══════════════════════════════════════════════════
+//  EDGE DRAWING WITH D3
+// ══════════════════════════════════════════════════
+function getRect(nodeId, layerNum) {
+  var inner = document.getElementById('inner-' + layerNum);
+  if (!inner) return null;
+  var el = inner.querySelector('[data-id="' + nodeId + '"]');
+  if (!el) return null;
+  var ir = inner.getBoundingClientRect();
+  var nr = el.getBoundingClientRect();
+  return {
+    l: nr.left - ir.left, r: nr.right - ir.left,
+    t: nr.top - ir.top,   b: nr.bottom - ir.top,
+    cx: nr.left + nr.width/2 - ir.left,
+    cy: nr.top + nr.height/2 - ir.top
+  };
+}
+
+function connPts(f, t) {
+  var dx = t.cx - f.cx, dy = t.cy - f.cy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx > 0
+      ? {s:{x:f.r, y:f.cy}, e:{x:t.l, y:t.cy}}
+      : {s:{x:f.l, y:f.cy}, e:{x:t.r, y:t.cy}};
+  }
+  return dy > 0
+    ? {s:{x:f.cx, y:f.b}, e:{x:t.cx, y:t.t}}
+    : {s:{x:f.cx, y:f.t}, e:{x:t.cx, y:t.b}};
+}
+
+function curve(s, e) {
+  var dx = e.x-s.x, dy = e.y-s.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    var cx = Math.abs(dx)*.44, sg = dx>0?1:-1;
+    return 'M'+s.x+' '+s.y+' C'+(s.x+sg*cx)+' '+s.y+','+(e.x-sg*cx)+' '+e.y+','+e.x+' '+e.y;
+  }
+  var cy = Math.abs(dy)*.44, sy = dy>0?1:-1;
+  return 'M'+s.x+' '+s.y+' C'+s.x+' '+(s.y+sy*cy)+','+e.x+' '+(e.y-sy*cy)+','+e.x+' '+e.y;
+}
+
+function stopParticles(n) {
+  particles.forEach(function(p) { if (p.layer === n) p.stop = true; });
+  particles = particles.filter(function(p) { return p.layer !== n; });
+}
+
+function drawEdges(n) {
+  var def = LAYERS[n];
+  var inner = document.getElementById('inner-' + n);
+  var svgEl = document.getElementById('svg-' + n);
+  if (!inner || !svgEl) return;
+
+  stopParticles(n);
+  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+
+  var svg = d3.select(svgEl);
+  svg.append('defs').append('marker')
+    .attr('id','arr'+n).attr('markerWidth',8).attr('markerHeight',6)
+    .attr('refX',7).attr('refY',3).attr('orient','auto')
+    .append('path').attr('d','M0,0 L8,3 L0,6 z').attr('fill','#8ab8d866');
+
+  def.edges.forEach(function(edge, i) {
+    var fr = getRect(edge.from, n);
+    var tr = getRect(edge.to, n);
+    if (!fr || !tr) return;
+    var pts = connPts(fr, tr);
+    var d = curve(pts.s, pts.e);
+    var pid = 'p'+n+'_'+i;
+
+    var path = svg.append('path')
+      .attr('id', pid).attr('d', d).attr('fill','none')
+      .attr('stroke', edge.c||'#4f9eff55')
+      .attr('stroke-width', edge.thick ? 2 : 1.5)
+      .attr('stroke-dasharray', edge.dashed ? '6,4' : null)
+      .attr('marker-end', 'url(#arr'+n+')');
+
+    if (edge.lbl) {
+      var pn = path.node(), pl = pn.getTotalLength();
+      var mp = pn.getPointAtLength(pl * .45);
+      var p1 = pn.getPointAtLength(pl * .42), p2 = pn.getPointAtLength(pl * .48);
+      var ang = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+      svg.append('text')
+        .attr('x', mp.x - Math.sin(ang)*10)
+        .attr('y', mp.y - 9)
+        .attr('fill', edge.c||'#4f9eff55')
+        .attr('font-size','8').attr('font-family','system-ui,sans-serif')
+        .attr('text-anchor','middle').attr('opacity',.8)
+        .text(edge.lbl);
+    }
+
+    if (edge.anim) {
+      var dot = svg.append('circle').attr('r', edge.thick?3.5:2.5)
+        .attr('fill', edge.c||'#4f9effaa').attr('opacity',0);
+      var p = {layer:n, stop:false};
+      particles.push(p);
+      var delay = i*260 + Math.random()*400;
+      (function(pp, dd, pidx) {
+        function run() {
+          if (pp.stop) return;
+          var pe = document.getElementById(pidx);
+          if (!pe) return;
+          var len = pe.getTotalLength();
+          dd.attr('opacity',.85);
+          dd.interrupt();
+          dd.transition().duration(1700+Math.random()*600).ease(d3.easeLinear)
+            .attrTween('transform', function() {
+              return function(t) {
+                var pt = pe.getPointAtLength(t*len);
+                return 'translate('+pt.x+','+pt.y+')';
+              };
+            })
+            .on('end', function() {
+              if (pp.stop) return;
+              dd.attr('opacity',0);
+              setTimeout(run, 350+Math.random()*700);
+            });
+        }
+        setTimeout(run, delay);
+      })(p, dot, pid);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  SWITCH LAYER (programmatic)
+// ══════════════════════════════════════════════════
+function switchLayer(n) {
+  if (n === currentLayer) return;
+  closePanel(currentLayer);
+  stopParticles(currentLayer);
+  document.querySelectorAll('.layer').forEach(function(l) { l.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('layer-'+n).classList.add('active');
+  var tab = document.querySelector('.tab[data-layer="'+n+'"]');
+  if (tab) tab.classList.add('active');
+  currentLayer = n;
+  requestAnimationFrame(function() { requestAnimationFrame(function() { drawEdges(n); }); });
+}
+
+// ══════════════════════════════════════════════════
+//  LAYER TABS
+// ══════════════════════════════════════════════════
+document.getElementById('tabs').addEventListener('click', function(e) {
+  var tab = e.target.closest('.tab');
+  if (!tab) return;
+  switchLayer(parseInt(tab.dataset.layer));
+});
+
+// ══════════════════════════════════════════════════
+//  VIEW TOGGLE
+// ══════════════════════════════════════════════════
+document.querySelector('.vtgl').addEventListener('click', function(e) {
+  var btn = e.target.closest('button');
+  if (!btn || btn.dataset.mode === viewMode) return;
+  viewMode = btn.dataset.mode;
+  document.querySelectorAll('.vtgl button').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('.lhdr .ds').forEach(function(el) {
+    if (el.classList.contains('simple')) el.classList.toggle('hidden', viewMode !== 'simple');
+    if (el.classList.contains('tech')) el.classList.toggle('hidden', viewMode !== 'tech');
+  });
+  if (panelNodeId) openPanel(panelNodeId);
+});
+document.querySelectorAll('.lhdr .ds.tech').forEach(function(e) { e.classList.add('hidden'); });
+
+// ══════════════════════════════════════════════════
+//  CLICK OUTSIDE
+// ══════════════════════════════════════════════════
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.node') && !e.target.closest('.side-panel')) {
+    closePanel(currentLayer);
+  }
+});
+
+// ══════════════════════════════════════════════════
+//  RESIZE
+// ══════════════════════════════════════════════════
+var resizeT;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(function() { drawEdges(currentLayer); }, 150);
+});
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+buildLayers();
+requestAnimationFrame(function() {
+  requestAnimationFrame(function() { drawEdges(1); });
+});
+</script>
+</body>
+</html>

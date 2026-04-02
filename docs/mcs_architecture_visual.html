@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCS — Architecture Layers</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#060b18;color:#c9d4e8;font-family:'Inter','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column}
+
+/* HEADER */
+header{height:52px;padding:0 20px;background:#07101f;border-bottom:1px solid #141f35;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.logo h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+.logo h1 em{font-style:normal;color:#4f9eff}
+.logo p{font-size:9px;color:#2a3e5a;margin-top:1px}
+
+/* TABS */
+.tabs{display:flex;gap:3px}
+.tab{display:flex;align-items:center;gap:6px;padding:4px 13px;border-radius:6px;border:1px solid #1a2d4a;background:transparent;color:#4a6a8a;cursor:pointer;font-size:11px;font-weight:500;font-family:inherit;transition:all .18s;white-space:nowrap}
+.tab:hover{color:#8ab8d8;border-color:#2a4d7a}
+.tab.l1{--c:#4f9eff}.tab.l2{--c:#a78bfa}.tab.l3{--c:#fbbf24}.tab.l4{--c:#34d399}
+.tab.active{border-color:var(--c);color:var(--c);background:rgba(255,255,255,.02)}
+.tab .tn{font-size:9px;font-weight:700;opacity:.6}
+
+/* VIEW TOGGLE */
+.vtgl{display:flex;background:#0d1a2d;border:1px solid #1a2d4a;border-radius:6px;overflow:hidden;margin-left:auto}
+.vtgl button{padding:4px 11px;background:transparent;border:none;color:#4a6a8a;cursor:pointer;font-size:10px;font-weight:600;font-family:inherit;transition:all .15s}
+.vtgl button.active{background:#1a2d4a;color:#c9d4e8}
+
+/* MAIN */
+main{flex:1;position:relative;overflow:hidden}
+.layer{position:absolute;inset:0;display:none;flex-direction:column}
+.layer.active{display:flex}
+
+/* LAYER HEADER */
+.lhdr{padding:8px 22px 6px;border-bottom:1px solid #0d1a2d;flex-shrink:0}
+.lhdr h2{font-size:13px;font-weight:700;color:#fff}
+.lhdr .ds{font-size:10px;color:#3a5a7a;margin-top:2px}
+.lhdr .ds.simple{color:#5a8aaa}
+.lhdr .ds.tech{font-family:'Courier New',monospace;font-size:9px}
+
+/* SVG WRAPPER */
+.svgwrap{flex:1;overflow:hidden}
+.svgwrap svg{width:100%;height:100%;display:block}
+
+/* INFO BAR */
+.ibar{height:72px;flex-shrink:0;background:#07101f;border-top:1px solid #141f35;padding:10px 22px;overflow:hidden;transition:height .22s;display:grid;grid-template-rows:auto auto auto;gap:3px}
+.ibar.open{height:140px}
+.ib-hint{font-size:10px;color:#2a3e5a;align-self:center}
+.ib-title{font-size:12px;font-weight:700;color:#fff;display:none}
+.ib-desc{font-size:10px;color:#8ab8d8;display:none;line-height:1.55}
+.ib-why{font-size:9px;color:#4a6a8a;display:none;margin-top:2px;font-style:italic}
+.ibar.open .ib-hint{display:none}
+.ibar.open .ib-title,.ibar.open .ib-desc,.ibar.open .ib-why{display:block}
+
+/* NODE hover */
+.nd{cursor:pointer}
+.nd rect,.nd circle,.nd polygon{transition:opacity .15s}
+.nd:hover rect,.nd:hover circle,.nd:hover polygon{opacity:.75}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <h1>MCS · <em>Multi-Consciousness System</em></h1>
+    <p>Interactive architecture · 4 layers · click nodes for details</p>
+  </div>
+  <nav class="tabs">
+    <button class="tab l1 active" data-layer="1"><span class="tn">L1</span>System</button>
+    <button class="tab l2" data-layer="2"><span class="tn">L2</span>Parliament</button>
+    <button class="tab l3" data-layer="3"><span class="tn">L3</span>Desires</button>
+    <button class="tab l4" data-layer="4"><span class="tn">L4</span>Tick</button>
+  </nav>
+  <div class="vtgl">
+    <button class="active" data-mode="simple">Simple</button>
+    <button data-mode="tech">Tech</button>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <a href="mcs_v2.html" style="font-size:10px;color:#2a4d7a;text-decoration:none;border:1px solid #141f35;padding:4px 12px;border-radius:5px">v2 NPC State →</a>
+    <a href="mcs_v3.html" style="font-size:10px;color:#2a4d7a;text-decoration:none;border:1px solid #141f35;padding:4px 12px;border-radius:5px">v3 NPC Anatomy →</a>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════
+     LAYER 1 — SYSTEM ARCHITECTURE
+═══════════════════════════════════════════════ -->
+<section id="layer-1" class="layer active">
+  <div class="lhdr">
+    <h2>L1 — System Architecture</h2>
+    <p class="ds simple">Весь оркестр: від гравця до пам'яті NPC. Хто кому говорить і навіщо.</p>
+    <p class="ds tech hidden">FastAPI:8000 → Redis queues (HIGH/MED/LOW) → Celery workers → MCS core → PostgreSQL</p>
+  </div>
+  <div class="svgwrap">
+   <svg viewBox="0 0 920 390" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ab" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#4f9eff99"/></marker>
+      <marker id="abB" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#4f9effcc"/></marker>
+      <marker id="ap" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#a78bfa99"/></marker>
+      <marker id="aa" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#fbbf2499"/></marker>
+      <marker id="ag" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#34d39999"/></marker>
+    </defs>
+
+    <!-- zone separators -->
+    <line x1="0" y1="36" x2="920" y2="36" stroke="#0d1a2d" stroke-width="1"/>
+    <line x1="0" y1="146" x2="920" y2="146" stroke="#0d1a2d" stroke-width="1"/>
+    <line x1="0" y1="256" x2="920" y2="256" stroke="#0d1a2d" stroke-width="1"/>
+    <line x1="0" y1="356" x2="920" y2="356" stroke="#0d1a2d" stroke-width="1"/>
+    <!-- zone labels -->
+    <text x="12" y="24" fill="#1a2d4a" font-size="8" font-family="monospace" font-weight="700">INPUT</text>
+    <text x="12" y="134" fill="#1a2d4a" font-size="8" font-family="monospace" font-weight="700">TRANSPORT</text>
+    <text x="12" y="244" fill="#1a2d4a" font-size="8" font-family="monospace" font-weight="700">PROCESSING</text>
+    <text x="12" y="344" fill="#1a2d4a" font-size="8" font-family="monospace" font-weight="700">STORAGE</text>
+
+    <!-- EDGES -->
+    <!-- Player → FastAPI -->
+    <path id="e-pf" d="M 165,80 L 335,80" stroke="#4f9eff66" stroke-width="1.5" fill="none" marker-end="url(#ab)"/>
+    <text x="248" y="74" fill="#4f9eff66" font-size="8" text-anchor="middle" font-family="sans-serif">HIGH priority</text>
+    <!-- WorldEngine → FastAPI -->
+    <path d="M 695,80 L 505,80" stroke="#4f9eff44" stroke-width="1.5" fill="none" marker-end="url(#ab)"/>
+    <text x="600" y="74" fill="#4f9eff44" font-size="8" text-anchor="middle" font-family="sans-serif">MEDIUM priority</text>
+    <!-- FastAPI → Redis -->
+    <path id="e-fr" d="M 420,103 L 420,163" stroke="#4f9effaa" stroke-width="2" fill="none" marker-end="url(#abB)"/>
+    <text x="432" y="138" fill="#4f9eff88" font-size="8" font-family="sans-serif">enqueue()</text>
+    <!-- CeleryBeat → Redis -->
+    <path d="M 195,193 L 325,193" stroke="#4f9eff44" stroke-width="1.5" fill="none" marker-end="url(#ab)"/>
+    <text x="258" y="187" fill="#4f9eff44" font-size="8" text-anchor="middle" font-family="sans-serif">LOW tick</text>
+    <!-- Redis → CeleryWorkers -->
+    <path id="e-rc" d="M 420,213 L 420,263" stroke="#a78bfaaa" stroke-width="2" fill="none" marker-end="url(#ap)"/>
+    <text x="432" y="243" fill="#a78bfa88" font-size="8" font-family="sans-serif">dequeue()</text>
+    <!-- Redis → SocialFabric -->
+    <path d="M 505,193 L 665,193" stroke="#a78bfa44" stroke-width="1.5" fill="none" marker-end="url(#ap)"/>
+    <text x="585" y="187" fill="#a78bfa44" font-size="8" text-anchor="middle" font-family="sans-serif">pub/sub</text>
+    <!-- CeleryWorkers → MCS -->
+    <path id="e-cm" d="M 420,293 L 420,343" stroke="#a78bfaaa" stroke-width="2" fill="none" marker-end="url(#ap)"/>
+    <text x="432" y="323" fill="#a78bfa88" font-size="8" font-family="sans-serif">run_tick()</text>
+    <!-- MCS → LLM dashed -->
+    <path d="M 325,368 L 215,368" stroke="#fbbf2455" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#aa)"/>
+    <text x="268" y="362" fill="#fbbf2444" font-size="8" text-anchor="middle" font-family="sans-serif">if RAPID/EXPLOSIVE</text>
+    <!-- MCS → PostgreSQL -->
+    <path d="M 515,368 L 645,368" stroke="#34d39955" stroke-width="1.5" fill="none" marker-end="url(#ag)"/>
+    <text x="580" y="362" fill="#34d39944" font-size="8" text-anchor="middle" font-family="sans-serif">persist()</text>
+    <!-- MCS → SocialFabric broadcast dashed -->
+    <path d="M 460,343 C 470,300 750,255 750,215" stroke="#a78bfa33" stroke-width="1" fill="none" stroke-dasharray="5,4" marker-end="url(#ap)"/>
+    <text x="660" y="298" fill="#a78bfa33" font-size="7" text-anchor="middle" font-family="sans-serif">broadcast()</text>
+
+    <!-- ANIMATED DOTS -->
+    <circle r="3" fill="#4f9effaa"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#e-fr"/></animateMotion></circle>
+    <circle r="3" fill="#a78bfaaa"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#e-rc"/></animateMotion></circle>
+    <circle r="3" fill="#a78bfaaa"><animateMotion dur="2s" repeatCount="indefinite" begin="1s"><mpath href="#e-cm"/></animateMotion></circle>
+    <circle r="2.5" fill="#4f9eff66"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#e-pf"/></animateMotion></circle>
+
+    <!-- NODES -->
+    <!-- Player -->
+    <g class="nd" data-id="player" data-layer="1" transform="translate(92,80)">
+      <rect x="-72" y="-23" width="144" height="46" rx="8" fill="#0d1a2d" stroke="#4f9eff" stroke-width="1.5"/>
+      <text y="-5" fill="#4f9eff" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">PLAYER</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">REST / WebSocket</text>
+    </g>
+    <!-- World Engine -->
+    <g class="nd" data-id="world-engine" data-layer="1" transform="translate(785,80)">
+      <rect x="-80" y="-23" width="160" height="46" rx="8" fill="#0d1a2d" stroke="#4f9eff77" stroke-width="1.5"/>
+      <text y="-5" fill="#4f9effcc" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">WORLD ENGINE</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">events · time · economy</text>
+    </g>
+    <!-- FastAPI -->
+    <g class="nd" data-id="fastapi" data-layer="1" transform="translate(420,80)">
+      <rect x="-75" y="-23" width="150" height="46" rx="8" fill="#091d38" stroke="#4f9eff" stroke-width="2"/>
+      <text y="-5" fill="#7ad8ff" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">FastAPI  :8000</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">REST + SSE streaming</text>
+    </g>
+    <!-- CeleryBeat -->
+    <g class="nd" data-id="celery-beat" data-layer="1" transform="translate(103,193)">
+      <rect x="-65" y="-23" width="130" height="46" rx="8" fill="#0d1a2d" stroke="#4f9eff44" stroke-width="1.5"/>
+      <text y="-5" fill="#4f9effaa" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Celery Beat</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">periodic scheduler</text>
+    </g>
+    <!-- Redis -->
+    <g class="nd" data-id="redis" data-layer="1" transform="translate(420,193)">
+      <rect x="-88" y="-28" width="176" height="56" rx="8" fill="#150d28" stroke="#a78bfa" stroke-width="2"/>
+      <text y="-8" fill="#a78bfa" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Redis</text>
+      <text y="8" fill="#7a6ab8" font-size="8" text-anchor="middle" font-family="sans-serif">pub/sub + HIGH · MED · LOW</text>
+      <text y="20" fill="#4a3a7a" font-size="8" text-anchor="middle" font-family="sans-serif">~1M ops/s · 0.1ms latency</text>
+    </g>
+    <!-- Social Fabric -->
+    <g class="nd" data-id="social-fabric" data-layer="1" transform="translate(750,193)">
+      <rect x="-78" y="-23" width="156" height="46" rx="8" fill="#0d1a2d" stroke="#a78bfa44" stroke-width="1.5"/>
+      <text y="-5" fill="#a78bfaaa" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Social Fabric</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">NPC-to-NPC relations</text>
+    </g>
+    <!-- CeleryWorkers -->
+    <g class="nd" data-id="celery-workers" data-layer="1" transform="translate(420,278)">
+      <rect x="-95" y="-23" width="190" height="46" rx="8" fill="#091d38" stroke="#4f9eff" stroke-width="2"/>
+      <text y="-5" fill="#7ad8ff" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Celery Workers</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">NPC_A · NPC_B · NPC_C · …</text>
+    </g>
+    <!-- MCS Core -->
+    <g class="nd" data-id="mcs" data-layer="1" transform="translate(420,368)">
+      <rect x="-92" y="-23" width="184" height="46" rx="8" fill="#150d28" stroke="#7c3aed" stroke-width="2.5"/>
+      <text y="-5" fill="#c4b5fd" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">MCS Core</text>
+      <text y="11" fill="#7a6ab8" font-size="8" text-anchor="middle" font-family="sans-serif">4 personas · softmax · delta</text>
+    </g>
+    <!-- LLM -->
+    <g class="nd" data-id="llm" data-layer="1" transform="translate(133,368)">
+      <rect x="-62" y="-23" width="124" height="46" rx="8" fill="#1a1200" stroke="#fbbf2455" stroke-width="1.5"/>
+      <text y="-5" fill="#fbbf24bb" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">LLM  (local)</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">conditional · same server</text>
+    </g>
+    <!-- PostgreSQL -->
+    <g class="nd" data-id="postgresql" data-layer="1" transform="translate(720,368)">
+      <rect x="-72" y="-23" width="144" height="46" rx="8" fill="#001a0d" stroke="#34d39955" stroke-width="1.5"/>
+      <text y="-5" fill="#34d399bb" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">PostgreSQL</text>
+      <text y="11" fill="#4a6a8a" font-size="8" text-anchor="middle" font-family="sans-serif">persistent memory · history</text>
+    </g>
+   </svg>
+  </div>
+  <div class="ibar" id="ibar-1">
+    <div class="ib-hint">← клікни вузол щоб побачити деталі</div>
+    <div class="ib-title" id="ibt-1"></div>
+    <div class="ib-desc" id="ibd-1"></div>
+    <div class="ib-why" id="ibw-1"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     LAYER 2 — THE PARLIAMENT (4 Personas)
+═══════════════════════════════════════════════ -->
+<section id="layer-2" class="layer">
+  <div class="lhdr">
+    <h2>L2 — The Parliament (4 Personas)</h2>
+    <p class="ds simple">4 голоси в голові NPC постійно сперечаються. Ніхто не перемагає повністю — домінує, але інші шепочуть.</p>
+    <p class="ds tech hidden">softmax(scores) → weights[0..1] sum=1 · delta = |new_state − prev_state| · blend = 0.7*new + 0.3*prev</p>
+  </div>
+  <div class="svgwrap">
+   <svg viewBox="0 0 920 390" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ap2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#a78bfa99"/></marker>
+      <marker id="ab2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#4f9eff99"/></marker>
+      <marker id="ar2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#f8717199"/></marker>
+      <marker id="ag2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#34d39999"/></marker>
+    </defs>
+
+    <!-- Event input at top -->
+    <path d="M 460,48 L 460,72" stroke="#4f9effaa" stroke-width="1.5" fill="none" marker-end="url(#ab2)"/>
+    <text x="472" y="65" fill="#4f9eff88" font-size="8" font-family="sans-serif">подія</text>
+
+    <!-- Event → each persona -->
+    <path id="e-ep" d="M 420,85 C 380,90 230,110 195,140" stroke="#4f9eff44" stroke-width="1.5" fill="none" marker-end="url(#ab2)"/>
+    <path id="e-ei" d="M 500,85 C 540,90 690,110 725,140" stroke="#4f9eff44" stroke-width="1.5" fill="none" marker-end="url(#ab2)"/>
+    <path d="M 430,85 L 210,145" stroke="#4f9eff22" stroke-width="1" fill="none"/>
+    <path d="M 490,85 L 710,145" stroke="#4f9eff22" stroke-width="1" fill="none"/>
+
+    <!-- Persona → Softmax -->
+    <path id="e-ps" d="M 250,195 C 290,210 380,215 420,218" stroke="#a78bfa77" stroke-width="1.5" fill="none" marker-end="url(#ap2)"/>
+    <path id="e-is" d="M 670,195 C 630,210 510,215 500,218" stroke="#a78bfa77" stroke-width="1.5" fill="none" marker-end="url(#ap2)"/>
+    <path d="M 210,215 C 270,225 380,228 420,228" stroke="#a78bfa44" stroke-width="1" fill="none" marker-end="url(#ap2)"/>
+    <path d="M 710,215 C 650,225 510,228 500,228" stroke="#a78bfa44" stroke-width="1" fill="none" marker-end="url(#ap2)"/>
+
+    <!-- Conflict lines (dashed) — opposing personas -->
+    <!-- Protector ↔ Thinker (gut vs analysis) -->
+    <line x1="250" y1="195" x2="670" y2="255" stroke="#f8717133" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="450" y="218" fill="#f8717144" font-size="7" text-anchor="middle" font-family="sans-serif">gut vs analysis</text>
+    <!-- Instinct ↔ Mask (raw emotion vs social) -->
+    <line x1="670" y1="195" x2="250" y2="255" stroke="#f8717133" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="460" y="240" fill="#f8717144" font-size="7" text-anchor="middle" font-family="sans-serif">raw vs social</text>
+
+    <!-- Softmax → Inertia blend -->
+    <path id="e-si" d="M 460,268 L 460,308" stroke="#a78bfaaa" stroke-width="2" fill="none" marker-end="url(#ap2)"/>
+    <text x="472" y="293" fill="#a78bfa88" font-size="8" font-family="sans-serif">blend</text>
+
+    <!-- Inertia → Output -->
+    <path id="e-io" d="M 460,338 L 460,368" stroke="#34d399aa" stroke-width="2" fill="none" marker-end="url(#ag2)"/>
+
+    <!-- Softmax → Delta -->
+    <path d="M 520,248 L 640,248" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#ab2)"/>
+    <text x="580" y="242" fill="#fbbf2455" font-size="8" text-anchor="middle" font-family="sans-serif">delta score</text>
+
+    <!-- ANIMATED DOTS -->
+    <circle r="2.5" fill="#4f9eff77"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#e-ep"/></animateMotion></circle>
+    <circle r="2.5" fill="#4f9eff77"><animateMotion dur="3s" repeatCount="indefinite" begin="1.5s"><mpath href="#e-ei"/></animateMotion></circle>
+    <circle r="2.5" fill="#a78bfaaa"><animateMotion dur="2s" repeatCount="indefinite" begin="0.5s"><mpath href="#e-ps"/></animateMotion></circle>
+    <circle r="2.5" fill="#a78bfaaa"><animateMotion dur="2s" repeatCount="indefinite" begin="1s"><mpath href="#e-is"/></animateMotion></circle>
+    <circle r="3" fill="#a78bfacc"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#e-si"/></animateMotion></circle>
+    <circle r="3" fill="#34d399cc"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#e-io"/></animateMotion></circle>
+
+    <!-- NODES -->
+
+    <!-- Input Event (top center) -->
+    <g class="nd" data-id="input-event" data-layer="2" transform="translate(460,36)">
+      <rect x="-70" y="-18" width="140" height="36" rx="6" fill="#091d38" stroke="#4f9eff77" stroke-width="1.5"/>
+      <text y="5" fill="#4f9effcc" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">INCOMING EVENT</text>
+    </g>
+
+    <!-- PROTECTOR (top-left) -->
+    <g class="nd" data-id="protector" data-layer="2" transform="translate(210,168)">
+      <rect x="-90" y="-28" width="180" height="56" rx="8" fill="#1a0d0d" stroke="#f87171" stroke-width="2"/>
+      <text y="-8" fill="#f87171" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Protector</text>
+      <text y="8" fill="#7a4a4a" font-size="8" text-anchor="middle" font-family="sans-serif">Що треба захистити?</text>
+      <text y="20" fill="#5a3a3a" font-size="7" text-anchor="middle" font-family="sans-serif">загрози · несправедливість</text>
+    </g>
+
+    <!-- INSTINCT (top-right) -->
+    <g class="nd" data-id="instinct" data-layer="2" transform="translate(710,168)">
+      <rect x="-90" y="-28" width="180" height="56" rx="8" fill="#1a1200" stroke="#fbbf24" stroke-width="2"/>
+      <text y="-8" fill="#fbbf24" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Instinct</text>
+      <text y="8" fill="#7a6a00" font-size="8" text-anchor="middle" font-family="sans-serif">Що я відчуваю?</text>
+      <text y="20" fill="#5a4a00" font-size="7" text-anchor="middle" font-family="sans-serif">фізичні стимули · емоції</text>
+    </g>
+
+    <!-- THINKER (bottom-left) -->
+    <g class="nd" data-id="thinker" data-layer="2" transform="translate(210,258)">
+      <rect x="-90" y="-28" width="180" height="56" rx="8" fill="#001528" stroke="#4f9eff" stroke-width="2"/>
+      <text y="-8" fill="#4f9eff" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Thinker</text>
+      <text y="8" fill="#2a5a8a" font-size="8" text-anchor="middle" font-family="sans-serif">Які наслідки?</text>
+      <text y="20" fill="#1a3a5a" font-size="7" text-anchor="middle" font-family="sans-serif">складні ситуації · вибір</text>
+    </g>
+
+    <!-- MASK (bottom-right) -->
+    <g class="nd" data-id="mask" data-layer="2" transform="translate(710,258)">
+      <rect x="-90" y="-28" width="180" height="56" rx="8" fill="#0d1a08" stroke="#4ade80" stroke-width="2"/>
+      <text y="-8" fill="#4ade80" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Mask</text>
+      <text y="8" fill="#2a6a3a" font-size="8" text-anchor="middle" font-family="sans-serif">Що від мене очікують?</text>
+      <text y="20" fill="#1a4a2a" font-size="7" text-anchor="middle" font-family="sans-serif">соціальний контекст</text>
+    </g>
+
+    <!-- SOFTMAX (center) -->
+    <g class="nd" data-id="softmax" data-layer="2" transform="translate(460,248)">
+      <rect x="-80" y="-22" width="160" height="44" rx="8" fill="#150d28" stroke="#a78bfa" stroke-width="2"/>
+      <text y="-4" fill="#a78bfa" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Softmax</text>
+      <text y="11" fill="#6a5a8a" font-size="8" text-anchor="middle" font-family="sans-serif">weights sum to 1.0</text>
+    </g>
+
+    <!-- DELTA (right) -->
+    <g class="nd" data-id="delta" data-layer="2" transform="translate(700,248)">
+      <rect x="-65" y="-22" width="130" height="44" rx="8" fill="#1a1200" stroke="#fbbf2466" stroke-width="1.5"/>
+      <text y="-4" fill="#fbbf24bb" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Delta Δ</text>
+      <text y="11" fill="#5a5000" font-size="8" text-anchor="middle" font-family="sans-serif">STABLE/GRADUAL/RAPID/EXPLOSIVE</text>
+    </g>
+
+    <!-- INERTIA BLEND -->
+    <g class="nd" data-id="inertia" data-layer="2" transform="translate(460,323)">
+      <rect x="-80" y="-18" width="160" height="36" rx="6" fill="#0d150d" stroke="#4ade8055" stroke-width="1.5"/>
+      <text y="5" fill="#4ade80aa" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">Inertia  70% new + 30% prev</text>
+    </g>
+
+    <!-- OUTPUT -->
+    <g class="nd" data-id="output-action" data-layer="2" transform="translate(460,378)">
+      <rect x="-80" y="-16" width="160" height="32" rx="6" fill="#001a10" stroke="#34d39977" stroke-width="1.5"/>
+      <text y="5" fill="#34d399bb" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">ACTION / WHISPER</text>
+    </g>
+
+   </svg>
+  </div>
+  <div class="ibar" id="ibar-2">
+    <div class="ib-hint">← клікни персону щоб побачити деталі</div>
+    <div class="ib-title" id="ibt-2"></div>
+    <div class="ib-desc" id="ibd-2"></div>
+    <div class="ib-why" id="ibw-2"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     LAYER 3 — DESIRE ENGINE (L4 mechanic)
+═══════════════════════════════════════════════ -->
+<section id="layer-3" class="layer">
+  <div class="lhdr">
+    <h2>L3 — Desire Engine (Proactive Layer)</h2>
+    <p class="ds simple">NPC хоче щось, навіть якщо нічого не відбувається. Чим довше не може — тим сильніше тягне. Іноді відкладає. Іноді ламається.</p>
+    <p class="ds tech hidden">desire_pull = gap × frustration × (1 − resistance)  ·  if desire_pull > obligation_pull × 1.5 → procrastinate</p>
+  </div>
+  <div class="svgwrap">
+   <svg viewBox="0 0 920 390" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="aa3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#fbbf2499"/></marker>
+      <marker id="ar3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#f8717199"/></marker>
+      <marker id="ag3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#34d39999"/></marker>
+      <marker id="ap3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#a78bfa99"/></marker>
+    </defs>
+
+    <!-- FORMULA ROW (top) -->
+    <!-- gap → × -->
+    <path d="M 168,80 L 218,80" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#aa3)"/>
+    <!-- frustration → × -->
+    <path d="M 378,80 L 318,80" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#aa3)"/>
+    <!-- resistance → (1-r) → × -->
+    <path d="M 578,80 L 518,80" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#aa3)"/>
+    <!-- × → desire_pull -->
+    <path id="e-dp" d="M 278,80 L 668,80" stroke="#fbbf24aa" stroke-width="2" fill="none" marker-end="url(#aa3)"/>
+    <text x="473" y="73" fill="#fbbf2477" font-size="8" text-anchor="middle" font-family="sans-serif">=  desire_pull</text>
+
+    <!-- desire_pull ↓ vs obligation_pull → compare -->
+    <path id="e-dv" d="M 718,103 L 718,163" stroke="#fbbf24aa" stroke-width="2" fill="none" marker-end="url(#aa3)"/>
+    <!-- obligation box → compare -->
+    <path d="M 858,193 L 808,193" stroke="#a78bfa66" stroke-width="1.5" fill="none" marker-end="url(#ap3)"/>
+    <text x="880" y="190" fill="#a78bfa66" font-size="8" font-family="sans-serif">obligation</text>
+
+    <!-- compare → fork -->
+    <path id="e-fork" d="M 718,218 L 718,268" stroke="#fbbf24aa" stroke-width="2" fill="none" marker-end="url(#aa3)"/>
+
+    <!-- fork left: PROCRASTINATE -->
+    <path d="M 678,290 L 508,318" stroke="#f8717177" stroke-width="1.5" fill="none" marker-end="url(#ar3)"/>
+    <text x="580" y="297" fill="#f8717155" font-size="7" text-anchor="middle" font-family="sans-serif">desire &gt; oblig × 1.5</text>
+    <!-- fork right: ACTION -->
+    <path d="M 758,290 L 858,318" stroke="#34d39977" stroke-width="1.5" fill="none" marker-end="url(#ag3)"/>
+    <text x="820" y="297" fill="#34d39955" font-size="7" text-anchor="middle" font-family="sans-serif">balanced</text>
+
+    <!-- LEARNED HELPLESSNESS flow (left side) -->
+    <path d="M 140,178 L 140,248" stroke="#f8717155" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ar3)"/>
+    <text x="95" y="218" fill="#f8717144" font-size="7" text-anchor="middle" font-family="sans-serif">failures</text>
+    <path d="M 140,298 L 278,298 L 280,185" stroke="#f8717133" stroke-width="1" fill="none" stroke-dasharray="4,4" marker-end="url(#ar3)"/>
+    <text x="145" y="322" fill="#f8717133" font-size="7" font-family="sans-serif">weakens Protector weight</text>
+
+    <!-- ANIMATED DOTS -->
+    <circle r="2.5" fill="#fbbf24aa"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#e-dp"/></animateMotion></circle>
+    <circle r="3" fill="#fbbf24cc"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#e-dv"/></animateMotion></circle>
+    <circle r="3" fill="#fbbf24cc"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#e-fork"/></animateMotion></circle>
+
+    <!-- FORMULA NODES -->
+    <!-- gap -->
+    <g class="nd" data-id="gap" data-layer="3" transform="translate(104,80)">
+      <rect x="-56" y="-28" width="112" height="56" rx="8" fill="#1a1200" stroke="#fbbf24" stroke-width="2"/>
+      <text y="-8" fill="#fbbf24" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">gap</text>
+      <text y="8" fill="#7a6000" font-size="8" text-anchor="middle" font-family="sans-serif">current vs desired</text>
+      <text y="20" fill="#5a4000" font-size="7" text-anchor="middle" font-family="sans-serif">0.0 … 1.0</text>
+    </g>
+    <!-- multiply symbol 1 -->
+    <g transform="translate(228,80)">
+      <circle cx="0" cy="0" r="14" fill="#1a1200" stroke="#fbbf2444" stroke-width="1.5"/>
+      <text y="5" fill="#fbbf2488" font-size="14" font-weight="700" text-anchor="middle" font-family="sans-serif">×</text>
+    </g>
+    <!-- frustration -->
+    <g class="nd" data-id="frustration" data-layer="3" transform="translate(318,80)">
+      <rect x="-60" y="-28" width="120" height="56" rx="8" fill="#1a0800" stroke="#f87171" stroke-width="2"/>
+      <text y="-8" fill="#f87171" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">frustration</text>
+      <text y="8" fill="#7a2a2a" font-size="8" text-anchor="middle" font-family="sans-serif">grows each tick</text>
+      <text y="20" fill="#5a1a1a" font-size="7" text-anchor="middle" font-family="sans-serif">resets on satisfaction</text>
+    </g>
+    <!-- multiply symbol 2 -->
+    <g transform="translate(448,80)">
+      <circle cx="0" cy="0" r="14" fill="#1a0800" stroke="#f8717144" stroke-width="1.5"/>
+      <text y="5" fill="#f8717188" font-size="14" font-weight="700" text-anchor="middle" font-family="sans-serif">×</text>
+    </g>
+    <!-- resistance -->
+    <g class="nd" data-id="resistance" data-layer="3" transform="translate(578,80)">
+      <rect x="-70" y="-28" width="140" height="56" rx="8" fill="#150d28" stroke="#a78bfa77" stroke-width="2"/>
+      <text y="-8" fill="#a78bfacc" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">(1 − resistance)</text>
+      <text y="8" fill="#5a4a8a" font-size="8" text-anchor="middle" font-family="sans-serif">fear · habit · tiredness</text>
+      <text y="20" fill="#3a2a6a" font-size="7" text-anchor="middle" font-family="sans-serif">personal barrier</text>
+    </g>
+    <!-- desire_pull result -->
+    <g class="nd" data-id="desire-pull" data-layer="3" transform="translate(718,80)">
+      <rect x="-72" y="-28" width="144" height="56" rx="8" fill="#1a1200" stroke="#fbbf24" stroke-width="2.5"/>
+      <text y="-8" fill="#fbbf24" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">desire_pull</text>
+      <text y="8" fill="#7a6000" font-size="8" text-anchor="middle" font-family="sans-serif">resultant force</text>
+      <text y="20" fill="#5a4000" font-size="7" text-anchor="middle" font-family="sans-serif">proactive impulse</text>
+    </g>
+    <!-- compare -->
+    <g class="nd" data-id="compare" data-layer="3" transform="translate(718,193)">
+      <rect x="-72" y="-25" width="144" height="50" rx="8" fill="#150d28" stroke="#a78bfa" stroke-width="2"/>
+      <text y="-6" fill="#a78bfa" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">COMPARE</text>
+      <text y="10" fill="#5a4a8a" font-size="8" text-anchor="middle" font-family="sans-serif">desire vs obligation</text>
+    </g>
+    <!-- fork diamond -->
+    <g class="nd" data-id="fork" data-layer="3" transform="translate(718,280)">
+      <polygon points="0,-22 30,0 0,22 -30,0" fill="#150d28" stroke="#fbbf24" stroke-width="2"/>
+      <text y="5" fill="#fbbf24" font-size="9" font-weight="700" text-anchor="middle" font-family="sans-serif">?</text>
+    </g>
+    <!-- PROCRASTINATE -->
+    <g class="nd" data-id="procrastinate" data-layer="3" transform="translate(435,328)">
+      <rect x="-90" y="-23" width="180" height="46" rx="8" fill="#1a0808" stroke="#f87171" stroke-width="2"/>
+      <text y="-5" fill="#f87171" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">PROCRASTINATE</text>
+      <text y="11" fill="#7a2a2a" font-size="8" text-anchor="middle" font-family="sans-serif">delay, find excuse, distract</text>
+    </g>
+    <!-- ACTION -->
+    <g class="nd" data-id="action" data-layer="3" transform="translate(880,328)">
+      <rect x="-55" y="-23" width="110" height="46" rx="8" fill="#001a10" stroke="#34d399" stroke-width="2"/>
+      <text y="-5" fill="#34d399" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">ACTION</text>
+      <text y="11" fill="#2a7a5a" font-size="8" text-anchor="middle" font-family="sans-serif">move toward desire</text>
+    </g>
+    <!-- Learned Helplessness -->
+    <g class="nd" data-id="learned-helplessness" data-layer="3" transform="translate(140,268)">
+      <rect x="-95" y="-23" width="190" height="46" rx="8" fill="#1a0808" stroke="#f8717155" stroke-width="1.5"/>
+      <text y="-5" fill="#f87171aa" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">Learned Helplessness</text>
+      <text y="11" fill="#5a2a2a" font-size="8" text-anchor="middle" font-family="sans-serif">Protector fails repeatedly</text>
+    </g>
+   </svg>
+  </div>
+  <div class="ibar" id="ibar-3">
+    <div class="ib-hint">← клікни елемент щоб побачити деталі</div>
+    <div class="ib-title" id="ibt-3"></div>
+    <div class="ib-desc" id="ibd-3"></div>
+    <div class="ib-why" id="ibw-3"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     LAYER 4 — TICK LIFECYCLE
+═══════════════════════════════════════════════ -->
+<section id="layer-4" class="layer">
+  <div class="lhdr">
+    <h2>L4 — NPC Tick Lifecycle</h2>
+    <p class="ds simple">Один тік — повний цикл життя NPC: від події до дії. Рівень 1 завжди. Рівень 2 (LLM) тільки якщо щось важливе.</p>
+    <p class="ds tech hidden">L1: O(personas) math always runs · L2: LLM only on delta=RAPID|EXPLOSIVE or schedule · persist → publish loop</p>
+  </div>
+  <div class="svgwrap">
+   <svg viewBox="0 0 920 390" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ag4" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#34d39999"/></marker>
+      <marker id="aa4" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#fbbf2499"/></marker>
+      <marker id="ab4" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#4f9eff99"/></marker>
+      <marker id="ap4" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#a78bfa99"/></marker>
+      <marker id="ar4" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#f8717199"/></marker>
+    </defs>
+
+    <!-- Zone labels: L1 always | L2 conditional -->
+    <rect x="0" y="0" width="920" height="260" fill="#4f9eff05" rx="0"/>
+    <rect x="0" y="260" width="920" height="130" fill="#fbbf2405" rx="0"/>
+    <text x="12" y="24" fill="#4f9eff33" font-size="9" font-family="monospace" font-weight="700">L1 — МАТЕМАТИКА (завжди, мілісекунди)</text>
+    <text x="12" y="276" fill="#fbbf2433" font-size="9" font-family="monospace" font-weight="700">L2 — LLM (тільки по тригеру)</text>
+    <line x1="0" y1="260" x2="920" y2="260" stroke="#fbbf2422" stroke-width="1" stroke-dasharray="6,4"/>
+
+    <!-- EDGES L1 flow (top row, left to right) -->
+    <path id="e-eq" d="M 115,90 L 215,90" stroke="#34d39988" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <path id="e-qw" d="M 345,90 L 415,90" stroke="#34d39988" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <path id="e-wm" d="M 545,90 L 615,90" stroke="#34d39988" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <path id="e-md" d="M 745,90 L 815,90" stroke="#34d39988" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+
+    <!-- delta → fork -->
+    <path id="e-df" d="M 865,118 L 865,178" stroke="#fbbf24aa" stroke-width="2" fill="none" marker-end="url(#aa4)"/>
+    <text x="877" y="153" fill="#fbbf2477" font-size="8" font-family="sans-serif">check</text>
+
+    <!-- fork → STABLE (left) state update -->
+    <path d="M 835,200 L 665,228" stroke="#34d39966" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <text x="740" y="205" fill="#34d39944" font-size="7" text-anchor="middle" font-family="sans-serif">STABLE/GRADUAL</text>
+
+    <!-- fork → RAPID/EXPLOSIVE (right, down to L2) -->
+    <path d="M 890,220 L 890,278" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#aa4)"/>
+    <text x="905" y="256" fill="#fbbf2444" font-size="7" font-family="sans-serif">RAPID+</text>
+
+    <!-- L2: LLM → state update -->
+    <path d="M 815,305 L 715,258" stroke="#fbbf2466" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <text x="775" y="273" fill="#fbbf2444" font-size="7" text-anchor="middle" font-family="sans-serif">response</text>
+
+    <!-- state update → persist -->
+    <path id="e-sp" d="M 605,248 L 475,318" stroke="#34d39977" stroke-width="1.5" fill="none" marker-end="url(#ag4)"/>
+    <text x="528" y="275" fill="#34d39944" font-size="7" text-anchor="middle" font-family="sans-serif">new state</text>
+
+    <!-- persist → publish -->
+    <path id="e-pp" d="M 345,338 L 225,338" stroke="#a78bfa77" stroke-width="1.5" fill="none" marker-end="url(#ap4)"/>
+    <text x="283" y="332" fill="#a78bfa55" font-size="7" text-anchor="middle" font-family="sans-serif">publish</text>
+
+    <!-- ANIMATED DOTS -->
+    <circle r="3" fill="#34d399cc"><animateMotion dur="4s" repeatCount="indefinite">
+      <mpath href="#e-eq"/>
+    </animateMotion></circle>
+    <circle r="3" fill="#34d399cc"><animateMotion dur="4s" repeatCount="indefinite" begin="1s">
+      <mpath href="#e-qw"/>
+    </animateMotion></circle>
+    <circle r="3" fill="#34d399cc"><animateMotion dur="4s" repeatCount="indefinite" begin="2s">
+      <mpath href="#e-wm"/>
+    </animateMotion></circle>
+    <circle r="3" fill="#34d399cc"><animateMotion dur="4s" repeatCount="indefinite" begin="3s">
+      <mpath href="#e-md"/>
+    </animateMotion></circle>
+    <circle r="3" fill="#34d399aa"><animateMotion dur="1.5s" repeatCount="indefinite">
+      <mpath href="#e-sp"/>
+    </animateMotion></circle>
+    <circle r="2.5" fill="#a78bfaaa"><animateMotion dur="1.5s" repeatCount="indefinite">
+      <mpath href="#e-pp"/>
+    </animateMotion></circle>
+
+    <!-- NODES L1 -->
+    <!-- Event -->
+    <g class="nd" data-id="tick-event" data-layer="4" transform="translate(62,90)">
+      <rect x="-52" y="-28" width="104" height="56" rx="8" fill="#091d38" stroke="#4f9eff77" stroke-width="1.5"/>
+      <text y="-8" fill="#4f9effcc" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">EVENT</text>
+      <text y="7" fill="#3a5a7a" font-size="7" text-anchor="middle" font-family="sans-serif">player / world</text>
+      <text y="19" fill="#2a3a5a" font-size="7" text-anchor="middle" font-family="sans-serif">idle beat</text>
+    </g>
+    <!-- Priority Queue -->
+    <g class="nd" data-id="priority-queue" data-layer="4" transform="translate(280,90)">
+      <rect x="-64" y="-28" width="128" height="56" rx="8" fill="#150d28" stroke="#a78bfa77" stroke-width="1.5"/>
+      <text y="-8" fill="#a78bfacc" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">Redis Queue</text>
+      <text y="7" fill="#5a4a8a" font-size="7" text-anchor="middle" font-family="sans-serif">HIGH / MED / LOW</text>
+      <text y="19" fill="#3a2a5a" font-size="7" text-anchor="middle" font-family="sans-serif">priority order</text>
+    </g>
+    <!-- Worker -->
+    <g class="nd" data-id="worker" data-layer="4" transform="translate(480,90)">
+      <rect x="-64" y="-28" width="128" height="56" rx="8" fill="#091d38" stroke="#4f9eff" stroke-width="2"/>
+      <text y="-8" fill="#7ad8ff" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">Celery Worker</text>
+      <text y="7" fill="#3a5a7a" font-size="7" text-anchor="middle" font-family="sans-serif">NPC process picks up</text>
+      <text y="19" fill="#2a3a5a" font-size="7" text-anchor="middle" font-family="sans-serif">exclusive ownership</text>
+    </g>
+    <!-- L1 Math -->
+    <g class="nd" data-id="l1-math" data-layer="4" transform="translate(680,90)">
+      <rect x="-64" y="-28" width="128" height="56" rx="8" fill="#150d28" stroke="#a78bfa" stroke-width="2"/>
+      <text y="-8" fill="#c4b5fd" font-size="10" font-weight="700" text-anchor="middle" font-family="sans-serif">L1 Math Tick</text>
+      <text y="7" fill="#7a6ab8" font-size="7" text-anchor="middle" font-family="sans-serif">softmax · persona scores</text>
+      <text y="19" fill="#5a4a8a" font-size="7" text-anchor="middle" font-family="sans-serif">no LLM · milliseconds</text>
+    </g>
+    <!-- Delta Check diamond -->
+    <g class="nd" data-id="delta-check" data-layer="4" transform="translate(865,90)">
+      <polygon points="0,-28 38,0 0,28 -38,0" fill="#1a1200" stroke="#fbbf24" stroke-width="2"/>
+      <text y="-5" fill="#fbbf24" font-size="9" font-weight="700" text-anchor="middle" font-family="sans-serif">Delta</text>
+      <text y="8" fill="#7a6000" font-size="8" text-anchor="middle" font-family="sans-serif">level?</text>
+    </g>
+    <!-- State Update -->
+    <g class="nd" data-id="state-update" data-layer="4" transform="translate(640,248)">
+      <rect x="-78" y="-23" width="156" height="46" rx="8" fill="#0d150d" stroke="#34d399" stroke-width="2"/>
+      <text y="-5" fill="#34d399" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">State Update</text>
+      <text y="11" fill="#2a5a3a" font-size="8" text-anchor="middle" font-family="sans-serif">new weights · emotions</text>
+    </g>
+    <!-- L2 LLM -->
+    <g class="nd" data-id="l2-llm" data-layer="4" transform="translate(865,305)">
+      <rect x="-58" y="-23" width="116" height="46" rx="8" fill="#1a1200" stroke="#fbbf24" stroke-width="2"/>
+      <text y="-5" fill="#fbbf24" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">L2: LLM</text>
+      <text y="11" fill="#7a6000" font-size="8" text-anchor="middle" font-family="sans-serif">dialogue · whispers</text>
+    </g>
+    <!-- Persist DB -->
+    <g class="nd" data-id="persist-db" data-layer="4" transform="translate(410,338)">
+      <rect x="-70" y="-23" width="140" height="46" rx="8" fill="#001a0d" stroke="#34d39977" stroke-width="1.5"/>
+      <text y="-5" fill="#34d399bb" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Persist to DB</text>
+      <text y="11" fill="#2a5a3a" font-size="8" text-anchor="middle" font-family="sans-serif">PostgreSQL snapshot</text>
+    </g>
+    <!-- Publish Redis -->
+    <g class="nd" data-id="publish-redis" data-layer="4" transform="translate(160,338)">
+      <rect x="-78" y="-23" width="156" height="46" rx="8" fill="#150d28" stroke="#a78bfa77" stroke-width="1.5"/>
+      <text y="-5" fill="#a78bfacc" font-size="11" font-weight="700" text-anchor="middle" font-family="sans-serif">Publish → Redis</text>
+      <text y="11" fill="#5a4a8a" font-size="8" text-anchor="middle" font-family="sans-serif">Social Fabric hears it</text>
+    </g>
+   </svg>
+  </div>
+  <div class="ibar" id="ibar-4">
+    <div class="ib-hint">← клікни вузол щоб побачити деталі</div>
+    <div class="ib-title" id="ibt-4"></div>
+    <div class="ib-desc" id="ibd-4"></div>
+    <div class="ib-why" id="ibw-4"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+var mode = 'simple';
+
+var NODE_DATA = {
+  1: {
+    'player':         ['PLAYER', 'Гравець — найвищий пріоритет. Коли ти пишеш NPC, все інше призупиняється.', 'HTTP POST /action, /speak → FastAPI → HIGH queue in Redis → immediate dequeue.'],
+    'world-engine':   ['WORLD ENGINE', 'Світ живе без гравця: хтось помер, впали ціни, прийшла буря. NPC реагують на це.', 'Generates world events → FastAPI → MEDIUM queue. Events: death, weather, economy, time.'],
+    'fastapi':        ['FastAPI :8000', 'Ворота в систему. Перевіряє хто прийшов, визначає пріоритет, кладе в чергу.', 'REST + SSE server. Validates auth, routes to priority queues in Redis. /sse for real-time streaming.'],
+    'celery-beat':    ['Celery Beat', 'Годинник системи. Кожні N секунд штовхає тік: "усі NPCі — живіть далі".', 'Periodic task scheduler. Generates idle_life_tick tasks → LOW queue. Makes NPCs proactive.'],
+    'redis':          ['Redis', 'Нерви системи. Повідомлення летять через Redis: 0.1ms, мільйон операцій/сек.', 'In-memory store: (1) priority task queues HIGH/MED/LOW, (2) pub/sub bus for NPC-to-NPC signals.'],
+    'social-fabric':  ['Social Fabric', 'NPCі чують одне одного. Чутки розходяться. Репутація змінюється без гравця.', 'Subscribes to Redis pub/sub. Propagates: reputation, rumors, trust, emotional contagion.'],
+    'celery-workers': ['Celery Workers', 'М\'язи системи. Кожен NPC — окремий процес. Живуть паралельно, не заважають одне одному.', 'Separate OS processes (not threads). Auto-retry on failure. Pick tasks from queues by priority.'],
+    'mcs':            ['MCS Core', 'Мозок NPC. 4 персони сперечаються, softmax нормалізує ваги, delta визначає інтенсивність.', 'Tick processor: score personas → softmax → delta → inertia blend (70/30) → select action. NO LLM.'],
+    'llm':            ['LLM (local)', 'Говорить лише коли важливо: шок, вибух емоцій, або раз на добу — консолідація пам\'яті.', 'Called only on delta=RAPID|EXPLOSIVE or schedule. Same server, minimal latency. Generates dialogue.'],
+    'postgresql':     ['PostgreSQL', 'Довгострокова пам\'ять NPC. Що пережив, кого пам\'ятає, як змінився. Живе між сесіями.', 'Stores: NPC state snapshots, relationship graph, event history, character arc. SQLAlchemy ORM.']
+  },
+  2: {
+    'input-event':    ['Incoming Event', 'Будь-яка подія що потрапила в тік: від гравця, від світу, або внутрішній імпульс.', 'Event object: {type, source, intensity, context}. Broadcast to all 4 personas simultaneously.'],
+    'protector':      ['Protector', 'Перший реагує на загрозу. Питає: що треба захистити? Хто під удором? Активується на несправедливість.', 'Triggers: threats, injustice, vulnerability. Competes with Thinker (gut vs analysis).'],
+    'instinct':       ['Instinct', 'Тіло говорить перше. Голод, втома, бажання — це все Instinct. Чистий сигнал без фільтру.', 'Triggers: physical stimuli, strong emotions, immediate discomfort. Competes with Mask (raw vs social).'],
+    'thinker':        ['Thinker', 'Аналізує наслідки. Повільний, але точний. Стримує імпульси. Програє в кризі, виграє в плануванні.', 'Triggers: complex choices, multiple options, long-term stakes. Conflict with Protector.'],
+    'mask':           ['Mask', 'Соціальна маска. Питає: що від мене очікують? Контролює репутацію, пристосовується до контексту.', 'Triggers: social situations, observers present, reputation at stake. Conflict with Instinct.'],
+    'softmax':        ['Softmax Normalization', 'Перетворює сирі бали персон у ваги що в сумі дають 1.0. Ніхто не зникає — тільки домінує.', 'σ(z_i) = e^z_i / Σ e^z_j. All 4 personas always contribute. Dominant = highest weight.'],
+    'delta':          ['Delta Δ (Change Intensity)', 'Наскільки сильно змінився внутрішній стан NPC. Визначає чи потрібен LLM.', 'STABLE<0.1 GRADUAL<0.3 RAPID<0.6 EXPLOSIVE≥0.6. Only RAPID/EXPLOSIVE triggers LLM call.'],
+    'inertia':        ['Inertia Blend', 'Характер не міняється миттєво. 70% нового стану + 30% попереднього = плавна еволюція.', 'new_state = 0.7 * computed + 0.3 * prev_state. Prevents erratic behavior. Models personality memory.'],
+    'output-action':  ['Action / Whisper', 'Результат тіку: дія (якщо сильний сигнал) або шепіт (якщо підпорогово). Обидва важливі.', 'Strong signal → overt action. Weak signal → internal whisper that influences future ticks.']
+  },
+  3: {
+    'gap':                  ['gap', 'Різниця між тим де NPC зараз і де хоче бути. 0 = задоволений, 1 = критично не вистачає.', 'gap = |desired_state - current_state|. Updated each tick by checking NPC needs vs reality.'],
+    'frustration':          ['frustration', 'Зростає кожен тік поки бажання не задоволено. Чим довше чекає — тим сильніше тягне.', 'frustration += 0.05 per tick unmet. Resets to 0 on satisfaction. Can reach >1.0 (amplifier).'],
+    'resistance':           ['(1 − resistance)', 'Особистий бар\'єр: страх, звичка, втома. Сильна резистентність = NPC уникає навіть сильного бажання.', 'resistance ∈ [0,1]. High resistance weakens desire_pull. Source: personality, past trauma, fatigue.'],
+    'desire-pull':          ['desire_pull', 'Результуюча сила що штовхає NPC до дії. Без зовнішньої події — суто внутрішній імпульс.', 'desire_pull = gap × frustration × (1 − resistance). Can exceed 1.0 when frustrated long enough.'],
+    'compare':              ['Compare: desire vs obligation', 'NPC порівнює що ХОЧЕ (desire) і що МАЄ робити (obligation). Баланс визначає вибір.', 'obligation_pull = external pressure (duty, fear of consequences). If desire >> obligation → conflict.'],
+    'fork':                 ['Decision Fork', 'Якщо бажання набагато сильніше обов\'язку — NPC відкладає обов\'язок. Це і є прокрастинація.', 'if desire_pull > obligation_pull × 1.5 → procrastinate(). Else → act toward desire or obligation.'],
+    'procrastinate':        ['PROCRASTINATE', 'NPC знаходить привід не робити що треба. Іде курити. Каже що потім. Робить щось приємніше.', 'NPC generates excuse, delays obligation, seeks immediate gratification. Adds realism and unpredictability.'],
+    'action':               ['ACTION', 'NPC рухається до бажаного. Це проактивна дія — без зовнішнього тригера.', 'NPC initiates: movement, conversation, behavior. This is the "autonomous life" mechanic.'],
+    'learned-helplessness': ['Learned Helplessness', 'Protector накопичує невдачі. Після N провалів — перестає намагатись захистити. Пасивність.', 'failure_count++ on each Protector failure. When count > threshold → Protector weight penalty. Permanent until recovery event.']
+  },
+  4: {
+    'tick-event':     ['Incoming Event', 'Три джерела: гравець (HIGH), подія світу (MED), або просто час (LOW від Celery Beat).', 'Event sources: player action, world engine event, or idle_life_tick from Celery Beat schedule.'],
+    'priority-queue': ['Redis Priority Queue', 'Задача чекає в черзі. HIGH обробляється першою, LOW — коли є вільний worker.', '3 queues: celery.high, celery.medium, celery.low. Worker always checks high first.'],
+    'worker':         ['Celery Worker (NPC process)', 'Конкретний worker бере задачу. Він і тільки він обробляє цей тік — race condition неможливий.', 'Each NPC has dedicated worker. Task locking ensures one worker per NPC per tick.'],
+    'l1-math':        ['L1 Math Tick', 'Математика завжди: scores персон, softmax, delta, інерція. Займає мілісекунди, без LLM.', 'Pure Python math: O(4 personas). score() → softmax() → delta() → blend(). No I/O calls.'],
+    'delta-check':    ['Delta Level Check', 'Після L1 перевіряємо інтенсивність змін. Якщо значна — потрібен LLM для осмислення.', 'STABLE/GRADUAL → skip LLM. RAPID/EXPLOSIVE → enqueue LLM call. Schedule → memory consolidation.'],
+    'state-update':   ['State Update', 'Новий стан NPC записується в пам\'ять: ваги персон, емоції, намір, поточна дія.', 'Updates: persona_weights, emotional_state, current_intent, action_log. In-memory until persist.'],
+    'l2-llm':         ['L2: LLM Call', 'LLM отримує контекст + стан + подію і генерує: діалог, внутрішній монолог, нову memory entry.', 'Prompt: {soul, current_state, event, whispers}. Returns: dialogue, inner_monologue, memory_fragment.'],
+    'persist-db':     ['Persist to PostgreSQL', 'Стан зберігається в базу. NPC пам\'ятатиме це між сесіями і після перезапуску сервера.', 'INSERT/UPDATE: npc_states, event_log, memory_fragments. Async write to avoid blocking tick.'],
+    'publish-redis':  ['Publish to Redis pub/sub', 'Дія NPC публікується в шину. Social Fabric і інші NPCі чують що сталося.', 'PUBLISH npc:{id}:actions event_json. Social Fabric subscribers react: update relationships, spread rumors.']
+  }
+};
+
+// ─── LAYER SWITCHING ─────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    var n = tab.dataset.layer;
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.layer').forEach(function(l){ l.classList.remove('active'); });
+    tab.classList.add('active');
+    var sec = document.getElementById('layer-' + n);
+    if (sec) sec.classList.add('active');
+  });
+});
+
+// ─── VIEW TOGGLE ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.vtgl button').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    mode = btn.dataset.mode;
+    document.querySelectorAll('.vtgl button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    // update layer headers
+    document.querySelectorAll('.lhdr .ds').forEach(function(el) {
+      if (el.classList.contains('simple')) el.classList.toggle('hidden', mode !== 'simple');
+      if (el.classList.contains('tech')) el.classList.toggle('hidden', mode !== 'tech');
+    });
+    // refresh open info bars
+    document.querySelectorAll('.ibar.open').forEach(function(bar) {
+      var lastNode = bar.dataset.lastNode;
+      var lastLayer = bar.dataset.lastLayer;
+      if (lastNode && lastLayer) updateInfoBar(bar.id.replace('ibar-',''), lastNode);
+    });
+  });
+});
+// set initial state
+document.querySelectorAll('.lhdr .ds.tech').forEach(function(el){ el.classList.add('hidden'); });
+
+// ─── NODE CLICK ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.nd').forEach(function(node) {
+  node.addEventListener('click', function() {
+    var id = node.dataset.id;
+    var layer = node.dataset.layer;
+    updateInfoBar(layer, id);
+  });
+});
+
+function updateInfoBar(layer, nodeId) {
+  var bar = document.getElementById('ibar-' + layer);
+  var title = document.getElementById('ibt-' + layer);
+  var desc = document.getElementById('ibd-' + layer);
+  var why = document.getElementById('ibw-' + layer);
+  if (!bar || !title || !desc || !why) return;
+
+  var layerData = NODE_DATA[parseInt(layer)];
+  if (!layerData) return;
+  var data = layerData[nodeId];
+  if (!data) return;
+
+  title.textContent = data[0];
+  desc.textContent = mode === 'tech' ? data[2] : data[1];
+  why.textContent = mode === 'tech' ? data[1] : data[2];
+  bar.dataset.lastNode = nodeId;
+  bar.dataset.lastLayer = layer;
+  bar.classList.add('open');
+}
+
+// click outside to close
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.nd') && !e.target.closest('.ibar')) {
+    document.querySelectorAll('.ibar').forEach(function(b){ b.classList.remove('open'); });
+  }
+});
+</script>
+</body>
+</html>

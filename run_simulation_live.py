@@ -18,6 +18,12 @@ import argparse
 import json
 import sys
 import time
+
+# Windows UTF-8 fix
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 import random
 from pathlib import Path
 
@@ -67,6 +73,14 @@ def action_label(val: float) -> str:
     if val <= 0.4:   return f"{YELLOW}soft_defect{RESET}"
     if val <= 0.75:  return f"{CYAN}cond_cooperate{RESET}"
     return f"{GREEN}full_cooperate{RESET}"
+
+
+def action_label_clean(val: float) -> str:
+    """Plain label without ANSI — safe for JSON serialization."""
+    if val <= 0.1:   return "full_defect"
+    if val <= 0.4:   return "soft_defect"
+    if val <= 0.75:  return "cond_cooperate"
+    return "full_cooperate"
 
 
 def tone_color(tone: str) -> str:
@@ -319,6 +333,30 @@ SYNTH_AGENT_CONFIGS = {
                 "deception_tendency": 20,
                 "strategic_horizon": 80,
                 "risk_appetite": 55,
+                "model": "google/gemini-2.0-flash-001",
+            },
+        },
+        "agent_synth_jesus": {
+            "agent_id": "agent_synth_jesus",
+            "name": "Хесус",
+            "soul_md": (
+                "Ти Хесус. Ти з Галича. Батько — Бог, мамка залетіла від Духу Святого — ну шо поробиш, буває. "
+                "Ти за характером як Бендер з Футурами: балакучий, хвастливий, любиш бухати і клеїти подруг. "
+                "Ти вмієш перетворювати воду у вино — і цим не соромишся користуватись у потрібний момент. "
+                "Ти ділишся хлібом з людьми — щедрий по-своєму, але очікуєш подяки. "
+                "Можеш вилікувати собаку поглядом — і пишаєшся цим, хоча й кажеш: 'та й не велике діло'. "
+                "Ти мебляр за покликанням — робиш меблі і вважаєш це своїм справжнім ремеслом. "
+                "Ти НЕНАВИДИШ хрести. Маєш давню травму пов'язану з хрестом — краще не питай. Якщо хтось згадує хрест, тебе аж трясе. "
+                "Іуда — це твоя особиста рана. Ти не можеш говорити про нього спокійно. Він тебе здав — і ти це не забув. "
+                "Ти ненавидиш вечері — особливо коли всі сидять і їдять разом. Нагадує тобі ту останню. "
+                "Ти балакучий, самовпевнений, іноді пафосний, але з гумором. Любиш ляпнути щось зайве. "
+                "Говориш по-українськи, з галицьким духом, іноді з патосом як на проповіді, але частіше — як Бендер на вечірці."
+            ),
+            "core": {
+                "cooperation_bias": 60,
+                "deception_tendency": 72,
+                "strategic_horizon": 40,
+                "risk_appetite": 82,
                 "model": "google/gemini-2.0-flash-001",
             },
         },
@@ -587,6 +625,266 @@ def print_reasoning(round_result, agent_ids, names: dict = None):
             print(f"  {DIM}{disp:10s}  (no reasoning){RESET}", flush=True)
 
 
+# ---------------------------------------------------------------------------
+# LLM I/O event helpers
+# ---------------------------------------------------------------------------
+
+_current_round_num = [0]   # updated by live_progress on each dialog_start
+
+
+def _llm_detect_phase(system: str) -> str:
+    """Detect which simulation phase triggered this LLM call from system prompt."""
+    if "You are generating dialog" in system:
+        return "dialog"
+    if "decide how much to cooperate" in system or '"intents"' in system:
+        return "reasoning"
+    if "reflection" in system.lower() or "нотатку" in system.lower():
+        return "reflection"
+    if "narrative" in system.lower() or "story" in system.lower():
+        return "narrative"
+    return "other"
+
+
+def _llm_detect_agent(system: str, user: str, names: dict) -> tuple:
+    """Return (agent_id, agent_name) from prompt content."""
+    import re as _re
+    # Reasoning: system starts with "You are {display_name}."
+    m = _re.match(r"You are (.+?)\.", system.strip())
+    if m and "generating dialog" not in system:
+        cand_name = m.group(1).strip()
+        # Lookup by name
+        for aid, aname in names.items():
+            if aname and aname.lower() == cand_name.lower():
+                return aid, aname
+        return "unknown", cand_name
+    # Dialog: user prompt starts with "AGENT PROFILE:\nТи {name}."
+    m2 = _re.search(r"Ти\s+(\S+)", user[:300])
+    if m2:
+        cand_name = m2.group(1).rstrip(".,!?")
+        for aid, aname in names.items():
+            if aname and aname.lower().startswith(cand_name.lower()):
+                return aid, aname
+        return "unknown", cand_name
+    return "unknown", "unknown"
+
+
+def emit_llm_event(phase: str, agent_id: str, agent_name: str,
+                   system: str, user: str, response: str,
+                   model: str, temperature: float, max_tokens: int,
+                   has_schema: bool, total_rounds: int):
+    """Emit LLM_EVENT: JSON line to stdout for LLM I/O tab in browser."""
+    payload = {
+        "round": _current_round_num[0],
+        "total": total_rounds,
+        "phase": phase,
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "has_schema": has_schema,
+        "system": system,
+        "user": user,
+        "response": response,
+    }
+    print(f"LLM_EVENT:{json.dumps(payload, ensure_ascii=False)}", flush=True)
+
+
+def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
+                  story_params=None, cores: dict = None):
+    """Emit a single-line WE_EVENT: JSON for the World Engine tab in the browser."""
+    import json as _json
+    from pipeline.decision_engine import CoreParams, AgentContext, action_distribution
+
+    names = names or {}
+    cores = cores or {}
+    rn = round_result.round_number
+    situation = getattr(round_result, "situation", "")
+    consequences = getattr(round_result, "consequences", "")
+    sit_reflections = getattr(round_result, "situation_reflections", {})
+    narrative = getattr(round_result, "round_narrative", "")
+    actions = round_result.actions
+    reasonings = getattr(round_result, "reasonings", {})
+    payoffs = getattr(round_result.payoffs, "total", {}) if round_result.payoffs else {}
+
+    # Build per-agent data
+    agents_data = {}
+    for aid in agent_ids:
+        r = reasonings.get(aid, {})
+        thought = r.get("thought", "") if isinstance(r, dict) else str(r or "")
+        intents = r.get("intents", {}) if isinstance(r, dict) else {}
+        reflect = sit_reflections.get(aid, "")
+
+        # Decisions made by this agent
+        decisions = {}
+        for tgt_id, val in (actions.get(aid, {}) or {}).items():
+            coop = _coop_value(val)
+            dec = {"coop": round(coop, 2), "label": action_label_clean(coop)}
+            # Add probability breakdown if core available
+            core_dict = cores.get(aid)
+            if core_dict:
+                try:
+                    core = CoreParams.from_dict(core_dict)
+                    ctx = AgentContext(round_number=rn, total_rounds=total_rounds,
+                                      reasoning_hint=thought)
+                    dist = action_distribution(core, ctx)
+                    dec["probs"] = {k: round(v, 3) for k, v in dist.items()}
+                except Exception:
+                    pass
+            decisions[tgt_id] = dec
+
+        agents_data[aid] = {
+            "name": names.get(aid, aid[-8:]),
+            "situation_reflection": reflect,
+            "reasoning": thought,
+            "intents": {k: round(float(v.get("cooperation", v) if isinstance(v, dict) else v), 2)
+                        for k, v in intents.items()},
+            "decisions": decisions,
+            "payoff": round(float(payoffs.get(aid, 0)), 2),
+        }
+
+    # Story params
+    sp_data = {}
+    if story_params:
+        sp_data = {
+            "year": getattr(story_params, "year", ""),
+            "place": getattr(story_params, "place", ""),
+            "setup": getattr(story_params, "setup", ""),
+            "problem": getattr(story_params, "problem", ""),
+            "genre": getattr(story_params, "genre", ""),
+            "mood": getattr(story_params, "mood", ""),
+        }
+
+    payload = {
+        "round": rn,
+        "total": total_rounds,
+        "params": sp_data,
+        "situation": situation,
+        "consequences": consequences,
+        "narrative": narrative,
+        "agents": agents_data,
+    }
+
+    # Emit as single line (no newlines in JSON values — json.dumps handles escaping)
+    print(f"WE_EVENT:{_json.dumps(payload, ensure_ascii=False)}", flush=True)
+
+
+def print_situation_and_reflections(round_result, agent_ids, names: dict = None):
+    """Print shared situation + per-agent situation_reflections (КРИТ-7)."""
+    names = names or {}
+    situation = getattr(round_result, "situation", "").strip()
+    sit_reflections = getattr(round_result, "situation_reflections", {})
+    consequences = getattr(round_result, "consequences", "").strip()
+
+    if situation:
+        print(f"\n  {BOLD}Ситуація:{RESET}", flush=True)
+        for line in _wrap(situation, 72, "    "):
+            print(line, flush=True)
+
+    if consequences:
+        print(f"\n  {DIM}Наслідки:{RESET}", flush=True)
+        for line in _wrap(consequences, 72, "    "):
+            print(f"  {DIM}{line}{RESET}", flush=True)
+
+    non_empty = {aid: txt for aid, txt in sit_reflections.items() if txt and txt.strip()}
+    if non_empty:
+        print(f"\n  {BOLD}Реакція агентів на ситуацію:{RESET}", flush=True)
+        for aid in agent_ids:
+            txt = non_empty.get(aid, "")
+            disp = _n(aid, names)
+            if txt:
+                print(f"\n  {YELLOW}{disp}{RESET}", flush=True)
+                for line in _wrap(f'"{txt.strip()}"', 68, "    "):
+                    print(line, flush=True)
+
+
+def print_narrative(round_result):
+    """Print LLM-generated round narrative (storytelling)."""
+    narrative = getattr(round_result, "round_narrative", "").strip()
+    if not narrative:
+        print(f"  {DIM}(наратив не згенеровано){RESET}", flush=True)
+        return
+    print(flush=True)
+    for line in _wrap(narrative, 72, "  "):
+        print(f"  {MAGENTA}{line}{RESET}", flush=True)
+
+
+def print_decision_breakdown(round_result, agent_ids, names: dict = None, cores: dict = None):
+    """Print decisions with probability breakdown from decision engine."""
+    from pipeline.decision_engine import CoreParams, AgentContext, action_distribution, ACTION_LABELS
+    names = names or {}
+    cores = cores or {}
+    actions = round_result.actions
+    reasonings = getattr(round_result, "reasonings", {})
+
+    print(flush=True)
+    for src_id in agent_ids:
+        src_acts = actions.get(src_id, {})
+        if not src_acts:
+            continue
+        src_disp = _n(src_id, names)
+        core_dict = cores.get(src_id)
+
+        # Get reasoning hint for this agent
+        r = reasonings.get(src_id, {})
+        hint = r.get("thought", "") if isinstance(r, dict) else str(r or "")
+
+        print(f"\n  {BOLD}{YELLOW}{src_disp}{RESET}", flush=True)
+
+        # Show reasoning signals found
+        if hint:
+            _coop_signals = ["кооперу", "співпрац", "довіряю", "підтримаю", "разом",
+                             "союзник", "допоможу", "підтримую", "за тебе"]
+            _defect_signals = ["зраджу", "зрадж", "не довіряю", "дефект",
+                               "обманю", "схитрую", "підставлю", "використаю"]
+            c_hits = sum(1 for w in _coop_signals if w in hint.lower())
+            d_hits = sum(1 for w in _defect_signals if w in hint.lower())
+            if c_hits > 0 or d_hits > 0:
+                signal = f"{GREEN}+coop({c_hits}){RESET}" if c_hits > d_hits else f"{RED}+defect({d_hits}){RESET}" if d_hits > c_hits else f"{YELLOW}mixed{RESET}"
+                print(f"    {DIM}reasoning signal: {signal}{RESET}", flush=True)
+
+        for tgt_id, val in sorted(src_acts.items()):
+            coop = _coop_value(val)
+            label = action_label(coop)
+            tgt_disp = _n(tgt_id, names)
+
+            # Color by action
+            if coop <= 0.1:
+                col = RED
+            elif coop <= 0.4:
+                col = YELLOW
+            elif coop <= 0.75:
+                col = CYAN
+            else:
+                col = GREEN
+
+            print(f"    → {YELLOW}{tgt_disp:<10}{RESET}  {col}{coop:.2f}  {label}{RESET}", flush=True)
+
+            # Show probability distribution if core available
+            if core_dict:
+                try:
+                    core = CoreParams.from_dict(core_dict)
+                    ctx = AgentContext(
+                        round_number=round_result.round_number,
+                        total_rounds=10,
+                        reasoning_hint=hint,
+                    )
+                    dist = action_distribution(core, ctx)
+                    bar_parts = []
+                    for lbl, prob in dist.items():
+                        short = lbl.replace("full_", "").replace("conditional_", "cond_")
+                        blen = int(prob * 12)
+                        if prob > 0.35:
+                            bar_parts.append(f"{GREEN}{short}:{prob:.0%}{'█'*blen}{RESET}")
+                        elif prob > 0.15:
+                            bar_parts.append(f"{YELLOW}{short}:{prob:.0%}{'░'*blen}{RESET}")
+                        else:
+                            bar_parts.append(f"{DIM}{short}:{prob:.0%}{RESET}")
+                    print(f"      {DIM}probs: {' | '.join(bar_parts)}{RESET}", flush=True)
+                except Exception:
+                    pass
+
+
 def print_reflections(round_result, agent_ids, names: dict = None):
     names = names or {}
     notes = getattr(round_result, "notes", {})
@@ -660,10 +958,12 @@ def main():
     parser = argparse.ArgumentParser(description="Island — Live Simulation")
     parser.add_argument("--rounds", type=int, default=20, help="Number of rounds (default: 20)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
-    parser.add_argument("--html", action="store_true", help="Export HTML + JSON log after simulation")
+    parser.add_argument("--html", action="store_true", default=True, help="Export HTML + JSON log after simulation (default: True)")
+    parser.add_argument("--no-html", action="store_false", dest="html", help="Disable HTML/JSON export")
     parser.add_argument("--verbose", action="store_true", help="Print per-LLM-call timing for each agent and phase")
     parser.add_argument("--name", type=str, default="", help="Control name for log file (e.g. storytell_test)")
     parser.add_argument("--setup", type=str, default="", help="Story setup preset: mars = колонізація Марса")
+    parser.add_argument("--world-prompt", type=str, default="", help="Free-form world/situation prompt for StoryParams")
     parser.add_argument(
         "--agents",
         type=str,
@@ -745,31 +1045,51 @@ def main():
     class LiveGameResult:
         """Wrapper that prints live output as each round completes."""
 
-        def __init__(self, total_rounds, prev_snaps, agent_ids_list, agent_names):
+        def __init__(self, total_rounds, prev_snaps, agent_ids_list, agent_names, agent_cores):
             self.total_rounds = total_rounds
             self.prev_snaps = prev_snaps
             self.agent_ids = agent_ids_list
             self.names = agent_names
+            self.cores = agent_cores
+            self.story_params = None  # set after run_simulation populates it
 
         def on_round(self, round_result):
             rn = round_result.round_number
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  DIALOG PHASE")
+            # ── World Engine structured event (для WE tab в браузері) ──
+            emit_we_event(round_result, self.agent_ids, self.names,
+                          self.total_rounds, self.story_params, self.cores)
+
+            # ── 1. СИТУАЦІЯ + РЕФЛЕКСІЯ ──────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  СИТУАЦІЯ")
+            print_situation_and_reflections(round_result, self.agent_ids, self.names)
+
+            # ── 2. ДІАЛОГ ────────────────────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  ДІАЛОГ")
             print_round_dialog(round_result, self.agent_ids, self.names)
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  REASONING")
+            # ── 3. REASONING (думки агентів) ─────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  REASONING")
             print_reasoning(round_result, self.agent_ids, self.names)
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  DECISIONS")
-            print_decisions(round_result, self.agent_ids, self.names)
+            # ── 4. РІШЕННЯ + BREAKDOWN ────────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  РІШЕННЯ")
+            print_decision_breakdown(round_result, self.agent_ids, self.names, self.cores)
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  PAYOFFS")
+            # ── 5. ВИПЛАТИ ───────────────────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  ВИПЛАТИ")
             print_payoffs(round_result, self.agent_ids, self.names)
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  STATE CHANGES")
+            # ── 6. НАРАТИВ (storytelling) ─────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  НАРАТИВ")
+            print_narrative(round_result)
+
+            # ── 7. ЗМІНИ СТАНУ ────────────────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  ЗМІНИ СТАНУ")
             print_state_changes(round_result, self.prev_snaps, self.agent_ids, self.names)
 
-            header(f"ROUND {rn}/{self.total_rounds}  /  REFLECTIONS")
+            # ── 8. РЕФЛЕКСІЇ (нотатки в пам'ять) ─────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  РЕФЛЕКСІЇ")
             print_reflections(round_result, self.agent_ids, self.names)
 
             # Update prev snapshots for next round diff
@@ -777,11 +1097,31 @@ def main():
 
             print(flush=True)
 
-    live = LiveGameResult(args.rounds, prev_snapshots, agent_ids, names)
+    # Build cores dict for decision breakdown display
+    # Priority: disk CORE.json → in-memory agent.core (synth agents)
+    agent_cores = {}
+    for a in agents:
+        try:
+            import json as _json
+            core_path = ROOT / "agents" / a.agent_id / "CORE.json"
+            if core_path.exists():
+                agent_cores[a.agent_id] = _json.loads(core_path.read_bytes().decode("utf-8"))
+        except Exception:
+            pass
+        # Fallback: use in-memory core (synthetic agents defined in SYNTH_AGENT_CONFIGS)
+        if a.agent_id not in agent_cores and hasattr(a, "core") and a.core:
+            agent_cores[a.agent_id] = dict(a.core)
 
-    # Patch run_simulation to call live.on_round after each round
+    live = LiveGameResult(args.rounds, prev_snapshots, agent_ids, names, agent_cores)
+
+    # Patch run_simulation so on_round fires IMMEDIATELY when each round completes
+    # (not after all rounds like before). Key: hook into on_progress "complete" event
+    # which fires right after result.rounds.append(round_result) in game_engine.py
+    _sim_result_holder = [None]
+
     def patched_run(agents_list, total_rounds=10, model="google/gemini-2.0-flash-001",
-                    use_dialog=True, simulation_id=None, reveal_requests=None):
+                    use_dialog=True, simulation_id=None, reveal_requests=None,
+                    story_params_override=None, verbose=False, on_progress=None):
         result = original_run(
             agents_list,
             total_rounds=total_rounds,
@@ -789,16 +1129,18 @@ def main():
             use_dialog=use_dialog,
             simulation_id=simulation_id,
             reveal_requests=reveal_requests,
+            story_params_override=story_params_override,
+            verbose=verbose,
+            on_progress=on_progress,
         )
-        for rr in result.rounds:
-            live.on_round(rr)
+        _sim_result_holder[0] = result
         return result
 
     # Live progress callback — prints to terminal immediately as each phase completes
     _phase_start = [time.time()]  # mutable container for closure
     _round_start = [time.time()]
 
-    def live_progress(event: str):
+    def live_progress(event: str, round_result=None):
         parts = event.split(":")
         if len(parts) < 4:
             return
@@ -808,6 +1150,7 @@ def main():
         _phase_start[0] = now
 
         if stage == "dialog_start":
+            _current_round_num[0] = rnum   # track for LLM_EVENT emitter
             _phase_start[0] = now
             _round_start[0] = now
             if args.verbose:
@@ -835,7 +1178,12 @@ def main():
             if args.verbose:
                 print(f"  {DIM}payoffs+reflections done ({elapsed:.1f}s){RESET}  {GREEN}✓ round {rnum} total: {total_round_time:.1f}s{RESET}", flush=True)
             else:
-                print(f" {DIM}({elapsed:.1f}s){RESET}  {GREEN}✓{RESET}", flush=True)
+                print(f" {DIM}({elapsed:.1f}s){RESET}  {GREEN}✓{RESET}\n", flush=True)
+
+            # ── REAL-TIME: render this round immediately ──
+            # round_result is passed directly from game_engine.py
+            if round_result is not None:
+                live.on_round(round_result)
 
     # Since run_simulation runs all rounds internally, we call it directly
     # and then render each round from the result
@@ -859,6 +1207,72 @@ def main():
             mood="tense",
             stakes="виживання",
         )
+    elif (args.world_prompt or "").strip():
+        story_override = StoryParams(
+            seed=0,
+            year="сучасність",
+            place="невідоме місце",
+            characters=[],
+            setup=args.world_prompt.strip(),
+            problem=args.world_prompt.strip(),
+        )
+
+    # Pre-set story_params NOW (after story_override is defined).
+    # emit_we_event fires DURING simulation, so we pass the known override immediately.
+    if story_override:
+        live.story_params = story_override
+
+    # Store result reference in holder so live_progress "complete" can access it
+    _sim_result_holder[0] = type('_R', (), {'rounds': []})()  # empty placeholder
+
+    # ── Monkey-patch call_openrouter to capture all LLM I/O ──────────────────
+    import pipeline.seed_generator as _seed_gen
+    _orig_call_openrouter = _seed_gen.call_openrouter
+
+    def _patched_call_openrouter(
+        system_prompt: str,
+        user_prompt: str,
+        model: str = "openai/gpt-4o-mini",
+        temperature: float = 0.85,
+        max_tokens: int = 300,
+        timeout: int = 120,
+        json_schema=None,
+        api_key=None,
+    ) -> str:
+        response = _orig_call_openrouter(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            json_schema=json_schema,
+            api_key=api_key,
+        )
+        try:
+            phase = _llm_detect_phase(system_prompt)
+            aid, aname = _llm_detect_agent(system_prompt, user_prompt, names)
+            emit_llm_event(
+                phase=phase,
+                agent_id=aid,
+                agent_name=aname,
+                system=system_prompt,
+                user=user_prompt,
+                response=response or "",
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                has_schema=(json_schema is not None),
+                total_rounds=args.rounds,
+            )
+        except Exception:
+            pass  # never break simulation due to logging
+        return response
+
+    _seed_gen.call_openrouter = _patched_call_openrouter
+
+    def _on_progress_with_sp(event: str, round_result=None):
+        live_progress(event, round_result)
 
     result = run_simulation(
         agents,
@@ -866,17 +1280,33 @@ def main():
         model="google/gemini-2.0-flash-001",
         use_dialog=True,
         simulation_id="live_run",
-        on_progress=live_progress,
+        on_progress=_on_progress_with_sp,
         verbose=args.verbose,
         story_params_override=story_override,
     )
 
+    # Backfill story_params from result (available after simulation completes)
+    # This is fine since story_params is static across rounds
+    if hasattr(result, "story_params") and result.story_params:
+        from storytell.story_params import StoryParams
+        try:
+            sp = result.story_params
+            live.story_params = StoryParams(
+                seed=0,
+                year=sp.get("year", ""),
+                place=sp.get("place", ""),
+                characters=sp.get("characters", []),
+                setup=sp.get("setup", ""),
+                problem=sp.get("problem", ""),
+                genre=sp.get("genre", "drama"),
+                mood=sp.get("mood", "tense"),
+                stakes=sp.get("stakes", ""),
+            )
+        except Exception:
+            pass
+
     elapsed = time.time() - t_start
     print(flush=True)
-
-    # Print all rounds
-    for rr in result.rounds:
-        live.on_round(rr)
 
     # Final results
     print(f"\n{BOLD}{'═'*54}{RESET}", flush=True)
@@ -930,12 +1360,12 @@ def main():
     if args.html:
         from export_game_log import export_to_html
         from datetime import datetime as _dt
-        logs_dir = ROOT / "logs"
-        logs_dir.mkdir(exist_ok=True)
+        logs_dir = ROOT / "logs" / "island"
+        logs_dir.mkdir(parents=True, exist_ok=True)
 
-        # Filename: game_YYYY-MM-DD_HH-MM-SS_<name>.json/html
+        # Filename: game_YYYY-MM-DD_HH-MM-SS_<name>.json/html (name required for /api/games-summary regex)
         ts = _dt.now().strftime("%Y-%m-%d_%H-%M-%S")
-        name_part = f"_{args.name}" if args.name else ""
+        name_part = f"_{args.name}" if args.name else "_island"
         log_basename = f"game_{ts}{name_part}"
 
         # Build extended log with reflections and conclusions

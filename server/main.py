@@ -20,11 +20,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, List, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
 
 # Project root (absolute) for .env loading
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -64,10 +65,52 @@ app = FastAPI(title="Island Agent Init", version="1.0.0")
 
 logger = logging.getLogger("island")
 
+# ---------------------------------------------------------------------------
+# DB + Auth setup
+# ---------------------------------------------------------------------------
+from db.database import init_db, get_db, SessionLocal
+from db.models import User, GameSession
+from db.auth import hash_password, verify_password, create_access_token, decode_token
+from sqlalchemy.orm import Session as DbSession
+import uuid as _uuid_mod
+
+_http_bearer = HTTPBearer(auto_error=False)
+
+
+def _get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+) -> Optional[User]:
+    """Returns current User or None (endpoints that accept optional auth)."""
+    if not credentials:
+        return None
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        return None
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    return user
+
+
+def _require_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+) -> User:
+    """Like _get_current_user but raises 401 if not authenticated."""
+    if not credentials or not credentials.credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return user
+
 
 @app.on_event("startup")
 def _ensure_env_loaded():
-    """Load .env on startup so worker always has OPENROUTER_API_KEY (fixes uvicorn reload)."""
+    """Load .env on startup and initialize DB."""
+    init_db()
     env_file = _PROJECT_ROOT / ".env"
     if env_file.is_file():
         try:
@@ -96,19 +139,156 @@ def _ensure_env_loaded():
         logger.exception("Failed to create AGENTS_DIR at startup")
 
 
+_cors_origins_env = os.getenv("CORS_ORIGINS", "").strip()
+_cors_origins = (
+    [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+    if _cors_origins_env
+    else ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# Auth endpoints
+# ---------------------------------------------------------------------------
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    username: str
+
+
+import collections as _collections
+import threading as _threading
+import time as _time
+_auth_rate: dict[str, list] = _collections.defaultdict(list)
+_auth_rate_lock = _threading.Lock()
+
+def _auth_rate_limit(key: str, max_calls: int = 5, window: float = 60.0) -> bool:
+    now = _time.time()
+    with _auth_rate_lock:
+        _auth_rate[key] = [t for t in _auth_rate[key] if now - t < window]
+        if len(_auth_rate[key]) >= max_calls:
+            return False
+        _auth_rate[key].append(now)
+        return True
+
+from fastapi import Request as _Request
+
+@app.post("/auth/register", response_model=TokenResponse, tags=["auth"])
+def auth_register(body: RegisterRequest, request: _Request, db: DbSession = Depends(get_db)):
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"register:{ip}"):
+        raise HTTPException(status_code=429, detail="Too many registration attempts")
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    user = User(
+        id=str(_uuid_mod.uuid4()),
+        username=body.username,
+        email=body.email,
+        password_hash=hash_password(body.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user_id=user.id, username=user.username)
+
+
+@app.post("/auth/login", response_model=TokenResponse, tags=["auth"])
+def auth_login(body: LoginRequest, request: _Request, db: DbSession = Depends(get_db)):
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"login:{ip}", max_calls=10):
+        raise HTTPException(status_code=429, detail="Too many login attempts")
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user_id=user.id, username=user.username)
+
+
+@app.get("/auth/me", tags=["auth"])
+def auth_me(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user_id": user.id, "username": user.username, "email": user.email, "created_at": user.created_at}
+
+
+@app.get("/api/my-games", tags=["auth"])
+def my_games(
+    credentials: HTTPAuthorizationCredentials = Depends(_http_bearer),
+    db: DbSession = Depends(get_db),
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    sessions = (
+        db.query(GameSession)
+        .filter(GameSession.human_player_id == payload.get("sub"))
+        .order_by(GameSession.started_at.desc())
+        .limit(50)
+        .all()
+    )
+    return {"games": [
+        {
+            "session_id": s.session_id,
+            "started_at": s.started_at,
+            "ended_at": s.ended_at,
+            "winner_id": s.winner_id,
+            "rounds": s.rounds,
+            "report_path": s.report_path,
+        }
+        for s in sessions
+    ]}
+
+
 # In-memory session store: session_id → SessionState dict
 _sessions: dict[str, dict[str, Any]] = {}
+_session_timestamps: dict[str, float] = {}
+_SESSION_TTL_SECONDS = 4 * 3600  # 4 hours
+
+
+def _cleanup_expired_sessions() -> None:
+    """Remove sessions older than _SESSION_TTL_SECONDS."""
+    now = _time.time()
+    expired = [sid for sid, ts in list(_session_timestamps.items()) if now - ts > _SESSION_TTL_SECONDS]
+    for sid in expired:
+        _sessions.pop(sid, None)
+        _session_timestamps.pop(sid, None)
+    if expired:
+        logger.info(f"[session] cleaned up {len(expired)} expired sessions")
 
 
 def get_session(session_id: str) -> SessionState:
+    _cleanup_expired_sessions()
     data = _sessions.get(session_id)
     if not data:
         logger.warning(f"[session] not found session_id={session_id}")
@@ -118,6 +298,7 @@ def get_session(session_id: str) -> SessionState:
 
 def save_session(session_id: str, session: SessionState) -> None:
     _sessions[session_id] = session.to_dict()
+    _session_timestamps[session_id] = _time.time()
 
 
 # ---------------------------------------------------------------------------
@@ -343,8 +524,11 @@ class AgentListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.post("/generate-seed", response_model=GenerateSeedResponse)
-async def api_generate_seed(req: GenerateSeedRequest) -> GenerateSeedResponse:
+async def api_generate_seed(req: GenerateSeedRequest, request: _Request) -> GenerateSeedResponse:
     """Generate a random personality seed and initialize a session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=30, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     result = generate_seed(model=req.model)
 
     session_id = str(uuid.uuid4())
@@ -363,8 +547,11 @@ async def api_generate_seed(req: GenerateSeedRequest) -> GenerateSeedResponse:
 
 
 @app.post("/generate-question", response_model=GenerateQuestionResponse)
-async def api_generate_question(req: GenerateQuestionRequest) -> GenerateQuestionResponse:
+async def api_generate_question(req: GenerateQuestionRequest, request: _Request) -> GenerateQuestionResponse:
     """Generate the next question for the current context in the session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=30, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     session = get_session(req.session_id)
     total = get_context_count()
 
@@ -434,8 +621,11 @@ async def api_submit_answer(req: SubmitAnswerRequest) -> SubmitAnswerResponse:
 
 
 @app.post("/compile-soul", response_model=CompileSoulResponse)
-async def api_compile_soul(req: CompileSoulRequest) -> CompileSoulResponse:
+async def api_compile_soul(req: CompileSoulRequest, request: _Request) -> CompileSoulResponse:
     """Compile SOUL.md and CORE.json from the completed session."""
+    ip = request.client.host if request.client else "unknown"
+    if not _auth_rate_limit(f"llm:{ip}", max_calls=10, window=60.0):
+        raise HTTPException(status_code=429, detail="Too many requests")
     session = get_session(req.session_id)
 
     # Legacy endpoint: use default user namespace
@@ -1221,6 +1411,7 @@ class StartSimulationRequest(BaseModel):
     use_dialog: bool = False   # False by default — faster, no LLM cost
     model: str = GROK_MODEL
     reveal_requests: Optional[Dict[str, str]] = None  # {round_str: {revealer: target}}
+    export_html: bool = True   # Export HTML report to logs/ and return reportPath
 
 
 class StartSimulationResponse(BaseModel):
@@ -1230,6 +1421,7 @@ class StartSimulationResponse(BaseModel):
     final_scores: Dict[str, Any]
     rounds_played: int
     result: Dict[str, Any]
+    report_path: Optional[str] = None  # /logs/game_xxx.html when export_html=True
 
 
 @app.post("/start-simulation", response_model=StartSimulationResponse)
@@ -1265,9 +1457,57 @@ async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationRe
             agent_dir = AGENTS_DIR / agent.agent_id
             save_states(agent.states, agent_dir, display_name=agent.name)
             save_memory(agent.memory, agent_dir)
-        return result
 
-    result = await asyncio.to_thread(_run)
+        report_path = None
+        if req.export_html and LOGS_DIR:
+            from export_game_log import export_to_html
+
+            LOGS_DIR.mkdir(parents=True, exist_ok=True)
+            extended_log = result.to_dict()
+            extended_log["score_range"] = result.score_range()
+
+            agent_reflections = {a.agent_id: [] for a in agents}
+            agent_reasonings = {a.agent_id: [] for a in agents}
+            for rr in result.rounds:
+                for aid in agent_reflections:
+                    note = rr.notes.get(aid, "")
+                    if note:
+                        agent_reflections[aid].append({"round": rr.round_number, "notes": note})
+                    reasoning = rr.reasonings.get(aid)
+                    if reasoning:
+                        agent_reasonings[aid].append({"round": rr.round_number, "reasoning": reasoning})
+            extended_log["agent_reflections"] = agent_reflections
+            extended_log["agent_reasonings"] = agent_reasonings
+
+            extended_log["game_conclusions"] = {}
+            for a in agents:
+                if a.memory.game_history:
+                    last = a.memory.game_history[-1]
+                    if last.get("conclusion"):
+                        extended_log["game_conclusions"][a.agent_id] = last["conclusion"]
+
+            roster_path = AGENTS_DIR / "roster.json"
+            agent_profiles = {}
+            if roster_path.exists():
+                roster = json.loads(roster_path.read_text(encoding="utf-8"))
+                for a in roster.get("agents", []):
+                    aid = a.get("id")
+                    if aid in result.agent_ids and a.get("profile"):
+                        agent_profiles[aid] = dict(a["profile"])
+            for aid in list(agent_profiles.keys()):
+                bio_path = AGENTS_DIR / aid / "BIO.md"
+                if bio_path.exists():
+                    agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+            extended_log["agent_profiles"] = agent_profiles
+
+            html_name = f"game_{result.simulation_id}.html"
+            html_path = LOGS_DIR / html_name
+            export_to_html(extended_log, output_path=html_path)
+            report_path = f"/logs/{html_name}"
+
+        return result, report_path
+
+    result, report_path = await asyncio.to_thread(_run)
     result_dict = result.to_dict()
 
     return StartSimulationResponse(
@@ -1277,6 +1517,7 @@ async def api_start_simulation(req: StartSimulationRequest) -> StartSimulationRe
         final_scores=result.final_scores,
         rounds_played=len(result.rounds),
         result=result_dict,
+        report_path=report_path,
     )
 
 
@@ -1334,9 +1575,31 @@ async def api_list_agents() -> Dict[str, Any]:
 # Games summary (for UI results table)
 # ---------------------------------------------------------------------------
 
-LOGS_DIR = _PROJECT_ROOT / "logs"
+LOGS_DIR = _PROJECT_ROOT / "logs" / "island"
 
 _GAMES_SUMMARY_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_game_(\d+)\.json")
+_GAMES_CUSTOM_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_(.+)\.json")
+_GAMES_BARE_PATTERN = re.compile(r"game_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.json")
+_TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jsonl")
+
+
+def _match_island_game(path: Path) -> re.Match | None:
+    """Match game_*.json: game_DATE_TIME_game_N.json, game_DATE_TIME_customname.json, or bare game_DATE_TIME.json."""
+    m = _GAMES_SUMMARY_PATTERN.match(path.name)
+    if m:
+        return m
+    m = _GAMES_CUSTOM_PATTERN.match(path.name)  # e.g. jesus_6players
+    if m:
+        return m
+    return _GAMES_BARE_PATTERN.match(path.name)  # legacy: game_2026-03-15_21-09-54.json
+
+
+def _island_game_sort_key(path: Path, m: re.Match) -> tuple:
+    """Sort by (date, time, game_num or 0 for custom)."""
+    date_str, time_str = m.group(1), m.group(2)
+    if len(m.groups()) >= 3 and m.group(3).isdigit():
+        return (date_str, time_str, int(m.group(3)))
+    return (date_str, time_str, 0)
 
 
 @app.get("/api/games-count")
@@ -1344,33 +1607,59 @@ async def games_count() -> dict[str, int]:
     """Return total number of games (for dynamic tab/button label)."""
     if not LOGS_DIR.exists():
         return {"count": 0}
-    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
+    paths = [f for f in LOGS_DIR.glob("game_*.json") if _match_island_game(f)]
     return {"count": len(paths)}
 
 
 @app.get("/api/games-summary")
 async def games_summary() -> dict[str, Any]:
-    """Return summary of game_*_game_*.json logs: games grouped by run, + total score per agent."""
+    """Return summary of game_*.json logs: games grouped by run, + total score per agent.
+    All agents from roster are included in the table (even with 0 games/score).
+    IDEA: agentAvgPerRound — нормалізований (100=середній). AgentTotals/Rounds — сирі."""
+    # Pre-load ALL agents from roster — table shows everyone, not just those who played
+    roster_names: dict[str, str] = {}
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            for a in roster.get("agents", []):
+                if a.get("id") and a.get("name"):
+                    roster_names[a["id"]] = a["name"]
+        except Exception:
+            pass
+    all_display_names = list(roster_names.values()) if roster_names else []
+
     if not LOGS_DIR.exists():
-        return {"games": [], "runs": [], "agentTotals": {}, "agentNames": []}
-    paths = [f for f in LOGS_DIR.glob("game_*_game_*.json") if _GAMES_SUMMARY_PATTERN.match(f.name)]
-    # Sort by (date+time desc, game_id) so latest run first, games 1,2,3… inside run
-    def sort_key(p: Path) -> tuple:
-        m = _GAMES_SUMMARY_PATTERN.match(p.name)
-        return (m.group(1), m.group(2), int(m.group(3)))
-    paths.sort(key=sort_key, reverse=True)
+        agent_totals = {name: 0.0 for name in all_display_names}
+        agent_games: dict[str, int] = {name: 0 for name in all_display_names}
+        agent_rounds: dict[str, int] = {name: 0 for name in all_display_names}
+        agent_avg: dict[str, float] = {name: 0.0 for name in all_display_names}
+        return {"games": [], "runs": [], "agentTotals": agent_totals, "agentNames": all_display_names,
+                "agentGamesPlayed": agent_games, "agentRoundsPlayed": agent_rounds, "agentAvgPerRound": agent_avg}
+    paths = [f for f in LOGS_DIR.glob("game_*.json") if _match_island_game(f)]
+    paths.sort(key=lambda p: _island_game_sort_key(p, _match_island_game(p)), reverse=True)
     games: list[dict[str, Any]] = []
     runs_order: list[dict[str, Any]] = []
     seen_run: dict[str, dict[str, Any]] = {}
-    agent_totals: dict[str, float] = {}
-    agent_names_order: list[str] = []
+    # IDEA: Всі агенти з roster у таблиці (навіть 0 ігор). names з roster, не з games.
+    agent_totals: dict[str, float] = {name: 0.0 for name in all_display_names}
+    agent_games: dict[str, int] = {name: 0 for name in all_display_names}
+    agent_rounds: dict[str, int] = {name: 0 for name in all_display_names}
+    agent_names_order: list[str] = all_display_names.copy()
     for path in paths:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        m = _GAMES_SUMMARY_PATTERN.match(path.name)
-        date_str, time_str, game_num_str = m.group(1), m.group(2), int(m.group(3))
+        m = _match_island_game(path)
+        if not m:
+            continue
+        date_str, time_str = m.group(1), m.group(2)
+        try:
+            g3 = m.group(3)
+            game_display = int(g3) if g3.isdigit() else g3
+        except IndexError:
+            game_display = 1  # bare pattern: game_DATE_TIME.json has no suffix
         run_id = f"{date_str}_{time_str}"
         if run_id not in seen_run:
             time_display_run = time_str.replace("-", ":")
@@ -1382,18 +1671,27 @@ async def games_summary() -> dict[str, Any]:
         winner_id = data.get("winner") or ""
         winner_name = names.get(winner_id, winner_id)
         rounds = data.get("total_rounds") or 0
+        # Fallback: if roster was empty, build agent_names_order from first game
         if not agent_names_order and data.get("agents") and names:
             agent_names_order = [names.get(aid, aid) for aid in data["agents"] if names.get(aid)]
             if not agent_names_order:
                 agent_names_order = list(names.values())
         scores_by_name = {names.get(aid, aid): scores.get(aid, 0) for aid in scores}
+        # Ensure game agents are in agent_totals (for legacy games with different roster)
+        for name in scores_by_name:
+            if name and name not in agent_totals:
+                agent_totals[name] = 0.0
+                agent_games[name] = 0
+                agent_rounds[name] = 0
         for name, val in scores_by_name.items():
             agent_totals[name] = agent_totals.get(name, 0) + val
+            agent_games[name] = agent_games.get(name, 0) + 1
+            agent_rounds[name] = agent_rounds.get(name, 0) + rounds
         html_name = path.name.replace(".json", ".html")
         time_display = time_str.replace("-", ":")  # 22-58-50 → 22:58:50
         played_at = f"{date_str} {time_display}"
         games.append({
-            "game": game_num_str,
+            "game": game_display,
             "rounds": rounds,
             "winner": winner_name,
             "scores": scores_by_name,
@@ -1405,9 +1703,155 @@ async def games_summary() -> dict[str, Any]:
     for r in runs_order:
         n = r["gameCount"]
         r["runTitle"] = f"3×7 (3 ігри)" if n == 3 else f"7 ігор" if n == 7 else f"{n} ігор"
+    # IDEA [REFACTOR: ЗБЕРЕГТИ]: Середній бал — нормалізація до єдиної шкали.
+    # Ігри мають різні шкали (17 vs 28 vs 70 бал/раунд). Кожну гру нормалізуємо:
+    # game_avg = середнє(бал/раунд), scale = 100/game_avg, agent_norm = (бал/раунд)*scale.
+    # Усереднюємо agent_norm за кількістю ігор. 100 = середній по грі.
+    agent_avg_per_round: dict[str, float] = {}
+    for name in agent_totals:
+        per_game_sum = 0.0
+        games_played = 0
+        for g in games:
+            if name not in g["scores"]:
+                continue
+            scores = g["scores"]
+            rounds = g.get("rounds") or 0
+            if rounds <= 0:
+                continue
+            # Середнє бал/раунд по всіх агентах у цій грі
+            game_per_round = [s / rounds for s in scores.values()]
+            game_avg = sum(game_per_round) / len(game_per_round) if game_per_round else 1.0
+            scale = 100.0 / game_avg if game_avg > 0 else 1.0
+            agent_per_round = scores[name] / rounds
+            agent_norm = agent_per_round * scale
+            per_game_sum += agent_norm
+            games_played += 1
+        agent_avg_per_round[name] = round(per_game_sum / games_played, 2) if games_played > 0 else 0.0
     return {
         "games": games,
         "runs": runs_order,
+        "agentTotals": agent_totals,
+        "agentNames": agent_names_order,
+        "agentGamesPlayed": agent_games,
+        "agentRoundsPlayed": agent_rounds,
+        "agentAvgPerRound": agent_avg_per_round,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Time Wars API
+# ---------------------------------------------------------------------------
+
+def _load_agent_names() -> dict[str, str]:
+    """Load agent display names from agents/*/MEMORY.json or roster.json."""
+    names: dict[str, str] = {}
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            for a in roster.get("agents", []):
+                if a.get("id") and a.get("name"):
+                    names[a["id"]] = a["name"]
+        except Exception:
+            pass
+    # Fallback: scan agents/*/MEMORY.json
+    for mem in (_PROJECT_ROOT / "agents").glob("*/MEMORY.json"):
+        try:
+            data = json.loads(mem.read_text(encoding="utf-8"))
+            aid = mem.parent.name
+            name = data.get("name") or data.get("agent_name") or aid
+            if aid not in names:
+                names[aid] = name
+        except Exception:
+            pass
+    return names
+
+
+def _parse_tw_jsonl(path: Path) -> dict[str, Any] | None:
+    """Parse a time_wars JSONL file and return summary dict."""
+    game_start: dict[str, Any] = {}
+    game_over: dict[str, Any] = {}
+    roles: dict[str, str] = {}
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except Exception:
+                continue
+            et = ev.get("event_type", "")
+            if et == "game_start":
+                game_start = ev
+            elif et == "role_assignment":
+                roles[ev.get("agent_id", "")] = ev.get("role_id", "")
+            elif et == "game_over":
+                game_over = ev
+    except Exception:
+        return None
+    if not game_over:
+        return None
+    return {"game_start": game_start, "game_over": game_over, "roles": roles}
+
+
+@app.get("/api/time-wars-count")
+async def time_wars_count() -> dict[str, int]:
+    """Return number of completed Time Wars sessions."""
+    if not LOGS_DIR.exists():
+        return {"count": 0}
+    count = sum(1 for f in LOGS_DIR.glob("time_wars_*.jsonl") if _TW_PATTERN.match(f.name))
+    return {"count": count}
+
+
+@app.get("/api/time-wars-summary")
+async def time_wars_summary() -> dict[str, Any]:
+    """Return summary of all time_wars_*.jsonl logs."""
+    if not LOGS_DIR.exists():
+        return {"sessions": [], "agentTotals": {}, "agentNames": []}
+
+    paths = [f for f in LOGS_DIR.glob("time_wars_*.jsonl") if _TW_PATTERN.match(f.name)]
+    paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    agent_display = _load_agent_names()
+    sessions: list[dict[str, Any]] = []
+    agent_totals: dict[str, int] = {}
+    agent_names_order: list[str] = []
+
+    for path in paths:
+        m = _TW_PATTERN.match(path.name)
+        if not m:
+            continue
+        session_id, date_str, time_str = m.group(1), m.group(2), m.group(3)
+        parsed = _parse_tw_jsonl(path)
+        if not parsed:
+            continue
+        go = parsed["game_over"]
+        final_times: dict[str, int] = go.get("final_times", {})
+        winner_id: str = go.get("winner_id", "")
+        winner_name = agent_display.get(winner_id, winner_id)
+        played_at = f"{date_str} {time_str.replace('-', ':')}"
+
+        scores_by_name = {agent_display.get(aid, aid): t for aid, t in final_times.items()}
+        for name, val in scores_by_name.items():
+            agent_totals[name] = agent_totals.get(name, 0) + val
+
+        if not agent_names_order and scores_by_name:
+            agent_names_order = list(scores_by_name.keys())
+
+        html_name = path.name.replace(".jsonl", ".html")
+        sessions.append({
+            "sessionId": session_id,
+            "playedAt": played_at,
+            "winner": winner_name,
+            "finalTimes": scores_by_name,
+            "roles": {agent_display.get(aid, aid): rid for aid, rid in parsed["roles"].items()},
+            "reportPath": f"/logs/{html_name}",
+            "tick": go.get("tick", 0),
+        })
+
+    return {
+        "sessions": sessions,
         "agentTotals": agent_totals,
         "agentNames": agent_names_order,
     }
@@ -1448,6 +1892,14 @@ async def serve_index():
         "<p><a href='/health'>/health</a></p></body></html>",
         status_code=503,
     )
+
+
+# ---------------------------------------------------------------------------
+# Island Launcher routes
+# ---------------------------------------------------------------------------
+
+from server.island_routes import router as _island_router
+app.include_router(_island_router)
 
 
 @app.get("/{full_path:path}")

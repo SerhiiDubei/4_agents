@@ -23,14 +23,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
-def _cooperation_value(val: Any) -> float:
-    """Extract cooperation action from legacy float or per-dim dict."""
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        return float(val.get("cooperation", 0.5))
-    return 0.5
+from pipeline.utils import _cooperation_val as _cooperation_value
+from simulation.constants import (
+    COOPERATE_THRESHOLD,
+    REVEAL_BETRAYAL_THRESHOLD,
+    REVEAL_TRUST_GAIN_PER_COOP,
+    REVEAL_TRUST_LOSS_PER_BETRAYAL,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -108,18 +107,18 @@ class RevealTracker:
         # Calculate trust delta based on observed cooperation toward revealer
         betrayals_toward_revealer = sum(
             1 for rnd_actions in exposed.values()
-            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) < 0.4
+            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) < REVEAL_BETRAYAL_THRESHOLD
         )
         cooperations_toward_revealer = sum(
             1 for rnd_actions in exposed.values()
-            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) >= 0.66
+            if _cooperation_value(rnd_actions.get(revealer_id, 0.5)) >= COOPERATE_THRESHOLD
         )
         rounds_observed = len(exposed)
 
         if rounds_observed > 0:
             trust_delta = (
-                cooperations_toward_revealer * 0.08
-                - betrayals_toward_revealer * 0.15
+                cooperations_toward_revealer * REVEAL_TRUST_GAIN_PER_COOP
+                - betrayals_toward_revealer * REVEAL_TRUST_LOSS_PER_BETRAYAL
             )
         else:
             trust_delta = 0.0
@@ -144,9 +143,12 @@ class RevealTracker:
             for r in self.history
         )
 
-    def was_target(self, agent_id: str) -> bool:
+    def was_exposed(self, agent_id: str) -> bool:
         """Check if agent was ever the target of a reveal (private — revealer knows, not target)."""
         return any(r.target_id == agent_id for r in self.history)
+
+    # Backward-compat alias
+    was_target = was_exposed
 
     def get_reveals_for_round(self, round_number: int) -> List[RevealRecord]:
         return [r for r in self.history if r.round_number == round_number]

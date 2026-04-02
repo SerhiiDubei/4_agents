@@ -61,28 +61,17 @@ def log_reflection_error(agent_id: str, context: str, exc: BaseException) -> Non
 # ---------------------------------------------------------------------------
 
 def _call(system: str, user: str, model: str, max_tokens: int = 150) -> str:
-    import time
-    from pipeline.seed_generator import call_openrouter
-    last_err = None
-    for attempt in range(2):
-        try:
-            return call_openrouter(
-                system_prompt=system,
-                user_prompt=user,
-                model=model,
-                temperature=0.7,
-                max_tokens=max_tokens,
-                timeout=60,
-            )
-        except Exception as e:
-            last_err = e
-            if attempt == 0:
-                time.sleep(2)
-                continue
-            raise
-    if last_err:
-        raise last_err
-    raise RuntimeError("reflection _call failed")
+    from pipeline.llm_client import call_llm
+    return call_llm(
+        system=system,
+        user=user,
+        model=model,
+        temperature=0.7,
+        max_tokens=max_tokens,
+        timeout=60,
+        retries=2,
+        label="reflection",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -94,13 +83,7 @@ def _dn(agent_id: str, names: dict) -> str:
     return names.get(agent_id) or agent_id.split("_")[-1][:6]
 
 
-def _cooperation_val(val) -> float:
-    """Extract cooperation from legacy float or per-dim dict (agent_id -> float or dict)."""
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        return float(val.get("cooperation", 0.5))
-    return 0.5
+from pipeline.utils import _cooperation_val
 
 
 def _readable_actions(actions: dict, names: dict = None) -> str:

@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 60,
+  "deception_tendency": 72,
+  "strategic_horizon": 40,
+  "risk_appetite": 82,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Хесус",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_jesus"
+  },
+  "trait_log": []
+}

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS / SERVERS LAYER — API Map</title>
+<style>
+:root {
+  --bg: #0a0a0f; --bg2: #111118; --border: #2a2a3a;
+  --text: #c8c8e0; --dim: #5a5a7a; --accent: #7c6dfa;
+  --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
+  --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
+  --c-bug: #e05050;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.title-block { display: flex; flex-direction: column; gap: 3px; }
+.title-main { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.title-sub { font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; }
+.navtabs { display: flex; gap: 8px; }
+.ntab {
+  padding: 7px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ntab:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── LAYOUT ── */
+.main-layout {
+  display: flex;
+  height: calc(100vh - 57px);
+  overflow: hidden;
+}
+.servers-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 22px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.detail-pane {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* ── SERVER CARDS ── */
+.server-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.server-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.server-card:hover { border-color: rgba(224,148,74,0.5); }
+
+.server-header {
+  padding: 16px 18px;
+  background: rgba(224,148,74,0.07);
+  border-bottom: 1px solid rgba(224,148,74,0.2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.server-info { flex: 1; }
+.server-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-server);
+  margin-bottom: 3px;
+}
+.server-file { font-size: 11px; color: var(--dim); font-style: italic; }
+.server-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.status-dot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--c-data);
+}
+.dot { font-size: 10px; animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.port-badge {
+  padding: 4px 12px;
+  background: rgba(224,148,74,0.15);
+  border: 1px solid rgba(224,148,74,0.45);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-server);
+  letter-spacing: 1px;
+  box-shadow: 0 0 14px rgba(224,148,74,0.2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── ENDPOINT LIST ── */
+.endpoint-list { padding: 10px 0; }
+.ep-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.12s;
+  user-select: none;
+}
+.ep-row:last-child { border-bottom: none; }
+.ep-row:hover { background: rgba(255,255,255,0.04); }
+.ep-row.active { background: rgba(224,148,74,0.09); }
+.ep-row.active .ep-path { color: var(--c-server); }
+
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  min-width: 38px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.method-badge.POST { background: rgba(76,187,128,0.18); color: var(--c-data); border: 1px solid rgba(76,187,128,0.35); }
+.method-badge.GET { background: rgba(91,155,213,0.18); color: var(--c-pipeline); border: 1px solid rgba(91,155,213,0.35); }
+
+.ep-path {
+  font-size: 12px;
+  color: var(--text);
+  flex: 1;
+  transition: color 0.12s;
+}
+.ep-desc {
+  font-size: 10px;
+  color: var(--dim);
+  text-align: right;
+  max-width: 140px;
+  line-height: 1.4;
+}
+
+/* ── DETAIL PANE COMMON ── */
+.detail-panel {
+  display: none;
+  padding: 20px 18px;
+  flex-direction: column;
+  gap: 16px;
+}
+.detail-panel.active-panel { display: flex; }
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--dim);
+  font-size: 12px;
+  gap: 10px;
+  text-align: center;
+  padding: 40px;
+}
+.detail-empty-icon { font-size: 36px; opacity: 0.3; }
+
+.dp-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-server);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dp-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.code-block {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.ck { color: var(--accent); }   /* key */
+.cv { color: var(--c-data); }   /* value string */
+.cn { color: #f0a85a; }          /* number */
+.cb { color: #7dd3fc; }          /* boolean */
+.cc { color: var(--dim); font-style: italic; }  /* comment */
+
+.dp-note {
+  font-size: 11px;
+  color: var(--dim);
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  line-height: 1.6;
+}
+
+/* scrollbar style */
+.servers-pane::-webkit-scrollbar,
+.detail-pane::-webkit-scrollbar { width: 6px; }
+.servers-pane::-webkit-scrollbar-track,
+.detail-pane::-webkit-scrollbar-track { background: transparent; }
+.servers-pane::-webkit-scrollbar-thumb,
+.detail-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media (max-width: 900px) {
+  .main-layout { flex-direction: column; height: auto; }
+  .detail-pane { width: 100%; border-left: none; border-top: 1px solid var(--border); height: 400px; }
+  .server-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <div class="title-main">4 AGENTS</div>
+    <div class="title-sub">Servers Layer — API Map</div>
+  </div>
+  <div class="navtabs">
+    <a href="architecture.html" class="ntab">◀ Back</a>
+    <a href="architecture_flow.html" class="ntab">▶ Flow</a>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT / CENTER: SERVER CARDS -->
+  <div class="servers-pane">
+    <div class="server-grid">
+
+      <!-- SERVER 1: main.py port 8000 -->
+      <div class="server-card" id="card-main">
+        <div class="server-header">
+          <div class="server-info">
+            <div class="server-name">Island Game Server</div>
+            <div class="server-file">server/main.py</div>
+            <div class="server-meta">
+              <div class="status-dot"><span class="dot">●</span> online</div>
+            </div>
+          </div>
+          <div class="port-badge">:8000</div>
+        </div>
+        <div class="endpoint-list" id="list-main">
+          <!-- rows built by JS below -->
+        </div>
+      </div>
+
+      <!-- SERVER 2: serve_time_wars.py port 5174 -->
+      <div class="server-card" id="card-tw">
+        <div class="server-header">
+          <div class="server-info">
+            <div class="server-name">Time Wars Server</div>
+            <div class="server-file">serve_time_wars.py</div>
+            <div class="server-meta">
+              <div class="status-dot"><span class="dot">●</span> online</div>
+            </div>
+          </div>
+          <div class="port-badge">:5174</div>
+        </div>
+        <div class="endpoint-list" id="list-tw">
+          <!-- rows built by JS below -->
+        </div>
+      </div>
+
+    </div><!-- /server-grid -->
+  </div><!-- /servers-pane -->
+
+  <!-- RIGHT: DETAIL PANE -->
+  <div class="detail-pane" id="detail-pane">
+
+    <!-- Default empty state -->
+    <div class="detail-empty" id="detail-empty">
+      <div class="detail-empty-icon">🔌</div>
+      <div>Click an endpoint to<br>view request/response shape</div>
+    </div>
+
+    <!-- ═══ SERVER 1 PANELS ═══ -->
+
+    <!-- ep-seed -->
+    <div class="detail-panel" id="ep-seed">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /generate-seed
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="cc">// no body required</span>
+<span class="ck">{}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "session_id"</span>: <span class="cv">"uuid-v4-string"</span>,
+  <span class="ck">"status"</span>: <span class="cv">"initialized"</span>,
+  <span class="ck">"created_at"</span>: <span class="cv">"2025-01-01T00:00:00Z"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Starts agent initialization sequence. Returns a session token used in all subsequent setup endpoints.</div>
+    </div>
+
+    <!-- ep-question -->
+    <div class="detail-panel" id="ep-question">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /generate-question/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Path Param</div>
+        <div class="code-block"><span class="ck">"session_id"</span>: <span class="cv">"uuid-v4-string"</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "question_index"</span>: <span class="cn">0</span>  <span class="cc">// 0-based</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "question_id"</span>: <span class="cv">"q_0001"</span>,
+  <span class="ck">"text"</span>: <span class="cv">"What is your main goal?"</span>,
+  <span class="ck">"category"</span>: <span class="cv">"values"</span>,
+  <span class="ck">"options"</span>: [<span class="cv">"survive"</span>, <span class="cv">"lead"</span>, <span class="cv">"observe"</span>]
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Returns next Q&amp;A question for agent soul initialization pipeline.</div>
+    </div>
+
+    <!-- ep-answer -->
+    <div class="detail-panel" id="ep-answer">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /submit-answer/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "question_id"</span>: <span class="cv">"q_0001"</span>,
+  <span class="ck">"answer"</span>: <span class="cv">"survive"</span>,
+  <span class="ck">"free_text"</span>: <span class="cv">"optional elaboration"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "core_delta"</span>: {
+    <span class="ck">"fear"</span>: <span class="cn">+0.05</span>,
+    <span class="ck">"aggression"</span>: <span class="cn">+0.02</span>
+  },
+  <span class="ck">"questions_remaining"</span>: <span class="cn">7</span>,
+  <span class="ck">"core_snapshot"</span>: { <span class="cc">/* full CORE state */</span> }
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Submits an answer and returns the resulting CORE personality delta applied to the agent.</div>
+    </div>
+
+    <!-- ep-soul -->
+    <div class="detail-panel" id="ep-soul">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /compile-soul/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "agent_name"</span>: <span class="cv">"Orion"</span>,
+  <span class="ck">"archetype"</span>: <span class="cv">"strategist"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "soul_text"</span>: <span class="cv">"# SOUL\n## Identity\n..."</span>,
+  <span class="ck">"soul_path"</span>: <span class="cv">"agents/Orion/SOUL.md"</span>,
+  <span class="ck">"token_count"</span>: <span class="cn">420</span>,
+  <span class="ck">"compiled_at"</span>: <span class="cv">"2025-01-01T00:00:00Z"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Triggers LLM to generate full SOUL.md from accumulated Q&amp;A answers. Writes file to disk and returns text.</div>
+    </div>
+
+    <!-- ep-rungame -->
+    <div class="detail-panel" id="ep-rungame">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /run-game
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "agent_ids"</span>: [<span class="cv">"Orion"</span>, <span class="cv">"Lyra"</span>, <span class="cv">"..."</span>],
+  <span class="ck">"num_rounds"</span>: <span class="cn">10</span>,
+  <span class="ck">"game_config"</span>: {
+    <span class="ck">"payoff_T"</span>: <span class="cn">7</span>,
+    <span class="ck">"payoff_R"</span>: <span class="cn">5</span>,
+    <span class="ck">"payoff_P"</span>: <span class="cn">2</span>,
+    <span class="ck">"payoff_S"</span>: <span class="cn">0.5</span>
+  }
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "game_id"</span>: <span class="cv">"game-uuid"</span>,
+  <span class="ck">"status"</span>: <span class="cv">"started"</span>,
+  <span class="ck">"agent_count"</span>: <span class="cn">17</span>,
+  <span class="ck">"estimated_duration_s"</span>: <span class="cn">1000</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Starts an Island game simulation with specified agents. Returns game_id for tracking results.</div>
+    </div>
+
+    <!-- ep-summary -->
+    <div class="detail-panel" id="ep-summary">
+      <div class="dp-title">
+        <span class="method-badge GET">GET</span>
+        /api/games-summary
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "games"</span>: [
+    {
+      <span class="ck">"game_id"</span>: <span class="cv">"game-uuid"</span>,
+      <span class="ck">"completed_at"</span>: <span class="cv">"2025-01-01T00:00:00Z"</span>,
+      <span class="ck">"agent_count"</span>: <span class="cn">17</span>,
+      <span class="ck">"scores_matrix"</span>: { <span class="cc">/* NxN matrix */</span> },
+      <span class="ck">"winner"</span>: <span class="cv">"Orion"</span>
+    }
+  ],
+  <span class="ck">"total"</span>: <span class="cn">42</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Returns all completed games with full scores matrix (cooperation rates between every agent pair).</div>
+    </div>
+
+    <!-- ep-results -->
+    <div class="detail-panel" id="ep-results">
+      <div class="dp-title">
+        <span class="method-badge GET">GET</span>
+        /results/{game_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "game_id"</span>: <span class="cv">"game-uuid"</span>,
+  <span class="ck">"rounds"</span>: [
+    {
+      <span class="ck">"round"</span>: <span class="cn">1</span>,
+      <span class="ck">"decisions"</span>: { <span class="cc">/* agent → choice */</span> },
+      <span class="ck">"payoffs"</span>: { <span class="cc">/* agent → score */</span> }
+    }
+  ],
+  <span class="ck">"final_scores"</span>: { <span class="cc">/* agent → total */</span> },
+  <span class="ck">"dialog_log"</span>: [<span class="cc">/* message objects */</span>]
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Full round-by-round results for a single game, including dialog log, decisions, and payoff history.</div>
+    </div>
+
+    <!-- ep-auth -->
+    <div class="detail-panel" id="ep-auth">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /register · /login
+      </div>
+      <div>
+        <div class="dp-section-label">Register Request</div>
+        <div class="code-block"><span class="ck">{
+  "username"</span>: <span class="cv">"player1"</span>,
+  <span class="ck">"password"</span>: <span class="cv">"hashed-or-plain"</span>,
+  <span class="ck">"email"</span>: <span class="cv">"p@example.com"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Login Response</div>
+        <div class="code-block"><span class="ck">{
+  "access_token"</span>: <span class="cv">"eyJhbGci..."</span>,
+  <span class="ck">"token_type"</span>: <span class="cv">"bearer"</span>,
+  <span class="ck">"expires_in"</span>: <span class="cn">86400</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">JWT auth endpoints. Token is passed as Authorization: Bearer header on protected routes.</div>
+    </div>
+
+    <!-- ═══ SERVER 2 PANELS ═══ -->
+
+    <!-- ep-tw-start -->
+    <div class="detail-panel" id="ep-tw-start">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /api/start-game
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "player_ids"</span>: [<span class="cv">"human1"</span>, <span class="cv">"agent_A"</span>],
+  <span class="ck">"include_human"</span>: <span class="cb">true</span>,
+  <span class="ck">"tick_interval_ms"</span>: <span class="cn">3000</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "session_id"</span>: <span class="cv">"tw-uuid"</span>,
+  <span class="ck">"roles_assigned"</span>: {
+    <span class="ck">"human1"</span>: <span class="cv">"role_peacekeeper"</span>,
+    <span class="ck">"agent_A"</span>: <span class="cv">"role_snake"</span>
+  },
+  <span class="ck">"starting_time_s"</span>: <span class="cn">300</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Creates Time Wars session, assigns roles randomly, returns session_id and role assignments.</div>
+    </div>
+
+    <!-- ep-tw-events -->
+    <div class="detail-panel" id="ep-tw-events">
+      <div class="dp-title">
+        <span class="method-badge GET">GET</span>
+        /api/game-events/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">SSE Stream — Event Shape</div>
+        <div class="code-block"><span class="cc">// Content-Type: text/event-stream</span>
+<span class="cc">// Each event:</span>
+<span class="ck">data: {
+  "type"</span>: <span class="cv">"steal_attempt"</span>,
+  <span class="ck">"actor"</span>: <span class="cv">"agent_A"</span>,
+  <span class="ck">"target"</span>: <span class="cv">"human1"</span>,
+  <span class="ck">"time_delta"</span>: <span class="cn">-25</span>,
+  <span class="ck">"outcome"</span>: <span class="cv">"SUCCESS"</span>,
+  <span class="ck">"roll"</span>: <span class="cn">17</span>,
+  <span class="ck">"tick"</span>: <span class="cn">42</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Server-Sent Events stream. Client connects once and receives tick events in real-time until game ends.</div>
+    </div>
+
+    <!-- ep-tw-action -->
+    <div class="detail-panel" id="ep-tw-action">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /api/human-action/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "player_id"</span>: <span class="cv">"human1"</span>,
+  <span class="ck">"action"</span>: <span class="cv">"STEAL"</span>,  <span class="cc">// or COOPERATE / PASS</span>
+  <span class="ck">"target_id"</span>: <span class="cv">"agent_A"</span>,  <span class="cc">// required for STEAL</span>
+  <span class="ck">"card_id"</span>: <span class="cv">"card_shield_A"</span>  <span class="cc">// optional</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "accepted"</span>: <span class="cb">true</span>,
+  <span class="ck">"queued_for_tick"</span>: <span class="cn">43</span>,
+  <span class="ck">"your_time_remaining"</span>: <span class="cn">187</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Human player submits their action for the current tick. Queued and resolved with all other actions at tick boundary.</div>
+    </div>
+
+    <!-- ep-tw-state -->
+    <div class="detail-panel" id="ep-tw-state">
+      <div class="dp-title">
+        <span class="method-badge GET">GET</span>
+        /api/session-state/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "tick"</span>: <span class="cn">42</span>,
+  <span class="ck">"status"</span>: <span class="cv">"running"</span>,
+  <span class="ck">"players"</span>: [
+    {
+      <span class="ck">"id"</span>: <span class="cv">"human1"</span>,
+      <span class="ck">"role"</span>: <span class="cv">"role_peacekeeper"</span>,
+      <span class="ck">"time_remaining"</span>: <span class="cn">187</span>,
+      <span class="ck">"mana"</span>: <span class="cn">45</span>,
+      <span class="ck">"alive"</span>: <span class="cb">true</span>
+    }
+  ]
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Snapshot of current game state — use for initial load or reconnect. For live updates, use the SSE stream.</div>
+    </div>
+
+    <!-- ep-tw-summary -->
+    <div class="detail-panel" id="ep-tw-summary">
+      <div class="dp-title">
+        <span class="method-badge GET">GET</span>
+        /api/time-wars-summary
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "sessions"</span>: [
+    {
+      <span class="ck">"session_id"</span>: <span class="cv">"tw-uuid"</span>,
+      <span class="ck">"winner"</span>: <span class="cv">"agent_A"</span>,
+      <span class="ck">"ticks"</span>: <span class="cn">88</span>,
+      <span class="ck">"player_count"</span>: <span class="cn">4</span>,
+      <span class="ck">"ended_at"</span>: <span class="cv">"2025-01-01T00:00:00Z"</span>
+    }
+  ],
+  <span class="ck">"total"</span>: <span class="cn">15</span>
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Returns summary of all completed Time Wars sessions. Used by leaderboard / analytics views.</div>
+    </div>
+
+    <!-- ep-tw-end -->
+    <div class="detail-panel" id="ep-tw-end">
+      <div class="dp-title">
+        <span class="method-badge POST">POST</span>
+        /api/end-game/{session_id}
+      </div>
+      <div>
+        <div class="dp-section-label">Request Body</div>
+        <div class="code-block"><span class="ck">{
+  "reason"</span>: <span class="cv">"admin_stop"</span>  <span class="cc">// or "timeout"</span>
+<span class="ck">}</span></div>
+      </div>
+      <div>
+        <div class="dp-section-label">Response</div>
+        <div class="code-block"><span class="ck">{
+  "session_id"</span>: <span class="cv">"tw-uuid"</span>,
+  <span class="ck">"status"</span>: <span class="cv">"ended"</span>,
+  <span class="ck">"final_rankings"</span>: [
+    { <span class="ck">"player_id"</span>: <span class="cv">"agent_A"</span>, <span class="ck">"rank"</span>: <span class="cn">1</span>, <span class="ck">"time_remaining"</span>: <span class="cn">120</span> }
+  ]
+<span class="ck">}</span></div>
+      </div>
+      <div class="dp-note">Manually ends a Time Wars session. SSE stream closes, final rankings are computed and persisted to SQLite.</div>
+    </div>
+
+  </div><!-- /detail-pane -->
+
+</div><!-- /main-layout -->
+
+<script>
+// Endpoint data for building rows via DOM API (no innerHTML with variables)
+var mainEndpoints = [
+  { method: "POST", path: "/generate-seed",                 desc: "Start agent init",          id: "ep-seed"     },
+  { method: "POST", path: "/generate-question/{session_id}", desc: "Get next Q&A question",    id: "ep-question" },
+  { method: "POST", path: "/submit-answer/{session_id}",    desc: "Submit answer, CORE delta", id: "ep-answer"   },
+  { method: "POST", path: "/compile-soul/{session_id}",     desc: "Generate SOUL.md",          id: "ep-soul"     },
+  { method: "POST", path: "/run-game",                      desc: "Start Island game",         id: "ep-rungame"  },
+  { method: "GET",  path: "/api/games-summary",             desc: "All games + scores",        id: "ep-summary"  },
+  { method: "GET",  path: "/results/{game_id}",             desc: "Single game results",       id: "ep-results"  },
+  { method: "POST", path: "/register · /login",             desc: "JWT auth endpoints",        id: "ep-auth"     }
+];
+
+var twEndpoints = [
+  { method: "POST", path: "/api/start-game",                   desc: "Create TW session",       id: "ep-tw-start"   },
+  { method: "GET",  path: "/api/game-events/{session_id}",     desc: "SSE stream of ticks",     id: "ep-tw-events"  },
+  { method: "POST", path: "/api/human-action/{session_id}",    desc: "Submit player action",    id: "ep-tw-action"  },
+  { method: "GET",  path: "/api/session-state/{session_id}",   desc: "Current state snapshot",  id: "ep-tw-state"   },
+  { method: "GET",  path: "/api/time-wars-summary",            desc: "All TW games summary",    id: "ep-tw-summary" },
+  { method: "POST", path: "/api/end-game/{session_id}",        desc: "Manually end session",    id: "ep-tw-end"     }
+];
+
+var activeEpId = null;
+
+function buildEndpointRows(endpoints, listEl) {
+  endpoints.forEach(function(ep) {
+    var row = document.createElement("div");
+    row.className = "ep-row";
+    row.setAttribute("data-epid", ep.id);
+
+    var badge = document.createElement("span");
+    badge.className = "method-badge " + ep.method;
+    badge.textContent = ep.method;
+
+    var path = document.createElement("span");
+    path.className = "ep-path";
+    path.textContent = ep.path;
+
+    var desc = document.createElement("span");
+    desc.className = "ep-desc";
+    desc.textContent = ep.desc;
+
+    row.appendChild(badge);
+    row.appendChild(path);
+    row.appendChild(desc);
+
+    row.onclick = function() { activateEndpoint(ep.id, row); };
+    listEl.appendChild(row);
+  });
+}
+
+function activateEndpoint(epId, clickedRow) {
+  // Deactivate previous row
+  if (activeEpId) {
+    var prevPanel = document.getElementById(activeEpId);
+    if (prevPanel) prevPanel.classList.remove("active-panel");
+
+    var allRows = document.querySelectorAll(".ep-row");
+    for (var i = 0; i < allRows.length; i++) {
+      allRows[i].classList.remove("active");
+    }
+  }
+
+  activeEpId = epId;
+
+  // Hide empty state
+  var emptyEl = document.getElementById("detail-empty");
+  emptyEl.style.display = "none";
+
+  // Show new panel
+  var panel = document.getElementById(epId);
+  if (panel) panel.classList.add("active-panel");
+
+  // Highlight row
+  if (clickedRow) clickedRow.classList.add("active");
+}
+
+// Build rows
+buildEndpointRows(mainEndpoints, document.getElementById("list-main"));
+buildEndpointRows(twEndpoints, document.getElementById("list-tw"));
+</script>
+
+</body>
+</html>

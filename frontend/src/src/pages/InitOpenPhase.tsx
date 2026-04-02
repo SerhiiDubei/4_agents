@@ -5,12 +5,22 @@ import { InitResultView } from '../components/InitResultView';
 import { InitStoryView } from '../components/InitStoryView';
 import { GamesResultsView } from '../components/GamesResultsView';
 import { LeaderboardView } from '../components/LeaderboardView';
+import { TimeWarsResultsView } from '../components/TimeWarsResultsView';
 import { CRTOverlay } from '../components/CRTOverlay';
 
-type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard';
+type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars';
+
+function getInitialPhase(): Phase {
+  if (typeof window === 'undefined') return 'intro';
+  const view = new URLSearchParams(window.location.search).get('view');
+  if (view === 'games-results') return 'games-results';
+  if (view === 'leaderboard') return 'leaderboard';
+  if (view === 'time-wars') return 'time-wars';
+  return 'intro';
+}
 
 export const InitOpenPhase: React.FC = () => {
-  const [phase, setPhase] = useState<Phase>('intro');
+  const [phase, setPhase] = useState<Phase>(getInitialPhase);
   const [gamesCount, setGamesCount] = useState<number | null>(null);
   const [story, setStory] = useState<{ lines: string[] } | null>(null);
   const [questions, setQuestions] = useState<OpenQuestion[]>([]);
@@ -146,7 +156,7 @@ export const InitOpenPhase: React.FC = () => {
             transition={{ duration: 1 }}
             className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative z-10"
           >
-            <div className="max-w-3xl w-full space-y-12">
+            <div className="max-w-3xl w-full mx-auto space-y-12">
               <div className="font-dialog text-2xl md:text-3xl text-game-lightGray leading-relaxed">
                 Ти створиш персонажа для симуляції Island. Спочатку — історія. Потім — сім відкритих питань.
               </div>
@@ -156,7 +166,7 @@ export const InitOpenPhase: React.FC = () => {
               {error && (
                 <div className="font-pixel text-game-red text-sm">{error}</div>
               )}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center items-center mt-12 w-full">
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -197,6 +207,32 @@ export const InitOpenPhase: React.FC = () => {
                   className="px-10 py-5 font-pixel text-lg text-game-gold border-2 border-game-gold bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-game-gold/10"
                 >
                   [ ЛІДЕРБОРД ]
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.3 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(34,197,94,0.5)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.open('/time_wars_board.html', '_blank')}
+                  className="px-10 py-5 font-pixel text-lg text-emerald-400 border-2 border-emerald-400 bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-emerald-400/10"
+                >
+                  [ ПОКАЗАТИ ГРУ ]
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.35 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(34,197,94,0.4)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setPhase('time-wars')}
+                  className="px-10 py-5 font-pixel text-lg text-emerald-300 border-2 border-emerald-300/70 bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-emerald-300/10"
+                >
+                  [ TIME WARS: РЕЗУЛЬТАТИ ]
                 </motion.button>
               </div>
             </div>
@@ -297,6 +333,18 @@ export const InitOpenPhase: React.FC = () => {
                   .catch(() => setGamesCount(0));
               }}
             />
+          </motion.div>
+        )}
+
+        {phase === 'time-wars' && (
+          <motion.div
+            key="time-wars"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          >
+            <TimeWarsResultsView onBack={() => setPhase('intro')} />
           </motion.div>
         )}
       </AnimatePresence>

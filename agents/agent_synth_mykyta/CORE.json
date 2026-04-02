@@ -1,0 +1,19 @@
+{
+  "cooperation_bias": 58,
+  "deception_tendency": 32,
+  "strategic_horizon": 85,
+  "risk_appetite": 55,
+  "model": "google/gemini-2.0-flash-001",
+  "version": "1.0.0",
+  "name": "Микита",
+  "point_buy": {
+    "budget": 100,
+    "spent": 0,
+    "refund": 0,
+    "notes": ""
+  },
+  "meta": {
+    "agent_id": "agent_synth_mykyta"
+  },
+  "trait_log": []
+}

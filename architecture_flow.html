@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 AGENTS — Process Flow</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0a0a0f; --bg2:#0d0d14; --border:#1e1e2e;
+  --text:#c8c8e0; --dim:#4a4a6a; --accent:#7c6dfa;
+  --c-data:#4dbb80; --c-pipeline:#5b9bd5; --c-game:#b06ee0;
+  --c-server:#e0944a; --c-frontend:#4dbba0; --c-story:#b0b060;
+  --c-bug:#e05050; --c-active:#fff;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+header { padding:16px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-shrink:0; }
+.logo { font-size:18px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
+.sub { font-size:10px; color:var(--dim); }
+.tabs { margin-left:auto; display:flex; gap:4px; }
+.tab { padding:5px 14px; border:1px solid var(--border); border-radius:4px; font-size:10px; cursor:pointer; color:var(--dim); font-family:inherit; background:transparent; transition:all .15s; letter-spacing:1px; }
+.tab:hover { color:var(--text); border-color:#333; }
+.tab.active { color:var(--accent); border-color:var(--accent); background:rgba(124,109,250,.08); }
+
+.workspace { flex:1; display:grid; grid-template-columns:220px 1fr 280px; overflow:hidden; }
+
+/* ══ LEFT: Process list ══ */
+.proc-list { border-right:1px solid var(--border); overflow-y:auto; padding:16px 0; }
+.proc-group { margin-bottom:4px; }
+.proc-group-label { font-size:9px; color:var(--dim); letter-spacing:2px; padding:6px 16px 4px; text-transform:uppercase; }
+.proc-item { padding:8px 16px; cursor:pointer; font-size:10px; color:var(--dim); display:flex; align-items:center; gap:8px; transition:all .15s; border-left:2px solid transparent; }
+.proc-item:hover { color:var(--text); background:rgba(255,255,255,.02); }
+.proc-item.active { color:var(--text); background:rgba(124,109,250,.06); border-left-color:var(--accent); }
+.proc-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.proc-bug { font-size:9px; color:var(--c-bug); margin-left:auto; }
+
+/* ══ CENTER: Flow diagram ══ */
+.diagram { overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:32px; }
+.flow-canvas { position:relative; }
+
+.node {
+  position:absolute;
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:8px 12px;
+  font-size:10px;
+  cursor:pointer;
+  transition:all .2s;
+  background:var(--bg2);
+  white-space:nowrap;
+  user-select:none;
+}
+.node:hover { transform:scale(1.04); z-index:10; }
+.node.highlight {
+  border-color:var(--accent) !important;
+  background:rgba(124,109,250,.12) !important;
+  box-shadow:0 0 12px rgba(124,109,250,.25);
+}
+.node.bug-highlight {
+  border-color:var(--c-bug) !important;
+  background:rgba(224,80,80,.1) !important;
+  box-shadow:0 0 12px rgba(224,80,80,.2);
+}
+.node.dim-node { opacity:.25; }
+.node-label { font-weight:bold; margin-bottom:2px; }
+.node-sub { font-size:8px; color:var(--dim); }
+.node-bug-badge { position:absolute; top:-6px; right:-6px; width:13px; height:13px; border-radius:50%; background:var(--c-bug); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:bold; color:#fff; }
+
+svg.arrows { position:absolute; top:0; left:0; pointer-events:none; }
+svg.arrows line, svg.arrows path {
+  stroke:var(--border);
+  stroke-width:1.5;
+  fill:none;
+  transition:stroke .2s, stroke-width .2s;
+}
+svg.arrows .active-arrow {
+  stroke:var(--accent);
+  stroke-width:2;
+}
+svg.arrows .bug-arrow {
+  stroke:var(--c-bug);
+  stroke-width:2;
+  stroke-dasharray:4,3;
+}
+svg.arrows marker#arr path { fill:var(--border); }
+svg.arrows marker#arr-a path { fill:var(--accent); }
+svg.arrows marker#arr-b path { fill:var(--c-bug); }
+
+/* ══ RIGHT: Detail ══ */
+.detail-panel { border-left:1px solid var(--border); overflow-y:auto; padding:20px; background:var(--bg2); }
+.dp-empty { display:flex; align-items:center; justify-content:center; height:100%; flex-direction:column; gap:8px; color:var(--dim); font-size:10px; text-align:center; }
+.dp-arrow { font-size:24px; color:var(--border); }
+
+.dp-header { margin-bottom:16px; }
+.dp-title { font-size:13px; font-weight:bold; color:var(--accent); margin-bottom:4px; }
+.dp-file { font-size:9px; color:var(--dim); margin-bottom:8px; }
+.dp-desc { font-size:10px; color:var(--text); line-height:1.6; }
+
+.dp-section { margin-bottom:14px; }
+.dp-section-title { font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:7px; }
+.code { background:rgba(0,0,0,.5); border:1px solid var(--border); border-radius:5px; padding:10px; font-size:9px; color:#8888aa; line-height:1.7; white-space:pre; overflow-x:auto; font-family:'Courier New',monospace; }
+.ck { color:#7c6dfa; } .cv { color:#4dbb80; } .cc { color:#444466; }
+
+.dp-inputs { display:flex; flex-direction:column; gap:5px; }
+.dp-io-item { display:flex; align-items:flex-start; gap:8px; font-size:9px; padding:5px 8px; background:rgba(255,255,255,.02); border-radius:4px; }
+.io-arrow { color:var(--dim); flex-shrink:0; font-size:10px; }
+.io-text { color:var(--text); line-height:1.4; }
+.io-source { color:var(--accent); opacity:.75; }
+
+.dp-bug { background:rgba(224,80,80,.07); border:1px solid rgba(224,80,80,.25); border-radius:5px; padding:10px; margin-bottom:10px; }
+.dp-bug-id { font-size:9px; color:var(--c-bug); font-weight:bold; margin-bottom:4px; }
+.dp-bug-desc { font-size:10px; color:var(--text); line-height:1.5; }
+.dp-bug-fix { font-size:9px; color:var(--dim); margin-top:5px; line-height:1.4; }
+
+.dp-connections { display:flex; flex-direction:column; gap:4px; }
+.dp-conn-item { display:flex; align-items:center; gap:6px; font-size:9px; padding:4px 7px; border-radius:4px; cursor:pointer; transition:background .15s; }
+.dp-conn-item:hover { background:rgba(255,255,255,.04); }
+.dp-conn-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.dp-conn-name { flex:1; }
+.dp-conn-rel { color:var(--dim); font-size:8px; }
+
+/* ══ Scrollbar ══ */
+::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#222; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">4 AGENTS</div>
+    <div class="sub">Process Flow View &mdash; натисни процес зліва, потім модуль на схемі</div>
+  </div>
+  <div class="tabs">
+    <button class="tab" onclick="window.location='architecture.html'">&#9776; Layers</button>
+    <button class="tab active">&#9654; Process Flow</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ══ LEFT: Processes ══ -->
+  <div class="proc-list">
+
+    <div class="proc-group">
+      <div class="proc-group-label">Island Game</div>
+      <div class="proc-item" onclick="showProcess('island-round')" id="p-island-round">
+        <span class="proc-dot" style="background:var(--c-game)"></span>
+        Round Loop
+      </div>
+      <div class="proc-item" onclick="showProcess('island-dialog')" id="p-island-dialog">
+        <span class="proc-dot" style="background:var(--c-game)"></span>
+        Dialog Phase
+      </div>
+      <div class="proc-item" onclick="showProcess('island-decision')" id="p-island-decision">
+        <span class="proc-dot" style="background:var(--c-pipeline)"></span>
+        Decision Phase
+        <span class="proc-bug">CRIT-1</span>
+      </div>
+      <div class="proc-item" onclick="showProcess('island-payoff')" id="p-island-payoff">
+        <span class="proc-dot" style="background:var(--c-game)"></span>
+        Payoff Phase
+      </div>
+      <div class="proc-item" onclick="showProcess('island-reflect')" id="p-island-reflect">
+        <span class="proc-dot" style="background:var(--c-pipeline)"></span>
+        Reflection Phase
+      </div>
+    </div>
+
+    <div class="proc-group">
+      <div class="proc-group-label">Time Wars</div>
+      <div class="proc-item" onclick="showProcess('tw-tick')" id="p-tw-tick">
+        <span class="proc-dot" style="background:var(--c-game)"></span>
+        Tick Loop
+        <span class="proc-bug">3 bugs</span>
+      </div>
+      <div class="proc-item" onclick="showProcess('tw-action')" id="p-tw-action">
+        <span class="proc-dot" style="background:var(--c-pipeline)"></span>
+        Action Phase
+        <span class="proc-bug">CRIT-2,3</span>
+      </div>
+      <div class="proc-item" onclick="showProcess('tw-steal')" id="p-tw-steal">
+        <span class="proc-dot" style="background:var(--c-game)"></span>
+        Steal Resolution
+      </div>
+      <div class="proc-item" onclick="showProcess('tw-codes')" id="p-tw-codes">
+        <span class="proc-dot" style="background:var(--c-story)"></span>
+        Code Phase
+      </div>
+    </div>
+
+    <div class="proc-group">
+      <div class="proc-group-label">Agent Init</div>
+      <div class="proc-item" onclick="showProcess('init-qa')" id="p-init-qa">
+        <span class="proc-dot" style="background:var(--c-pipeline)"></span>
+        Q&amp;A Flow
+      </div>
+      <div class="proc-item" onclick="showProcess('init-soul')" id="p-init-soul">
+        <span class="proc-dot" style="background:var(--c-data)"></span>
+        Soul Compile
+      </div>
+    </div>
+
+    <div class="proc-group">
+      <div class="proc-group-label">Infrastructure</div>
+      <div class="proc-item" onclick="showProcess('save-state')" id="p-save-state">
+        <span class="proc-dot" style="background:var(--c-data)"></span>
+        Save State
+      </div>
+      <div class="proc-item" onclick="showProcess('load-agent')" id="p-load-agent">
+        <span class="proc-dot" style="background:var(--c-data)"></span>
+        Load Agent
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CENTER: SVG Flow Diagram ══ -->
+  <div class="diagram" id="diagram">
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:8px;color:var(--dim);font-size:11px;text-align:center">
+      <div style="font-size:28px;color:var(--border)">&#9654;</div>
+      <div>Вибери процес зліва</div>
+      <div style="font-size:9px">щоб побачити які модулі задіяні</div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT: Detail panel ══ -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="dp-empty">
+      <div class="dp-arrow">&#9664;</div>
+      <div>Натисни на модуль<br>в схемі</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// NODE DEFINITIONS
+// ══════════════════════════════════════════════
+var NODES = {
+  'soul_md':      { label:'SOUL.md',        sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
+  'core_json':    { label:'CORE.json',       sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
+  'states_md':    { label:'STATES.md',       sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
+  'memory_json':  { label:'MEMORY.json',     sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
+  'roster':       { label:'roster.json',     sub:'agents/',           color:'var(--c-data)',     x:0,   y:0 },
+  'de':           { label:'decision_engine', sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0, bug:'CRIT-1' },
+  'ac_pipeline':  { label:'agent_context',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0, bug:'CRIT-3' },
+  'sm':           { label:'state_machine',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'mem':          { label:'memory.py',       sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'reasoning':    { label:'reasoning.py',    sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'reflection':   { label:'reflection.py',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'soul_comp':    { label:'soul_compiler',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'q_engine':     { label:'question_engine', sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'talk_trans':   { label:'talk_transition', sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
+  'ge':           { label:'game_engine',     sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
+  'dialog_eng':   { label:'dialog_engine',   sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
+  'payoff':       { label:'payoff_matrix',   sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
+  'reveal':       { label:'reveal_skill',    sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
+  'tw_loop':      { label:'loop.py',         sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-2,3,4' },
+  'tw_state':     { label:'state.py',        sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
+  'tw_ac':        { label:'agent_context',   sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-2,3' },
+  'tw_skills':    { label:'skills.py',       sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
+  'tw_shop':      { label:'shop/codes',      sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
+  'tw_const':     { label:'constants.py',    sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
+  'round_narr':   { label:'round_narrative', sub:'storytell/',        color:'var(--c-story)',    x:0,   y:0, bug:'CRIT-4' },
+  'srv':          { label:'main.py',         sub:'server/ :8000',     color:'var(--c-server)',   x:0,   y:0 },
+  'tw_srv':       { label:'serve_time_wars', sub:':5174',             color:'var(--c-server)',   x:0,   y:0 },
+  'fe':           { label:'Frontend',        sub:'React / port 8000', color:'var(--c-frontend)', x:0,   y:0 },
+};
+
+// ══════════════════════════════════════════════
+// MODULE DETAIL DATA
+// ══════════════════════════════════════════════
+var MODULE_DETAIL = {
+  'soul_md': {
+    title: 'SOUL.md', file: 'agents/{id}/SOUL.md',
+    desc: 'Наративна ідентичність агента. 8 секцій, 2-га особа, українська мова. Генерується LLM при ініціалізації.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Читається', source: 'dialog_engine (для мовлення)' },
+      { arrow: '&#8592;', text: 'Читається', source: 'reasoning.py (для думки)' },
+      { arrow: '&#8592;', text: 'Читається', source: 'reflection.py (для рефлексії)' },
+    ],
+    bug: { id:'CRIT-3', desc:'agent_context.build_context() в TW НЕ включає SOUL.md в LLM prompt. Агент діє без особистості.', fix:'Додати soul_md = load_soul_md(agent_id) в build_context()' }
+  },
+  'core_json': {
+    title: 'CORE.json', file: 'agents/{id}/CORE.json',
+    desc: 'Стабільні параметри особистості. cooperation_bias, deception_tendency, strategic_horizon, risk_appetite — всі 0-100.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Формується', source: 'question_engine (Q&A deltas)' },
+      { arrow: '&#8592;', text: 'Читається', source: 'decision_engine (action scores)' },
+      { arrow: '&#8592;', text: 'Читається', source: 'agent_context (overlay застосування)' },
+    ]
+  },
+  'states_md': {
+    title: 'STATES.md', file: 'agents/{id}/STATES.md',
+    desc: 'Швидкозмінний емоційний стан. tension, fear, dominance, anger, mood, trust per peer. Оновлюється кожен раунд.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Оновлює', source: 'state_machine.py після кожного раунду' },
+      { arrow: '&#8592;', text: 'Читає', source: 'dialog_engine (mood впливає на тон)' },
+      { arrow: '&#8592;', text: 'Читає', source: 'decision_engine (стан впливає на вибір)' },
+    ]
+  },
+  'memory_json': {
+    title: 'MEMORY.json', file: 'agents/{id}/MEMORY.json',
+    desc: 'Append-only епізодична пам\'ять. Зберігає дії по раундах, обіцянки, нотатки. Зберігається між іграми.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Записує', source: 'memory.py::log_round() після кожного раунду' },
+      { arrow: '&#8592;', text: 'Записує', source: 'reflection.py::reflect_on_game() (висновки)' },
+      { arrow: '&#8592;', text: 'Читає', source: 'reasoning.py (контекст для думки)' },
+    ]
+  },
+  'de': {
+    title: 'decision_engine.py', file: 'pipeline/decision_engine.py',
+    desc: 'Softmax вибір дії на основі CORE параметрів. Повертає значення 0.0 / 0.33 / 0.66 / 1.0.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'core_json (personality params)' },
+      { arrow: '&#8592;', text: 'Отримує', source: 'states_md (емоційний стан)' },
+      { arrow: '&#8594;', text: 'Повертає дію в', source: 'game_engine / tw_loop' },
+    ],
+    bug: { id:'CRIT-1', desc:'_action_scores() має penalty = strategic_horizon * 0.33. Для більшості агентів це тягне всіх до 0.66 незалежно від cooperation_bias.', fix:'Переглянути penalty формулу. Role-based agents (snake, gambler) мають давати принципово різні score distributions.' }
+  },
+  'ac_pipeline': {
+    title: 'agent_context.py (pipeline)', file: 'pipeline/agent_context.py',
+    desc: 'Будує контекст для LLM-дзвінків в Island game. Застосовує ROLE_CORE_OVERLAYS на базові CORE params.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Читає', source: 'core_json + states_md' },
+      { arrow: '&#8592;', text: 'Застосовує', source: 'ROLE_CORE_OVERLAYS (role_snake: dec+30)' },
+      { arrow: '&#8594;', text: 'Передає контекст в', source: 'reasoning.py' },
+    ]
+  },
+  'sm': {
+    title: 'state_machine.py', file: 'pipeline/state_machine.py',
+    desc: 'Оновлює емоційний стан агентів після раунду. Зради збільшують tension і fear. Кооперація збільшує interest.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'actions + dialog events' },
+      { arrow: '&#8594;', text: 'Пише нові значення в', source: 'states_md' },
+      { arrow: '&#8594;', text: 'Обчислює', source: 'mood (dominant/anxious/suspicious/...)' },
+    ]
+  },
+  'dialog_eng': {
+    title: 'dialog_engine.py', file: 'simulation/dialog_engine.py',
+    desc: 'Генерує діалог раунду через LLM. Urgency-based speaker selection: говорить той у кого вища tension або interest.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Читає', source: 'soul_md (для голосу агента)' },
+      { arrow: '&#8592;', text: 'Читає', source: 'states_md (mood, tension)' },
+      { arrow: '&#8594;', text: 'Передає повідомлення в', source: 'talk_transition (тон аналіз)' },
+      { arrow: '&#8594;', text: 'Додає в', source: 'round_result.dialog' },
+    ]
+  },
+  'payoff': {
+    title: 'payoff_matrix.py', file: 'simulation/payoff_matrix.py',
+    desc: 'Розраховує виплати по матриці Prisoner\'s Dilemma. T=7 > R=5 > P=2 > S=0.5. Лінійна інтерполяція між значеннями.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'actions dict від decision_engine' },
+      { arrow: '&#8594;', text: 'Повертає', source: 'RoundPayoffs (per-agent per-pair scores)' },
+      { arrow: '&#8594;', text: 'Результат іде в', source: 'game_engine, memory.log_round()' },
+    ]
+  },
+  'tw_loop': {
+    title: 'loop.py — Time Wars Core', file: 'game_modes/time_wars/loop.py',
+    desc: 'Серце Time Wars. Кожен тік: drain часу, action phase, code phase, перевірка виліту.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Читає стан із', source: 'tw_state (Session, Player)' },
+      { arrow: '&#8592;', text: 'Викликає', source: 'tw_ac::build_context()' },
+      { arrow: '&#8594;', text: 'Пише події в', source: 'session.event_log' },
+    ],
+    bug: { id:'CRIT-2 + CRIT-4', desc:'1) last_messages не передаються в build_context — агент не бачить останній діалог.\n2) round_narrative.generate() не викликається після action phase.', fix:'Передати session.last_messages в build_context(). Викликати round_narrative після кожного action phase.' }
+  },
+  'tw_ac': {
+    title: 'agent_context.py (TW)', file: 'game_modes/time_wars/agent_context.py',
+    desc: 'Будує LLM-контекст для TW агентів. Накладає ROLE_CORE_OVERLAYS. Тут сконцентровано 2 критичних баги.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'core_json + role_id від Player' },
+      { arrow: '&#8592;', text: 'Застосовує', source: 'ROLE_CORE_OVERLAYS (role модифікації)' },
+    ],
+    bug: { id:'CRIT-2 + CRIT-3', desc:'1) Немає last_messages в контексті — агент не знає що говорили.\n2) Немає soul_md в контексті — агент без особистості.', fix:'Додати в build_context(): soul = load_soul_md(agent_id), last_msgs = session.last_messages[-N:]' }
+  },
+  'tw_skills': {
+    title: 'skills.py', file: 'game_modes/time_wars/skills.py',
+    desc: 'Скілли ролей. Тригери: BEFORE_STEAL_ROLL, ON_STEAL_SUCCESS, ON_STEAL_FAIL, ON_COOPERATE.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'role_id + mana від Player' },
+      { arrow: '&#8592;', text: 'Викликається з', source: 'tw_loop в потрібний момент тіку' },
+      { arrow: '&#8594;', text: 'Модифікує', source: 'd20 roll / time delta / mana' },
+    ]
+  },
+  'round_narr': {
+    title: 'round_narrative.py', file: 'storytell/round_narrative.py',
+    desc: 'Генерує LLM-нарратив для раунду. Файл готовий. НЕ підключений до Time Wars loop.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Отримує', source: 'tick_events + session + agents' },
+      { arrow: '&#8594;', text: 'Повертає', source: 'narrative_text (string)' },
+    ],
+    bug: { id:'CRIT-4', desc:'round_narrative.generate() існує і написано, але НЕ викликається з loop.py після action phase.', fix:'В loop.py після run_action_phase(): narrative = round_narrative.generate(session, events, agents). Додати в event_log.' }
+  },
+  'fe': {
+    title: 'Frontend (React)', file: 'frontend/src/',
+    desc: 'React/TS UI. Ініціалізація агентів (Q&A), перегляд результатів Island і Time Wars.',
+    inputs: [
+      { arrow: '&#8592;', text: 'Дані з', source: 'server/main.py (port 8000)' },
+      { arrow: '&#8592;', text: 'TW дані з', source: 'serve_time_wars.py (port 5174)' },
+      { arrow: '&#8594;', text: 'Показує', source: 'GamesResultsView, Leaderboard, TimeWarsResultsView' },
+    ]
+  },
+};
+
+// ══════════════════════════════════════════════
+// PROCESS DEFINITIONS
+// Each process: list of active node IDs, edges, step labels
+// ══════════════════════════════════════════════
+var PROCESSES = {
+
+  'island-round': {
+    title: 'Island — Round Loop',
+    color: 'var(--c-game)',
+    nodes: [
+      { id:'ge',        x:300, y:20  },
+      { id:'dialog_eng',x:80,  y:130 },
+      { id:'soul_md',   x:-60, y:250 },
+      { id:'states_md', x:100, y:250 },
+      { id:'talk_trans',x:80,  y:370 },
+      { id:'de',        x:340, y:130 },
+      { id:'core_json', x:250, y:250 },
+      { id:'reasoning', x:490, y:250 },
+      { id:'payoff',    x:520, y:130 },
+      { id:'sm',        x:340, y:370 },
+      { id:'mem',       x:520, y:370 },
+      { id:'memory_json', x:600, y:250 },
+      { id:'reflection',x:700, y:130 },
+    ],
+    edges: [
+      { from:'ge',         to:'dialog_eng', label:'1. dialog phase' },
+      { from:'soul_md',    to:'dialog_eng', label:'soul' },
+      { from:'states_md',  to:'dialog_eng', label:'mood' },
+      { from:'dialog_eng', to:'talk_trans', label:'messages' },
+      { from:'talk_trans', to:'states_md',  label:'tone &rarr; tension' },
+      { from:'ge',         to:'de',         label:'2. decisions' },
+      { from:'core_json',  to:'de',         label:'params' },
+      { from:'states_md',  to:'de',         label:'state' },
+      { from:'de',         to:'reasoning',  label:'context' },
+      { from:'ge',         to:'payoff',     label:'3. payoffs' },
+      { from:'payoff',     to:'sm',         label:'actions' },
+      { from:'sm',         to:'states_md',  label:'update' },
+      { from:'payoff',     to:'mem',        label:'4. log' },
+      { from:'mem',        to:'memory_json',label:'write' },
+      { from:'ge',         to:'reflection', label:'5. reflect' },
+      { from:'memory_json',to:'reflection', label:'context' },
+    ],
+    steps: [
+      '1. dialog_engine генерує публічні + DM повідомлення',
+      '2. talk_transition аналізує тон &rarr; STATES update',
+      '3. decision_engine вибирає дію (CRIT-1!)',
+      '4. payoff_matrix розраховує виплати',
+      '5. state_machine оновлює емоції',
+      '6. memory.log_round() записує в MEMORY.json',
+      '7. reflection.reflect_on_round() &rarr; LLM нотатка',
+    ]
+  },
+
+  'island-dialog': {
+    title: 'Island — Dialog Phase',
+    color: 'var(--c-game)',
+    nodes: [
+      { id:'dialog_eng', x:280, y:20  },
+      { id:'soul_md',    x:60,  y:160 },
+      { id:'states_md',  x:280, y:160 },
+      { id:'memory_json',x:500, y:160 },
+      { id:'talk_trans', x:280, y:310 },
+    ],
+    edges: [
+      { from:'soul_md',    to:'dialog_eng', label:'особистість' },
+      { from:'states_md',  to:'dialog_eng', label:'mood / tension' },
+      { from:'memory_json',to:'dialog_eng', label:'минуле' },
+      { from:'dialog_eng', to:'talk_trans', label:'згенеровані msg' },
+      { from:'talk_trans', to:'states_md',  label:'тон &rarr; стан' },
+    ],
+    steps: [
+      '1. Urgency-based вибір спікера (tension/interest)',
+      '2. LLM будує повідомлення на основі SOUL+STATES+MEMORY',
+      '3. Публічна фаза: всі бачать',
+      '4. DM фаза: ротовані пари, приватно',
+      '5. talk_transition: тон &rarr; STATES delta',
+    ]
+  },
+
+  'island-decision': {
+    title: 'Island — Decision Phase (CRIT-1)',
+    color: 'var(--c-pipeline)',
+    nodes: [
+      { id:'de',          x:280, y:20  },
+      { id:'core_json',   x:60,  y:160 },
+      { id:'states_md',   x:280, y:160 },
+      { id:'reasoning',   x:500, y:160 },
+      { id:'soul_md',     x:500, y:20,  bugArrow:true },
+      { id:'memory_json', x:60,  y:20   },
+    ],
+    edges: [
+      { from:'core_json',   to:'de',        label:'params' },
+      { from:'states_md',   to:'de',        label:'emotional state' },
+      { from:'memory_json', to:'de',        label:'trust history' },
+      { from:'de',          to:'reasoning', label:'context' },
+      { from:'soul_md',     to:'de',        label:'??? (CRIT-3)', bug:true },
+    ],
+    steps: [
+      '1. CoreParams.from_dict(CORE.json)',
+      '2. ROLE_CORE_OVERLAYS застосовується',
+      '3. _action_scores(): softmax розрахунок',
+      '   BUG: penalty = horizon * 0.33 &rarr; всі 0.66',
+      '4. reasoning.py будує думку агента',
+      '5. choose_action() &rarr; 0.0/0.33/0.66/1.0',
+    ]
+  },
+
+  'island-payoff': {
+    title: 'Island — Payoff Phase',
+    color: 'var(--c-game)',
+    nodes: [
+      { id:'payoff',      x:280, y:20  },
+      { id:'ge',          x:60,  y:160 },
+      { id:'sm',          x:280, y:160 },
+      { id:'states_md',   x:500, y:160 },
+      { id:'mem',         x:280, y:310 },
+      { id:'memory_json', x:500, y:310 },
+    ],
+    edges: [
+      { from:'ge',          to:'payoff',      label:'actions dict' },
+      { from:'payoff',      to:'sm',          label:'виплати + дії' },
+      { from:'sm',          to:'states_md',   label:'нові емоції' },
+      { from:'payoff',      to:'mem',         label:'результат раунду' },
+      { from:'mem',         to:'memory_json', label:'append' },
+    ],
+    steps: [
+      '1. Отримуємо actions: {agent_id: {target: 0.66, ...}}',
+      '2. calculate_pair_payoff() для кожної пари',
+      '   T=7 (зрадив кооп) > R=5 (обидва кооп)',
+      '   P=2 (обидва зрадили) > S=0.5 (кооп зраджений)',
+      '3. state_machine.update() &rarr; STATES.md',
+      '4. memory.log_round() &rarr; MEMORY.json',
+    ]
+  },
+
+  'island-reflect': {
+    title: 'Island — Reflection Phase',
+    color: 'var(--c-pipeline)',
+    nodes: [
+      { id:'reflection',  x:280, y:20  },
+      { id:'soul_md',     x:60,  y:160 },
+      { id:'memory_json', x:500, y:160 },
+      { id:'mem',         x:280, y:160 },
+    ],
+    edges: [
+      { from:'soul_md',     to:'reflection', label:'ідентичність' },
+      { from:'memory_json', to:'reflection', label:'що сталось' },
+      { from:'reflection',  to:'mem',        label:'нотатка &rarr; rounds[-1].notes' },
+    ],
+    steps: [
+      '1. reflect_on_round(): LLM думає про свої дії',
+      '2. Нотатка зберігається в memory.rounds[-1].notes',
+      '3. reflect_on_game() після останнього раунду:',
+      '   - висновки &rarr; game_history',
+      '   - trust_snapshot &rarr; перенесеться в наступну гру',
+    ]
+  },
+
+  'tw-tick': {
+    title: 'Time Wars — Tick Loop (3 bugs)',
+    color: 'var(--c-game)',
+    nodes: [
+      { id:'tw_loop',    x:280, y:20  },
+      { id:'tw_state',   x:60,  y:160 },
+      { id:'tw_ac',      x:280, y:160 },
+      { id:'tw_skills',  x:500, y:160 },
+      { id:'tw_shop',    x:500, y:310 },
+      { id:'round_narr', x:60,  y:310, bugArrow:true },
+    ],
+    edges: [
+      { from:'tw_state',  to:'tw_loop',   label:'session state' },
+      { from:'tw_loop',   to:'tw_ac',     label:'action phase' },
+      { from:'tw_ac',     to:'tw_skills', label:'action &rarr; skill trigger' },
+      { from:'tw_loop',   to:'tw_shop',   label:'code phase' },
+      { from:'tw_loop',   to:'round_narr',label:'??? (CRIT-4)', bug:true },
+    ],
+    steps: [
+      '1. drain_time(): всі гравці втрачають BASE_DRAIN * escalation',
+      '2. eliminate_if_zero(): час &#8804;0 &rarr; гравець вилітає',
+      '3. action_phase_due? &rarr; run_action_phase()',
+      '   BUG CRIT-2: last_messages не в контексті',
+      '   BUG CRIT-3: SOUL.md не в контексті',
+      '4. run_code_phase(): агенти грають код-карти',
+      '   BUG CRIT-4: round_narrative не викликається',
+    ]
+  },
+
+  'tw-action': {
+    title: 'Time Wars — Action Phase (CRIT-2, CRIT-3)',
+    color: 'var(--c-pipeline)',
+    nodes: [
+      { id:'tw_ac',      x:280, y:20  },
+      { id:'core_json',  x:60,  y:160 },
+      { id:'tw_state',   x:280, y:160 },
+      { id:'soul_md',    x:500, y:20,  bugArrow:true },
+      { id:'tw_loop',    x:500, y:160, bugArrow:true },
+    ],
+    edges: [
+      { from:'core_json', to:'tw_ac',  label:'params + overlays' },
+      { from:'tw_state',  to:'tw_ac',  label:'session context' },
+      { from:'soul_md',   to:'tw_ac',  label:'??? (CRIT-3)', bug:true },
+      { from:'tw_loop',   to:'tw_ac',  label:'last_messages??? (CRIT-2)', bug:true },
+    ],
+    steps: [
+      'build_context(session, agent_id):',
+      '  core = CORE.json + ROLE_CORE_OVERLAYS',
+      '  BUG CRIT-3: soul_md ВІДСУТНІЙ',
+      '  BUG CRIT-2: last_messages ВІДСУТНІ',
+      '  context = format(core, time_remaining, trust)',
+      'action = llm_decide(context)',
+      '&rarr; COOPERATE(target) / STEAL(target) / PASS',
+    ]
+  },
+
+  'tw-steal': {
+    title: 'Time Wars — Steal Resolution',
+    color: 'var(--c-game)',
+    nodes: [
+      { id:'tw_loop',   x:280, y:20  },
+      { id:'tw_skills', x:60,  y:160 },
+      { id:'tw_const',  x:280, y:160 },
+      { id:'tw_state',  x:500, y:160 },
+    ],
+    edges: [
+      { from:'tw_loop',   to:'tw_skills', label:'BEFORE_STEAL trigger' },
+      { from:'tw_skills', to:'tw_loop',   label:'modified roll' },
+      { from:'tw_const',  to:'tw_loop',   label:'thresholds: 14/7' },
+      { from:'tw_loop',   to:'tw_state',  label:'time delta update' },
+      { from:'tw_loop',   to:'tw_skills', label:'ON_SUCCESS/FAIL trigger' },
+    ],
+    steps: [
+      '1. Агент вирішує STEAL(target)',
+      '2. BEFORE_STEAL_ROLL: скілли модифікують d20',
+      '3. roll d20 + modifiers',
+      '   &#8805;14: SUCCESS &rarr; -45s target, +30s attacker',
+      '   7-13: PARTIAL &rarr; -20s target, +10s attacker',
+      '   &lt;7: FAIL &rarr; -10s attacker (penalty)',
+      '4. ON_SUCCESS/ON_FAIL: скілли після результату',
+      '5. trust[attacker][target] -= 0.15',
+    ]
+  },
+
+  'tw-codes': {
+    title: 'Time Wars — Code Phase',
+    color: 'var(--c-story)',
+    nodes: [
+      { id:'tw_loop',  x:280, y:20  },
+      { id:'tw_shop',  x:60,  y:160 },
+      { id:'tw_state', x:280, y:160 },
+      { id:'tw_const', x:500, y:160 },
+    ],
+    edges: [
+      { from:'tw_shop',  to:'tw_loop',  label:'available codes' },
+      { from:'tw_const', to:'tw_loop',  label:'мana costs' },
+      { from:'tw_loop',  to:'tw_state', label:'apply effect' },
+    ],
+    steps: [
+      '1. Агент вирішує USE_CODE(code_id)',
+      '2. Перевірка: mana &#8805; code.cost?',
+      '3. Застосування ефекту коду:',
+      '   C: TIME_BOOST +20s, SHIELD -50% steal',
+      '   A: TIME_BOMB -60s target',
+      '   S: CHRONO_RESET всі +120s',
+      '4. player.mana -= code.cost',
+      '5. player.inventory.remove(code)',
+    ]
+  },
+
+  'init-qa': {
+    title: 'Agent Init — Q&A Flow',
+    color: 'var(--c-pipeline)',
+    nodes: [
+      { id:'q_engine',    x:280, y:20  },
+      { id:'fe',          x:60,  y:160 },
+      { id:'srv',         x:280, y:160 },
+      { id:'core_json',   x:500, y:160 },
+    ],
+    edges: [
+      { from:'fe',       to:'srv',       label:'POST /submit-answer' },
+      { from:'srv',      to:'q_engine',  label:'process_answer()' },
+      { from:'q_engine', to:'core_json', label:'CORE delta accumulate' },
+    ],
+    steps: [
+      '1. Frontend: POST /generate-seed &rarr; session_id',
+      '2. &times;7: GET /generate-question &rarr; LLM питання',
+      '3. Користувач вибирає відповідь (answer_slot)',
+      '4. POST /submit-answer &rarr; CORE delta застосовується',
+      '5. Live preview CORE значень в UI',
+      '6. Після 7 контекстів: finalize_core()',
+      '7. Результат: CORE.json з кінцевими значеннями',
+    ]
+  },
+
+  'init-soul': {
+    title: 'Agent Init — Soul Compile',
+    color: 'var(--c-data)',
+    nodes: [
+      { id:'soul_comp',   x:280, y:20  },
+      { id:'q_engine',    x:60,  y:160 },
+      { id:'core_json',   x:280, y:160 },
+      { id:'soul_md',     x:500, y:160 },
+      { id:'states_md',   x:500, y:310 },
+      { id:'memory_json', x:280, y:310 },
+    ],
+    edges: [
+      { from:'q_engine',   to:'soul_comp',   label:'answers + seed' },
+      { from:'core_json',  to:'soul_comp',   label:'personality params' },
+      { from:'soul_comp',  to:'soul_md',     label:'8 LLM calls &rarr; write' },
+      { from:'soul_comp',  to:'states_md',   label:'initialize' },
+      { from:'soul_comp',  to:'memory_json', label:'initialize' },
+    ],
+    steps: [
+      '1. Отримує: seed + answers + CORE params',
+      '2. Завантажує schemas/soul_template.json',
+      '3. &times;8 LLM calls: по 1 на секцію SOUL.md',
+      '   Identity, How You See Others, Never Say...',
+      '   Under Pressure, Decision Instinct, Voice...',
+      '4. Пише agents/{id}/SOUL.md',
+      '5. Пише agents/{id}/CORE.json',
+      '6. initialize_states() &rarr; STATES.md',
+      '7. initialize_memory() &rarr; MEMORY.json',
+    ]
+  },
+
+  'save-state': {
+    title: 'Save State After Game',
+    color: 'var(--c-data)',
+    nodes: [
+      { id:'ge',          x:280, y:20  },
+      { id:'sm',          x:60,  y:160 },
+      { id:'mem',         x:280, y:160 },
+      { id:'reflection',  x:500, y:160 },
+      { id:'states_md',   x:60,  y:310 },
+      { id:'memory_json', x:280, y:310 },
+    ],
+    edges: [
+      { from:'ge',         to:'sm',          label:'після раунду' },
+      { from:'sm',         to:'states_md',   label:'save_states()' },
+      { from:'ge',         to:'mem',         label:'log_round()' },
+      { from:'mem',        to:'memory_json', label:'save_memory()' },
+      { from:'reflection', to:'memory_json', label:'game_history append' },
+    ],
+    steps: [
+      '1. Після кожного раунду: state_machine.update()',
+      '2. save_states(agent.states, agent_dir)',
+      '   &rarr; agents/{id}/STATES.md',
+      '3. memory.log_round() &rarr; MEMORY.json append',
+      '4. Після гри: reflection.reflect_on_game()',
+      '   &rarr; game_history + trust_snapshot',
+      '5. save_memory(agent.memory, agent_dir)',
+      '6. Всі зміни persist між іграми!',
+    ]
+  },
+
+  'load-agent': {
+    title: 'Load Agent From Disk',
+    color: 'var(--c-data)',
+    nodes: [
+      { id:'ge',          x:280, y:20  },
+      { id:'roster',      x:60,  y:160 },
+      { id:'soul_md',     x:280, y:160 },
+      { id:'core_json',   x:500, y:160 },
+      { id:'states_md',   x:60,  y:310 },
+      { id:'memory_json', x:280, y:310 },
+    ],
+    edges: [
+      { from:'roster',     to:'ge',          label:'17 agent IDs' },
+      { from:'soul_md',    to:'ge',          label:'read text' },
+      { from:'core_json',  to:'ge',          label:'read JSON' },
+      { from:'states_md',  to:'ge',          label:'load_states()' },
+      { from:'memory_json',to:'ge',          label:'load_memory()' },
+      { from:'memory_json',to:'states_md',   label:'trust_snapshot &rarr; states.trust' },
+    ],
+    steps: [
+      '1. run_simulation_live.py &rarr; build_agents()',
+      '2. roster.json: отримуємо список all 17 agent IDs',
+      '   default_count=17 (виправлено з 13!)',
+      '3. load_agents_from_disk(ids):',
+      '   &rarr; читає SOUL.md (plain text)',
+      '   &rarr; читає CORE.json',
+      '   &rarr; load_states() or initialize_states()',
+      '   &rarr; load_memory() or initialize_memory()',
+      '4. Якщо є game_history: trust_snapshot &rarr; states.trust',
+      '5. SimAgent об\'єкт готовий до гри',
+    ]
+  },
+};
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+var currentProcess = null;
+var diagramW = 840;
+var diagramH = 480;
+
+function showProcess(procId) {
+  currentProcess = procId;
+
+  // Update sidebar
+  document.querySelectorAll('.proc-item').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  var pEl = document.getElementById('p-' + procId);
+  if (pEl) pEl.classList.add('active');
+
+  var proc = PROCESSES[procId];
+  if (!proc) return;
+
+  renderDiagram(proc);
+  showEmptyDetail();
+}
+
+function renderDiagram(proc) {
+  var diag = document.getElementById('diagram');
+
+  // Calculate canvas bounds
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  proc.nodes.forEach(function(n) {
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + 160);
+    maxY = Math.max(maxY, n.y + 60);
+  });
+  var W = Math.max(maxX - minX + 80, 600);
+  var H = Math.max(maxY - minY + 100, 400);
+  var offX = -minX + 40;
+  var offY = -minY + 40;
+
+  // Build HTML
+  var html = '<div style="position:relative;width:' + W + 'px;height:' + H + 'px">';
+
+  // SVG arrows
+  html += '<svg class="arrows" width="' + W + '" height="' + H + '" xmlns="http://www.w3.org/2000/svg">';
+  html += '<defs>';
+  html += '<marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#2a2a3a"/></marker>';
+  html += '<marker id="arr-a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#7c6dfa"/></marker>';
+  html += '<marker id="arr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#e05050"/></marker>';
+  html += '</defs>';
+
+  // Build node position map
+  var nodePos = {};
+  proc.nodes.forEach(function(n) {
+    nodePos[n.id] = { x: n.x + offX, y: n.y + offY };
+  });
+
+  // Draw edges
+  proc.edges.forEach(function(e) {
+    var from = nodePos[e.from];
+    var to = nodePos[e.to];
+    if (!from || !to) return;
+
+    var fx = from.x + 80, fy = from.y + 28;
+    var tx = to.x + 80,   ty = to.y + 28;
+
+    var isBug = e.bug;
+    var cls = isBug ? 'bug-arrow' : 'active-arrow';
+    var marker = isBug ? 'url(#arr-b)' : 'url(#arr-a)';
+
+    // Curved path
+    var dx = tx - fx, dy = ty - fy;
+    var cx = fx + dx * 0.5, cy = fy + dy * 0.5;
+    if (Math.abs(dy) < 20) { cy = fy - 30; }
+
+    html += '<path class="' + cls + '" d="M' + fx + ',' + fy + ' Q' + cx + ',' + cy + ' ' + tx + ',' + ty + '" marker-end="' + marker + '"/>';
+
+    // Edge label
+    var lx = (fx + tx) / 2, ly = (fy + ty) / 2 - 8;
+    html += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" font-size="8" fill="' + (isBug ? '#e05050' : '#5a5a7a') + '" font-family="Courier New">' + e.label + '</text>';
+  });
+
+  html += '</svg>';
+
+  // Draw nodes
+  proc.nodes.forEach(function(n) {
+    var nd = NODES[n.id];
+    if (!nd) return;
+    var nx = n.x + offX;
+    var ny = n.y + offY;
+    var hasBug = nd.bug;
+    html += '<div class="node" id="dn-' + n.id + '" onclick="selectNode(\'' + n.id + '\')" style="left:' + nx + 'px;top:' + ny + 'px;border-color:' + nd.color + ';background:var(--bg2)">';
+    html += '<div class="node-label" style="color:' + nd.color + '">' + nd.label + '</div>';
+    html += '<div class="node-sub">' + nd.sub + '</div>';
+    if (hasBug) html += '<div class="node-bug-badge">!</div>';
+    html += '</div>';
+  });
+
+  // Steps legend
+  html += '<div style="position:absolute;bottom:0;left:0;right:0;padding:12px;background:rgba(0,0,0,.4);border-top:1px solid var(--border);font-size:9px;color:var(--dim)">';
+  html += '<span style="color:' + proc.color + ';font-weight:bold;margin-right:10px">' + proc.title + '</span>';
+  proc.steps.forEach(function(s, i) {
+    html += '<span style="margin-right:12px;color:' + (s.indexOf('BUG') >= 0 ? 'var(--c-bug)' : 'var(--dim)') + '">' + s + '</span>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+
+  diag.style.alignItems = 'flex-start';
+  diag.style.paddingTop = '24px';
+
+  // Use DOM manipulation to set content safely
+  diag.textContent = '';
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative;width:' + W + 'px;height:' + H + 'px';
+  diag.appendChild(wrapper);
+
+  // Re-render via a temporary container trick (safe — no user input)
+  var temp = document.createElement('div');
+  // Since all content is from our own hardcoded data, we use a safe approach:
+  diag.style.alignItems = 'flex-start';
+  diag.style.paddingTop = '24px';
+  diag.style.display = 'flex';
+
+  // Build using DOM
+  buildDiagramDOM(diag, proc, nodePos, W, H);
+}
+
+function buildDiagramDOM(container, proc, nodePos, W, H) {
+  container.textContent = '';
+
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;width:' + W + 'px;min-height:' + H + 'px';
+
+  // SVG
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'arrows');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  ['arr:#2a2a3a', 'arr-a:#7c6dfa', 'arr-b:#e05050'].forEach(function(m) {
+    var parts = m.split(':');
+    var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', parts[0]);
+    marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '8');
+    marker.setAttribute('refX', '6'); marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M0,0 L0,6 L8,3 z');
+    path.setAttribute('fill', parts[1]);
+    marker.appendChild(path);
+    defs.appendChild(marker);
+  });
+  svg.appendChild(defs);
+
+  proc.edges.forEach(function(e) {
+    var from = nodePos[e.from], to = nodePos[e.to];
+    if (!from || !to) return;
+    var fx = from.x + 80, fy = from.y + 28;
+    var tx = to.x + 80,   ty = to.y + 28;
+    var isBug = !!e.bug;
+    var dx = tx - fx, dy = ty - fy;
+    var cx = fx + dx * 0.5, cy = fy + dy * 0.5;
+    if (Math.abs(dy) < 20) cy = fy - 30;
+
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('class', isBug ? 'bug-arrow' : 'active-arrow');
+    p.setAttribute('d', 'M' + fx + ',' + fy + ' Q' + cx + ',' + cy + ' ' + tx + ',' + ty);
+    p.setAttribute('marker-end', isBug ? 'url(#arr-b)' : 'url(#arr-a)');
+    svg.appendChild(p);
+
+    var lx = (fx + tx) / 2, ly = (fy + ty) / 2 - 8;
+    var txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', lx); txt.setAttribute('y', ly);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('font-size', '8');
+    txt.setAttribute('fill', isBug ? '#e05050' : '#5a5a7a');
+    txt.setAttribute('font-family', 'Courier New');
+    txt.textContent = e.label.replace(/&rarr;/g, '\u2192');
+    svg.appendChild(txt);
+  });
+  wrap.appendChild(svg);
+
+  // Nodes
+  proc.nodes.forEach(function(n) {
+    var nd = NODES[n.id];
+    if (!nd) return;
+    var div = document.createElement('div');
+    div.className = 'node';
+    div.id = 'dn-' + n.id;
+    div.style.left = nodePos[n.id].x + 'px';
+    div.style.top  = nodePos[n.id].y + 'px';
+    div.style.borderColor = nd.color;
+
+    div.addEventListener('click', function() { selectNode(n.id); });
+
+    var lbl = document.createElement('div');
+    lbl.className = 'node-label';
+    lbl.style.color = nd.color;
+    lbl.textContent = nd.label;
+    div.appendChild(lbl);
+
+    var sub = document.createElement('div');
+    sub.className = 'node-sub';
+    sub.textContent = nd.sub;
+    div.appendChild(sub);
+
+    if (nd.bug) {
+      var badge = document.createElement('div');
+      badge.className = 'node-bug-badge';
+      badge.textContent = '!';
+      div.appendChild(badge);
+    }
+    wrap.appendChild(div);
+  });
+
+  // Steps bar
+  var steps = document.createElement('div');
+  steps.style.cssText = 'padding:12px 16px;background:rgba(0,0,0,.5);border-top:1px solid var(--border);font-size:9px;margin-top:20px;border-radius:0 0 6px 6px;line-height:1.9';
+  var title = document.createElement('span');
+  title.style.cssText = 'font-weight:bold;margin-right:10px;color:' + proc.color;
+  title.textContent = proc.title;
+  steps.appendChild(title);
+  proc.steps.forEach(function(s) {
+    var sp = document.createElement('span');
+    sp.style.cssText = 'margin-right:12px;color:' + (s.indexOf('BUG') >= 0 ? 'var(--c-bug)' : 'var(--dim)');
+    sp.textContent = s.replace(/&rarr;/g, '\u2192').replace(/&times;/g, '\xd7').replace(/&rarr;/g, '\u2192').replace(/&#8805;/g, '\u2265').replace(/&#8804;/g, '\u2264');
+    steps.appendChild(sp);
+  });
+  wrap.appendChild(steps);
+
+  container.appendChild(wrap);
+}
+
+function selectNode(nodeId) {
+  // Highlight
+  document.querySelectorAll('.node').forEach(function(n) {
+    n.classList.remove('highlight', 'bug-highlight', 'dim-node');
+  });
+  var el = document.getElementById('dn-' + nodeId);
+  var nd = NODES[nodeId];
+  if (el) {
+    el.classList.add(nd && nd.bug ? 'bug-highlight' : 'highlight');
+  }
+
+  // Show detail
+  var det = MODULE_DETAIL[nodeId];
+  showNodeDetail(nodeId, det);
+}
+
+function showNodeDetail(nodeId, det) {
+  var panel = document.getElementById('detail-panel');
+  panel.textContent = '';
+
+  var nd = NODES[nodeId];
+  if (!nd) return;
+
+  if (!det) {
+    // Basic info only
+    var h = document.createElement('div');
+    h.className = 'dp-header';
+    var t = document.createElement('div'); t.className = 'dp-title'; t.textContent = nd.label; h.appendChild(t);
+    var f = document.createElement('div'); f.className = 'dp-file'; f.textContent = nd.sub; h.appendChild(f);
+    var d = document.createElement('div'); d.className = 'dp-desc'; d.style.color = nd.color; d.textContent = 'Натисни модуль для деталей'; h.appendChild(d);
+    panel.appendChild(h);
+    return;
+  }
+
+  // Header
+  var hdr = document.createElement('div'); hdr.className = 'dp-header';
+  var tt = document.createElement('div'); tt.className = 'dp-title'; tt.textContent = det.title; hdr.appendChild(tt);
+  var ff = document.createElement('div'); ff.className = 'dp-file'; ff.textContent = det.file; hdr.appendChild(ff);
+  var dd = document.createElement('div'); dd.className = 'dp-desc'; dd.textContent = det.desc; hdr.appendChild(dd);
+  panel.appendChild(hdr);
+
+  // Bug
+  if (det.bug) {
+    var bugBox = document.createElement('div'); bugBox.className = 'dp-bug';
+    var bid = document.createElement('div'); bid.className = 'dp-bug-id'; bid.textContent = '\u26A0 ' + det.bug.id; bugBox.appendChild(bid);
+    var bdesc = document.createElement('div'); bdesc.className = 'dp-bug-desc'; bdesc.textContent = det.bug.desc; bugBox.appendChild(bdesc);
+    var bfix = document.createElement('div'); bfix.className = 'dp-bug-fix'; bfix.textContent = 'Fix: ' + det.bug.fix; bugBox.appendChild(bfix);
+    panel.appendChild(bugBox);
+  }
+
+  // Inputs/Outputs
+  if (det.inputs && det.inputs.length) {
+    var sec = document.createElement('div'); sec.className = 'dp-section';
+    var stit = document.createElement('div'); stit.className = 'dp-section-title'; stit.textContent = 'Connections'; sec.appendChild(stit);
+    var inp = document.createElement('div'); inp.className = 'dp-inputs';
+    det.inputs.forEach(function(io) {
+      var row = document.createElement('div'); row.className = 'dp-io-item';
+      var arr = document.createElement('span'); arr.className = 'io-arrow';
+      arr.textContent = io.arrow.replace(/&#8592;/g, '\u2190').replace(/&#8594;/g, '\u2192');
+      var txt = document.createElement('span'); txt.className = 'io-text';
+      txt.textContent = io.text + ' ';
+      var src = document.createElement('span'); src.className = 'io-source';
+      src.textContent = io.source.replace(/&rarr;/g, '\u2192').replace(/&amp;/g, '&');
+      txt.appendChild(src);
+      row.appendChild(arr); row.appendChild(txt);
+      inp.appendChild(row);
+    });
+    sec.appendChild(inp);
+    panel.appendChild(sec);
+  }
+}
+
+function showEmptyDetail() {
+  var panel = document.getElementById('detail-panel');
+  panel.textContent = '';
+  var empty = document.createElement('div'); empty.className = 'dp-empty';
+  var arr = document.createElement('div'); arr.className = 'dp-arrow'; arr.textContent = '\u25C4'; empty.appendChild(arr);
+  var txt = document.createElement('div'); txt.textContent = 'Натисни на модуль'; empty.appendChild(txt);
+  var sub = document.createElement('div'); sub.style.fontSize = '9px'; sub.textContent = 'в схемі зліва'; empty.appendChild(sub);
+  panel.appendChild(empty);
+}
+</script>
+</body>
+</html>

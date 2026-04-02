@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api': 'http://localhost:8000',
       '/compile-from-params': 'http://localhost:8000',
       '/compile-from-session': 'http://localhost:8000',
       '/generate-seed': 'http://localhost:8000',
@@ -13,6 +14,7 @@ export default defineConfig({
       '/init-questions': 'http://localhost:8000',
       '/init-create-character': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
+      '/logs': 'http://localhost:8000',
     },
   },
   build: {

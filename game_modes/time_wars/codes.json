@@ -1,0 +1,385 @@
+[
+  {
+    "id": "mini_boost",
+    "name": "Мінімальний буст",
+    "class": "c",
+    "type": "self",
+    "base_ev": 1,
+    "cost_mana": 14,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 1,
+    "effect_self_max": 1,
+    "effect_other_min": 0,
+    "effect_other_max": 0,
+    "choices": [
+      {
+        "id": "use",
+        "name": "Використати",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 1, "effect_other": 0, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "support",
+    "name": "Підтримка",
+    "class": "c",
+    "type": "give",
+    "base_ev": 2,
+    "cost_mana": 14,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": false,
+    "target_other": true,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 0,
+    "effect_self_max": 0,
+    "effect_other_min": 2,
+    "effect_other_max": 2,
+    "choices": [
+      {
+        "id": "give",
+        "name": "Дати 2 хв обраному",
+        "target_self": false,
+        "target_other": true,
+        "outcomes": [
+          { "effect_self": 0, "effect_other": 2, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "time_cache",
+    "name": "Часовий кеш",
+    "class": "b",
+    "type": "self",
+    "base_ev": 2,
+    "cost_mana": 28,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 2,
+    "effect_self_max": 2,
+    "effect_other_min": 0,
+    "effect_other_max": 0,
+    "choices": [
+      {
+        "id": "use",
+        "name": "Поповнити час (+2 хв)",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 2, "effect_other": 0, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pickpocket",
+    "name": "Кишеньковий злодій",
+    "class": "b",
+    "type": "steal",
+    "base_ev": 1,
+    "cost_mana": 26,
+    "risk": true,
+    "risk_level": 1,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": true,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 1,
+    "effect_self_max": 1,
+    "effect_other_min": -1.5,
+    "effect_other_max": -1.5,
+    "choices": [
+      {
+        "id": "steal",
+        "name": "Вкрасти: -1.5 хв ворогу, +1 хв собі",
+        "target_self": true,
+        "target_other": true,
+        "outcomes": [
+          { "effect_self": 1, "effect_other": -1.5, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gift",
+    "name": "Щедрий дар",
+    "class": "b",
+    "type": "give",
+    "base_ev": 3,
+    "cost_mana": 22,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": false,
+    "target_other": true,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 0,
+    "effect_self_max": 0,
+    "effect_other_min": 3,
+    "effect_other_max": 3,
+    "choices": [
+      {
+        "id": "give",
+        "name": "Подарувати 3 хв союзнику",
+        "target_self": false,
+        "target_other": true,
+        "outcomes": [
+          { "effect_self": 0, "effect_other": 3, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gamble_boost",
+    "name": "Азартний буст",
+    "class": "b",
+    "type": "self",
+    "base_ev": 1.5,
+    "cost_mana": 24,
+    "risk": true,
+    "risk_level": 1,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 0,
+    "effect_self_max": 3,
+    "effect_other_min": 0,
+    "effect_other_max": 0,
+    "choices": [
+      {
+        "id": "gamble",
+        "name": "Зіграти: 50% +3 хв / 50% нічого",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 3, "effect_other": 0, "probability": 0.5 },
+          { "effect_self": 0, "effect_other": 0, "probability": 0.5 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "vampire",
+    "name": "Вампір",
+    "class": "a",
+    "type": "steal",
+    "base_ev": 1.5,
+    "cost_mana": 40,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": true,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 1.5,
+    "effect_self_max": 1.5,
+    "effect_other_min": -2,
+    "effect_other_max": -2,
+    "choices": [
+      {
+        "id": "drain",
+        "name": "Забрати 2 хв, собі +1.5",
+        "target_self": true,
+        "target_other": true,
+        "outcomes": [
+          { "effect_self": 1.5, "effect_other": -2, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "power_boost",
+    "name": "Потужний буст",
+    "class": "a",
+    "type": "self",
+    "base_ev": 4,
+    "cost_mana": 56,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 4,
+    "effect_self_max": 4,
+    "effect_other_min": 0,
+    "effect_other_max": 0,
+    "choices": [
+      {
+        "id": "use",
+        "name": "Активувати (+4 хв)",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 4, "effect_other": 0, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "time_bomb",
+    "name": "Часова бомба",
+    "class": "a",
+    "type": "minus_all",
+    "base_ev": 3,
+    "cost_mana": 32,
+    "risk": true,
+    "risk_level": 1,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": true,
+    "target_all_except_one": false,
+    "effect_self_min": -1,
+    "effect_self_max": -1,
+    "effect_other_min": -2,
+    "effect_other_max": -2,
+    "choices": [
+      {
+        "id": "detonate",
+        "name": "Підірвати: всі -2 хв, ти -1 хв",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": -1, "effect_other": -2, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "solidarity",
+    "name": "Солідарність",
+    "class": "a",
+    "type": "plus_all_except_one",
+    "base_ev": 3,
+    "cost_mana": 48,
+    "risk": true,
+    "risk_level": 1,
+    "position_gated": false,
+    "position_modifier": 1.0,
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": true,
+    "effect_self_min": 2,
+    "effect_self_max": 2,
+    "effect_other_min": 2,
+    "effect_other_max": 2,
+    "choices": [
+      {
+        "id": "boost_all",
+        "name": "Посилити всіх, крім одного (+2 хв)",
+        "target_self": false,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 2, "effect_other": 2, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "black_hole",
+    "name": "Чорна діра",
+    "class": "S",
+    "type": "steal",
+    "base_ev": 3.5,
+    "cost_mana": 64,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": true,
+    "position_modifier": 1.0,
+    "position_discount": {
+      "enabled": true,
+      "multiplier_if_last": 0.65,
+      "multiplier_if_bottom2": 0.80
+    },
+    "target_self": true,
+    "target_other": true,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 3,
+    "effect_self_max": 3,
+    "effect_other_min": -4,
+    "effect_other_max": -4,
+    "choices": [
+      {
+        "id": "suck",
+        "name": "Поглинути: -4 хв ворогу, +3 хв собі",
+        "target_self": true,
+        "target_other": true,
+        "outcomes": [
+          { "effect_self": 3, "effect_other": -4, "probability": 1.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "chrono_surge",
+    "name": "Хроно-сплеск",
+    "class": "S",
+    "type": "self",
+    "base_ev": 5,
+    "cost_mana": 70,
+    "risk": false,
+    "risk_level": 0,
+    "position_gated": true,
+    "position_modifier": 1.0,
+    "position_discount": {
+      "enabled": true,
+      "multiplier_if_last": 0.65,
+      "multiplier_if_bottom2": 0.80
+    },
+    "target_self": true,
+    "target_other": false,
+    "target_all": false,
+    "target_all_except_one": false,
+    "effect_self_min": 5,
+    "effect_self_max": 5,
+    "effect_other_min": 0,
+    "effect_other_max": 0,
+    "choices": [
+      {
+        "id": "surge",
+        "name": "Активувати: +5 хв (тільки для відстаючих)",
+        "target_self": true,
+        "target_other": false,
+        "outcomes": [
+          { "effect_self": 5, "effect_other": 0, "probability": 1.0 }
+        ]
+      }
+    ]
+  }
+]

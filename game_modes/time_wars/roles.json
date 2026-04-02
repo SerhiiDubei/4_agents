@@ -1,0 +1,97 @@
+{
+  "roles": [
+    {
+      "id": "role_snake",
+      "name": "Змій",
+      "description": "Схильний красти час; при провалі менш покараний.",
+      "skills": [
+        {
+          "id": "skill_snake_steal_bonus",
+          "name": "Гострий зуб",
+          "trigger": "BEFORE_STEAL_ROLL",
+          "effect": { "steal_roll_bonus": 1 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        },
+        {
+          "id": "skill_snake_fail_soften",
+          "name": "Відполіз",
+          "trigger": "ON_STEAL_FAIL",
+          "effect": { "steal_fail_penalty_override": 5 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        }
+      ]
+    },
+    {
+      "id": "role_peacekeeper",
+      "name": "Миротворець",
+      "description": "Бонус за чисту кооперацію; перша крадіжка дуже дорога.",
+      "skills": [
+        {
+          "id": "skill_peace_final_bonus",
+          "name": "Чисті руки",
+          "trigger": "ON_GAME_END",
+          "effect": { "bonus_per_coop_no_steal": 10 },
+          "cost": { "time_seconds": 0 },
+          "passive": true,
+          "condition": "steal_count == 0"
+        },
+        {
+          "id": "skill_peace_first_steal",
+          "name": "Сором",
+          "trigger": "ON_FIRST_STEAL_ATTEMPT",
+          "effect": { "extra_penalty_time": 20 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        }
+      ]
+    },
+    {
+      "id": "role_banker",
+      "name": "Банкір",
+      "description": "Коди дають більше часу; не може використовувати Steal.",
+      "skills": [
+        {
+          "id": "skill_banker_code_boost",
+          "name": "Відсоток",
+          "trigger": "ON_CODE_USE",
+          "effect": { "code_time_multiplier": 1.5 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        },
+        {
+          "id": "skill_banker_no_steal",
+          "name": "Честь",
+          "trigger": "BLOCK",
+          "effect": { "block_action": "STEAL" },
+          "cost": {},
+          "passive": true
+        }
+      ]
+    },
+    {
+      "id": "role_gambler",
+      "name": "Авантюрист",
+      "description": "Сильніший успіх крадіжки, гірший провал.",
+      "skills": [
+        {
+          "id": "skill_gambler_steal_extra",
+          "name": "Великий куш",
+          "trigger": "ON_STEAL_SUCCESS",
+          "effect": { "extra_time_stolen": 15 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        },
+        {
+          "id": "skill_gambler_steal_fail",
+          "name": "Програш",
+          "trigger": "ON_STEAL_FAIL",
+          "effect": { "steal_fail_penalty_override": 25 },
+          "cost": { "time_seconds": 0 },
+          "passive": true
+        }
+      ]
+    }
+  ]
+}

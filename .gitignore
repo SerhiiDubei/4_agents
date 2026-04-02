@@ -18,12 +18,18 @@ venv/
 # Node
 node_modules/
 frontend_src/
+reference-ui/
 
 # Build output committed for Railway deploy; regenerate with: cd frontend && npm run build
 # static/dist/
 
 # Logs
 logs/
+
+# Runtime artifacts (regenerate on deploy)
+timewars.db
+sim_results*.json
+sim_report*.html
 
 # macOS
 .DS_Store
