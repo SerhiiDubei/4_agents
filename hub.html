@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 Agents — Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--card:#161b22;--border:#30363d;--accent:#58a6ff;
+  --green:#3dd68c;--yellow:#f7b731;--red:#f25f5c;--purple:#bc8cff;
+  --text:#e6edf3;--sub:#8b949e;--radius:12px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:16px}
+
+/* ── Header ── */
+.hdr{text-align:center;padding:32px 16px 24px}
+.hdr h1{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:700;letter-spacing:-0.5px}
+.hdr h1 span{color:var(--accent)}
+.hdr p{color:var(--sub);margin-top:8px;font-size:0.95rem}
+
+/* ── Grid ── */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+  max-width:960px;
+  margin:0 auto;
+}
+
+/* ── Card ── */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;cursor:pointer;text-decoration:none;color:inherit;
+  transition:border-color .2s,transform .15s,box-shadow .2s;
+  display:flex;flex-direction:column;gap:10px;
+  position:relative;overflow:hidden;
+}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.card:active{transform:translateY(0)}
+.card.disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
+
+.card-icon{font-size:2rem;line-height:1}
+.card-title{font-size:1.1rem;font-weight:600}
+.card-desc{font-size:0.85rem;color:var(--sub);line-height:1.5}
+.card-tag{
+  display:inline-block;font-size:0.7rem;font-weight:600;letter-spacing:.5px;
+  padding:2px 8px;border-radius:20px;margin-top:4px;text-transform:uppercase;
+}
+.tag-live{background:rgba(61,214,140,.15);color:var(--green);border:1px solid rgba(61,214,140,.3)}
+.tag-dev {background:rgba(247,183,49,.15);color:var(--yellow);border:1px solid rgba(247,183,49,.3)}
+.tag-docs{background:rgba(88,166,255,.15);color:var(--accent);border:1px solid rgba(88,166,255,.3)}
+.tag-ext {background:rgba(188,140,255,.15);color:var(--purple);border:1px solid rgba(188,140,255,.3)}
+
+/* accent stripe */
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--stripe,var(--border));border-radius:var(--radius) var(--radius) 0 0;
+  transition:opacity .2s;opacity:.6;
+}
+.card:hover::before{opacity:1}
+.stripe-green{--stripe:var(--green)}
+.stripe-yellow{--stripe:var(--yellow)}
+.stripe-blue{--stripe:var(--accent)}
+.stripe-purple{--stripe:var(--purple)}
+.stripe-red{--stripe:var(--red)}
+
+/* ── Section header ── */
+.section-hdr{
+  max-width:960px;margin:28px auto 12px;
+  font-size:0.75rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--sub);
+  padding:0 2px;border-bottom:1px solid var(--border);padding-bottom:8px;
+}
+
+/* ── Status dot ── */
+.status{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--sub);margin-top:auto}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--sub)}
+.dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot.yellow{background:var(--yellow)}
+
+/* ── Footer ── */
+.footer{text-align:center;margin-top:40px;padding:16px;color:var(--sub);font-size:0.8rem}
+.footer a{color:var(--accent);text-decoration:none}
+
+/* ── Mobile ── */
+@media(max-width:480px){
+  body{padding:12px}
+  .hdr{padding:20px 8px 16px}
+  .grid{grid-template-columns:1fr}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>4 <span>Agents</span></h1>
+  <p>Мультиагентна соціальна симуляція — всі модулі в одному місці</p>
+</div>
+
+<!-- SIMULATIONS -->
+<div class="section-hdr">Симуляції</div>
+<div class="grid">
+
+  <a class="card stripe-green" href="/island">
+    <div class="card-icon">🏝️</div>
+    <div class="card-title">Island Simulation</div>
+    <div class="card-desc">Розширена дилема в'язня. Агенти кооперують або зраджують, ведуть діалог, отримують очки.</div>
+    <span class="card-tag tag-live">Активний</span>
+    <div class="status"><span class="dot green"></span>порт 8000 · /island</div>
+  </a>
+
+  <a class="card stripe-yellow" href="http://localhost:5174" target="_blank" id="cardTW">
+    <div class="card-icon">⚔️</div>
+    <div class="card-title">Time Wars</div>
+    <div class="card-desc">Тік-симуляція. Агенти накопичують або крадуть час, використовують скіли та коди.</div>
+    <span class="card-tag tag-dev">В розробці</span>
+    <div class="status"><span class="dot yellow"></span>порт 5174 · окремий сервер</div>
+  </a>
+
+</div>
+
+<!-- TOOLS -->
+<div class="section-hdr">Інструменти</div>
+<div class="grid">
+
+  <a class="card stripe-blue" href="/">
+    <div class="card-icon">👤</div>
+    <div class="card-title">Ініціалізація агентів</div>
+    <div class="card-desc">Створення нових агентів через покрокові питання. Генерує SOUL.md + CORE.json.</div>
+    <span class="card-tag tag-live">React App</span>
+    <div class="status"><span class="dot green"></span>порт 8000 · /</div>
+  </a>
+
+</div>
+
+<!-- DOCS -->
+<div class="section-hdr">Документація та візуалізації</div>
+<div class="grid">
+
+  <a class="card stripe-purple" href="/docs/mcs_v3.html" target="_blank">
+    <div class="card-icon">🧠</div>
+    <div class="card-title">MCS Architecture v3</div>
+    <div class="card-desc">NPC Anatomy — інтерактивна візуалізація архітектури агентів.</div>
+    <span class="card-tag tag-docs">Docs</span>
+  </a>
+
+  <a class="card stripe-purple" href="/docs/mcs_v4_interactive.html" target="_blank">
+    <div class="card-icon">🔬</div>
+    <div class="card-title">MCS Architecture v4</div>
+    <div class="card-desc">Найновіша інтерактивна візуалізація системи прийняття рішень агентів.</div>
+    <span class="card-tag tag-docs">Docs</span>
+  </a>
+
+  <a class="card stripe-purple" href="/docs/PRODUCT_ROADMAP.html" target="_blank">
+    <div class="card-icon">🗺️</div>
+    <div class="card-title">Product Roadmap</div>
+    <div class="card-desc">Дорожня карта розвитку платформи.</div>
+    <span class="card-tag tag-docs">Docs</span>
+  </a>
+
+  <a class="card stripe-blue" href="/ARCHITECTURE.html" target="_blank">
+    <div class="card-icon">🏗️</div>
+    <div class="card-title">Architecture Overview</div>
+    <div class="card-desc">Загальна архітектура системи, шари, потоки даних.</div>
+    <span class="card-tag tag-docs">Docs</span>
+  </a>
+
+</div>
+
+<!-- API -->
+<div class="section-hdr">API</div>
+<div class="grid">
+
+  <a class="card stripe-blue" href="/docs" target="_blank">
+    <div class="card-icon">📡</div>
+    <div class="card-title">API Docs (Swagger)</div>
+    <div class="card-desc">FastAPI автогенерована документація всіх ендпоінтів.</div>
+    <span class="card-tag tag-docs">OpenAPI</span>
+    <div class="status"><span class="dot green"></span>порт 8000 · /docs</div>
+  </a>
+
+  <a class="card stripe-green" href="/health" target="_blank">
+    <div class="card-icon">💚</div>
+    <div class="card-title">Health Check</div>
+    <div class="card-desc">Статус сервера. Використовується Railway для перевірки деплою.</div>
+    <span class="card-tag tag-live">GET /health</span>
+  </a>
+
+</div>
+
+<div class="footer">
+  <a href="https://github.com/SerhiiDubei/4_agents" target="_blank">GitHub: SerhiiDubei/4_agents</a>
+  &nbsp;·&nbsp;
+  <a href="/health">health</a>
+</div>
+
+<script>
+// If Time Wars server is not reachable locally, mark card as external/disabled info
+// (just visual hint, no blocking)
+const twCard = document.getElementById('cardTW');
+if(twCard && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
+  twCard.href = '#';
+  twCard.querySelector('.card-desc').textContent += ' (запускається окремо: python serve_time_wars.py --port 5174)';
+  twCard.querySelector('.dot').className = 'dot';
+  twCard.querySelector('.status').lastChild.textContent = 'не доступний на Railway';
+}
+</script>
+
+</body>
+</html>

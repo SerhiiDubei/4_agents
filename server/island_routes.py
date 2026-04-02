@@ -119,7 +119,7 @@ async def island_run(req: IslandRunRequest):
     )
 
 
-# ─── HTML launcher page ───────────────────────────────────────────────────────
+# ─── HTML pages ───────────────────────────────────────────────────────────────
 
 @router.get("/island")
 async def island_launcher():
@@ -127,3 +127,11 @@ async def island_launcher():
     if html_path.exists():
         return FileResponse(html_path, media_type="text/html")
     return HTMLResponse("<h1>island_launcher.html not found</h1>", status_code=404)
+
+
+@router.get("/hub")
+async def hub():
+    html_path = _ROOT / "hub.html"
+    if html_path.exists():
+        return FileResponse(html_path, media_type="text/html")
+    return HTMLResponse("<h1>hub.html not found</h1>", status_code=404)

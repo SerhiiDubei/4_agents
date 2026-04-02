@@ -1876,6 +1876,15 @@ app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 if LOGS_DIR.exists():
     app.mount("/logs", StaticFiles(directory=str(LOGS_DIR)), name="logs")
 
+_docs_dir = Path(__file__).parent.parent / "docs"
+if _docs_dir.exists():
+    app.mount("/docs", StaticFiles(directory=str(_docs_dir)), name="docs")
+
+_root_dir = Path(__file__).parent.parent
+_ROOT_HTML_FILES = {
+    f.name for f in _root_dir.glob("*.html")
+}
+
 
 def _index_path() -> Path:
     return DIST_DIR / "index.html"
@@ -1886,12 +1895,8 @@ async def serve_index():
     idx = _index_path()
     if idx.exists():
         return FileResponse(idx)
-    return HTMLResponse(
-        "<!DOCTYPE html><html><body><h1>Frontend not built</h1>"
-        "<p>Run <code>npm run build</code> in frontend/ and deploy again.</p>"
-        "<p><a href='/health'>/health</a></p></body></html>",
-        status_code=503,
-    )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/hub")
 
 
 # ---------------------------------------------------------------------------
@@ -1904,7 +1909,11 @@ app.include_router(_island_router)
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    """Serve React SPA for all non-API routes. /logs/ and /assets/ are handled by mounts above."""
+    """Serve React SPA; also serves root-level .html files and falls back to hub."""
+    # Root-level HTML files (arch_*.html, hub.html, island_launcher.html, etc.)
+    if full_path in _ROOT_HTML_FILES:
+        return FileResponse(str(_root_dir / full_path), media_type="text/html")
+    # React SPA dist files
     file_path = DIST_DIR / full_path
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
