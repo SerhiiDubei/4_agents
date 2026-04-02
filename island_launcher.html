@@ -307,15 +307,11 @@ function empty(el){ while(el.firstChild) el.removeChild(el.firstChild); }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(name){
-  ['log','we','sum','llm'].forEach(t=>{
-    g('tab'+t[0].toUpperCase()+t.slice(1)).classList.toggle('active', t===name);
-    g('panel'+t[0].toUpperCase()+t.slice(1)).classList.toggle('active', t===name);
+  const ids={log:['tabLog','panelLog'],we:['tabWE','panelWE'],sum:['tabSum','panelSum'],llm:['tabLLM','panelLLM']};
+  Object.entries(ids).forEach(([t,[tid,pid]])=>{
+    const te=g(tid); if(te) te.classList.toggle('active', t===name);
+    const pe=g(pid); if(pe) pe.classList.toggle('active', t===name);
   });
-  // Handle non-standard IDs
-  g('tabWE').classList.toggle('active', name==='we');
-  g('panelWE').classList.toggle('active', name==='we');
-  g('tabLLM').classList.toggle('active', name==='llm');
-  g('panelLLM').classList.toggle('active', name==='llm');
 }
 
 // ── Archetype ─────────────────────────────────────────────────────────────────
