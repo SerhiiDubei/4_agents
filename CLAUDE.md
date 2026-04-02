@@ -91,6 +91,30 @@ agent_synth_natalka
 - **Active branch:** `feature/time-wars-roles`
 - **Branches:** main, feature/time-wars-roles
 
+## Railway Deployment
+
+**Цей проект деплоїться на Railway.** Кожен `git push` на підключену гілку = автоматичний редеплой.
+
+```
+Repo:    https://github.com/SerhiiDubei/4_agents
+Branch:  feature/time-wars-roles  (або main після merge)
+Config:  railway.toml  ←  живе в репо, не треба руками
+```
+
+**Required Variables у Railway dashboard** (Project → Variables):
+- `OPENROUTER_API_KEY` — обов'язково, без нього LLM виклики падають
+- `JWT_SECRET_KEY` — обов'язково, без нього токени скидаються при кожному рестарті
+
+**Railway auto-detects:** `PORT` (сам інжектить), Python 3.11 (з `.python-version`)
+
+**Start command:** `python run.py` (з `Procfile` і `railway.toml`)
+
+**Health check:** `GET /health` → `{"status": "ok"}`
+
+**Локально vs Railway:**
+- Локально: `.env` файл з ключами
+- Railway: Variables у dashboard (`.env` ніколи не комітимо)
+
 ## Development Rules
 - Never commit `.env` or `openrouter_keys.txt`
 - Tests live in `tests/` — run them after any change to game_modes/ or pipeline/
