@@ -37,16 +37,33 @@ from game_modes.time_wars.constants import (
 )
 
 
+def _load_soul_md(agents_root: Optional[Path], agent_id: str) -> str:
+    """Load full SOUL.md for agent. Returns empty string if file not found."""
+    if not agents_root:
+        agents_root = _default_agents_root()
+    if not agents_root:
+        return ""
+    soul_path = agents_root / agent_id / "SOUL.md"
+    if not soul_path.exists():
+        return ""
+    try:
+        return soul_path.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
 def build_context(
     session: Session,
     agent_id: str,
     agent_name: str = "",
     last_events_count: int = 10,
     last_messages: Optional[List[dict]] = None,
+    agents_root: Optional[Path] = None,
 ) -> str:
     """
     Build a string context for the agent: own time, role, skills, others' times,
     last events, inventory, and comm-phase messages from this round.
+    Includes SOUL.md personality profile (first 800 chars) when available.
     """
     p = session.get_player(agent_id)
     if not p:
@@ -76,8 +93,15 @@ def build_context(
             text = m.get("text", "")
             msgs_str += f"  [{ch}] {sender}: {text}\n"
 
+    # Load SOUL.md personality profile and prepend to context
+    soul_md = _load_soul_md(agents_root, agent_id)
+    soul_section = ""
+    if soul_md:
+        soul_section = f"PERSONALITY PROFILE (SOUL.md):\n{soul_md[:800]}\n\n"
+
     return (
-        f"You: {agent_name or agent_id}. Time left: {p.time_remaining_sec}s. Role: {p.role_id}. "
+        soul_section
+        + f"You: {agent_name or agent_id}. Time left: {p.time_remaining_sec}s. Role: {p.role_id}. "
         f"Skills: {', '.join(skill_names)}.\n"
         f"Others:\n" + "\n".join(others) + "\n"
         f"Recent events:\n{events_str}"

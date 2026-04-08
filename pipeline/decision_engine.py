@@ -199,6 +199,20 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
         else:
             strategic_score = abs(action - 0.5) * (0.5 - sh) * 0.25
 
+        # --- risk_appetite_score: role-aware steal bias for Snake/Gambler ---
+        # Agents with low cooperation_bias (<40) AND high risk_appetite (>60) are
+        # naturally predatory — they benefit from a steal-leaning bonus.
+        # Bonus applies only to steal-range actions (action < 0.5).
+        # Magnitude +0.10 to +0.18 — noticeable but does not override other factors.
+        ra = core.risk_appetite / 100  # 0-1
+        if cb_effective < 0.40 and ra > 0.60 and action < 0.5:
+            # Scale: max bonus when cb=0 and ra=1, zero at cb=0.40 or ra=0.60
+            steal_intensity = (0.40 - cb_effective) / 0.40  # 0-1 as cb goes from 0.40→0
+            risk_intensity = (ra - 0.60) / 0.40             # 0-1 as ra goes from 0.60→1
+            risk_appetite_score = steal_intensity * risk_intensity * 0.18 * (0.5 - action) / 0.5
+        else:
+            risk_appetite_score = 0.0
+
         # --- retaliation: if others defected → defection more attractive ---
         # Scaled by (1-cb) so cooperative agents retaliate less
         retaliation_score = (
@@ -227,6 +241,7 @@ def _action_scores(core: CoreParams, context: AgentContext) -> List[float]:
             + retaliation_score
             + endgame_score
             + consequence_score
+            + risk_appetite_score
         )
         scores.append(total)
 
