@@ -116,6 +116,10 @@ class RoundResult:
     round_event: dict = field(default_factory=dict)  # {template, involved_count, formatted_per_agent}
     participants_per_agent: Dict[str, List[str]] = field(default_factory=dict)  # agent_id -> [participant_ids]
     round_narrative: str = ""  # широкий опис: що відбулося для кожного і всіх разом
+    # 🔷 Social Fabric — new fields (empty when fabric not active)
+    social_actions: Dict[str, List[dict]] = field(default_factory=dict)   # {agent_id: [{target,type,value,vis}]}
+    budget_state: Dict[str, dict] = field(default_factory=dict)           # {agent_id: {pool,spent,carryover,received}}
+    trust_delta: Dict[str, Dict[str, float]] = field(default_factory=dict) # {agent_id: {peer_id: delta}}
 
     def _round_action_val(self, val):
         """Round action value for JSON; supports legacy float or multi-dim dict."""
@@ -150,6 +154,13 @@ class RoundResult:
             d["participants_per_agent"] = self.participants_per_agent
         if self.round_narrative:
             d["round_narrative"] = self.round_narrative
+        # 🔷 Social Fabric fields — only included when fabric was active
+        if self.social_actions:
+            d["🔷_social_actions"] = self.social_actions
+        if self.budget_state:
+            d["🔷_budget_state"] = self.budget_state
+        if self.trust_delta:
+            d["🔷_trust_delta"] = self.trust_delta
         return d
 
 
@@ -270,6 +281,7 @@ def run_simulation(
     from pipeline.memory import RoundMemory, save_memory
     from simulation.payoff_matrix import calculate_round_payoffs
     from simulation.reveal_skill import RevealTracker, visible_actions
+    from simulation.social_fabric import SocialFabric, SocialState, SocialAction
 
     import uuid
     sim_id = simulation_id or str(uuid.uuid4())[:8]
@@ -280,6 +292,19 @@ def run_simulation(
     reveal_tracker = RevealTracker.initialize(agent_ids)
     cumulative_scores: Dict[str, float] = {a.agent_id: 0.0 for a in agents}
     action_log: Dict[int, Dict[str, Dict[str, Dict[str, float]]]] = {}
+
+    # 🔷 Social Fabric — initialize per-agent states
+    social_fabric = SocialFabric()
+    for _agent in agents:
+        social_fabric.add(SocialState.from_core(_agent.agent_id, _agent.core))
+    # Trust map mirrors AgentState.trust — fabric updates this each round
+    social_trust_map: Dict[str, Dict[str, float]] = {
+        a.agent_id: dict(a.states.trust) if (a.states and hasattr(a.states, "trust")) else {}
+        for a in agents
+    }
+    if verbose:
+        import sys as _sys
+        print(f"  🔷 SocialFabric initialized: {len(agents)} agents", file=_sys.stderr, flush=True)
 
     # Storytell — one story for the whole game (or custom override)
     story_params = None
@@ -585,6 +610,8 @@ def run_simulation(
                         situation_reflection=situation_reflections.get(agent.agent_id, ""),
                         round_event_text=ev_text,
                         event_participants=ev_parts,
+                        budget_pool=social_fabric.get(agent.agent_id).budget_pool
+                            if social_fabric.get(agent.agent_id) else 1.0,
                     )
                     if verbose:
                         print(f"    [rsn]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
@@ -691,6 +718,91 @@ def run_simulation(
                 round_actions[agent.agent_id] = agent_actions
 
             action_log[round_num] = round_actions
+
+            # 🔷 Social Fabric — build SocialAction list from reasoning results
+            round_social_actions: Dict[str, list] = {}
+            for _agent in agents:
+                _r = agent_reasoning.get(_agent.agent_id)
+                _sa_dicts = _r.social_actions if _r and _r.social_actions else []
+                _peer_ids = [a.agent_id for a in agents if a.agent_id != _agent.agent_id]
+                _state = social_fabric.get(_agent.agent_id)
+
+                if _sa_dicts:
+                    # Convert dicts → SocialAction objects (validate)
+                    _sa_objs = []
+                    _peer_set = set(_peer_ids)
+                    for _sa in _sa_dicts:
+                        try:
+                            _t = _sa.get("target", "")
+                            if _t not in _peer_set:
+                                # 🔷 target hallucination — silently drop invalid target
+                                import sys as _sys
+                                print(
+                                    f"  🔷 [r{round_num}] {result.agent_names.get(_agent.agent_id, _agent.agent_id)}"
+                                    f" → invalid target '{_t}' (not in peers), dropped",
+                                    file=_sys.stderr, flush=True,
+                                )
+                                continue
+                            _sa_objs.append(SocialAction(
+                                target=_t,
+                                type=_sa.get("type", "ignore"),
+                                value=float(_sa.get("value", 0.0)),
+                                visibility=_sa.get("visibility", "public"),
+                            ))
+                        except (KeyError, ValueError):
+                            pass
+                    # Enforce minimum + normalize to budget
+                    _sa_objs = social_fabric.enforce_minimum_action(_agent.agent_id, _sa_objs, _peer_ids)
+                    if _state:
+                        _sa_objs = _state.normalize_actions(_sa_objs)
+                    round_social_actions[_agent.agent_id] = [s.to_dict() for s in _sa_objs]
+                else:
+                    # Legacy path: no social_actions from LLM — inject ignore as minimum
+                    _sa_objs = social_fabric.enforce_minimum_action(_agent.agent_id, [], _peer_ids)
+                    round_social_actions[_agent.agent_id] = [s.to_dict() for s in _sa_objs]
+
+            # Apply round: update trust + recalculate budgets
+            _trust_before = {aid: dict(t) for aid, t in social_trust_map.items()}
+            _sa_objs_map = {}
+            for _aid, _sa_list in round_social_actions.items():
+                _sa_objs_map[_aid] = [
+                    SocialAction(s["target"], s["type"], s["value"], s["visibility"])
+                    for s in _sa_list
+                ]
+            social_trust_map = social_fabric.apply_round(_sa_objs_map, social_trust_map)
+
+            # Build budget_state snapshot + trust_delta for logging
+            _budget_state_snap: Dict[str, dict] = {}
+            _trust_delta_snap: Dict[str, Dict[str, float]] = {}
+            for _agent in agents:
+                _state = social_fabric.get(_agent.agent_id)
+                if _state:
+                    _budget_state_snap[_agent.agent_id] = {
+                        "pool": _state.budget_pool,
+                        "spent": _state.budget_spent_last,
+                        "carryover": round(max(0.0, _state.budget_pool - _state.budget_base), 3),
+                        "received": dict(_state.received_last_round),
+                    }
+                _before = _trust_before.get(_agent.agent_id, {})
+                _after  = social_trust_map.get(_agent.agent_id, {})
+                _deltas = {pid: round(_after.get(pid, 0.5) - _before.get(pid, 0.5), 4)
+                           for pid in set(list(_before.keys()) + list(_after.keys()))}
+                _trust_delta_snap[_agent.agent_id] = {k: v for k, v in _deltas.items() if abs(v) > 0.001}
+
+            # 🔷 Verbose logging for social fabric
+            if verbose:
+                print(f"  🔷 [r{round_num}] social fabric:", file=_sys.stderr, flush=True)
+                for _aid, _sa_list in round_social_actions.items():
+                    _name = agent_names.get(_aid, _aid)
+                    _bs = _budget_state_snap.get(_aid, {})
+                    _acts_str = ", ".join(
+                        f"{s['type']}→{agent_names.get(s['target'], s['target'][:6])}({s['value']:.2f},{s['visibility'][:3]})"
+                        for s in _sa_list
+                    )
+                    print(
+                        f"    🔷 {_name}: [{_acts_str}]  budget={_bs.get('pool','?')}",
+                        file=_sys.stderr, flush=True,
+                    )
 
             if on_progress:
                 on_progress(f"round:{round_num}:{total_rounds}:decisions_done")
@@ -906,6 +1018,9 @@ def run_simulation(
                 round_event=round_event_dict,
                 participants_per_agent=participants_per_agent,
                 round_narrative=round_narrative,
+                social_actions=round_social_actions,
+                budget_state=_budget_state_snap,
+                trust_delta=_trust_delta_snap,
             )
             result.rounds.append(round_result)
 
