@@ -876,14 +876,24 @@ def print_decision_breakdown(round_result, agent_ids, names: dict = None, cores:
 
             print(f"    → {YELLOW}{tgt_disp:<10}{RESET}  {col}{coop:.2f}  {label}{RESET}", flush=True)
 
-            # Show probability distribution if core available
+            # Show probability distribution per-target (includes trust + history)
             if core_dict:
                 try:
                     core = CoreParams.from_dict(core_dict)
+                    # Pull per-target trust + betrayal/coop history from state_snapshots
+                    snap = round_result.state_snapshots.get(src_id, {})
+                    tgt_trust = snap.get("trust", {}).get(tgt_id, 0.5)
+                    # betrayals/cooperations from memory not available in snapshot —
+                    # approximate from trust: trust<0.35 → likely betrayals, >0.65 → coops
+                    approx_betrayals = max(0, round((0.5 - tgt_trust) * 6)) if tgt_trust < 0.5 else 0
+                    approx_coops    = max(0, round((tgt_trust - 0.5) * 6)) if tgt_trust > 0.5 else 0
                     ctx = AgentContext(
                         round_number=round_result.round_number,
                         total_rounds=10,
                         reasoning_hint=hint,
+                        trust_scores={tgt_id: tgt_trust},
+                        betrayals_received=approx_betrayals,
+                        cooperations_received=approx_coops,
                     )
                     dist = action_distribution(core, ctx)
                     bar_parts = []
@@ -896,7 +906,8 @@ def print_decision_breakdown(round_result, agent_ids, names: dict = None, cores:
                             bar_parts.append(f"{YELLOW}{short}:{prob:.0%}{'░'*blen}{RESET}")
                         else:
                             bar_parts.append(f"{DIM}{short}:{prob:.0%}{RESET}")
-                    print(f"      {DIM}probs: {' | '.join(bar_parts)}{RESET}", flush=True)
+                    trust_hint = f"довіра={tgt_trust:.2f}"
+                    print(f"      {DIM}probs [{trust_hint}]: {' | '.join(bar_parts)}{RESET}", flush=True)
                 except Exception:
                     pass
 
