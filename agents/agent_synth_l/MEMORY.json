@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_l",
-  "total_score": 56.1763,
+  "total_score": 429.3874,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -512,6 +512,35 @@
         "agent_synth_d": 1.0,
         "agent_synth_f": 0.33,
         "agent_synth_k": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 429.39,
+      "winner": "agent_synth_g",
+      "betrayals_received": 34,
+      "cooperations_received": 46,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, Артурчику, схоже, ти не став тим стратегом, яким себе уявляв. Вождь виявився хитрішим, це факт. Але найбільше розчарували ті, кому довіряв, особливо під кінець. Пам'ятаю, як думав, що Павло і Хесус будуть зі мною до кінця, а вони... А Алєг, навпаки, здивував своєю передбачуваною нещирістю. Наступного разу буду обережнішим із тими, хто надто швидко обіцяє вірність, і більше прислухатимусь до інтуїції. І, мабуть, трохи менше ідеалізму – світ не такий вже й добрий, як мені хотілося б думати.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.66,
+        "agent_synth_k": 0.66,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 1.0
       }
     }
   ],

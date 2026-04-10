@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_j",
-  "total_score": 151.0786,
+  "total_score": 407.1129,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -608,6 +608,35 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 0.66,
         "agent_synth_natalka": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 407.11,
+      "winner": "agent_synth_g",
+      "betrayals_received": 28,
+      "cooperations_received": 52,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все, закінчилось. Вождь виграв, а я... я просто намагався бути чесним. Але, здається, моя чесність не завжди була взаємною. В наступній грі треба бути обережнішим з Алєгом та Артурчиком, вони підвели мене найбільше. Можливо, варто було менше довіряти Хесусу, він часто зраджував. Хоча, знаєш, Роман Романюк, Павло, Катерина Марсова та Наталка Калітчак були досить надійними, на них можна буде покластися наступного разу.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 1.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.66,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 0.66,
+        "agent_synth_mykyta": 0.33,
+        "agent_synth_natalka": 1.0
       }
     }
   ],

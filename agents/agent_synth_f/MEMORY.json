@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_f",
-  "total_score": 69.2009,
+  "total_score": 415.5628,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -560,6 +560,51 @@
         "agent_synth_d": 0.66,
         "agent_synth_l": 0.33,
         "agent_synth_k": 0.33
+      }
+    },
+    {
+      "game_id": "a6ed4d77",
+      "rounds_played": 2,
+      "final_score": 34.68,
+      "winner": "agent_synth_h",
+      "betrayals_received": 3,
+      "cooperations_received": 3,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Марта виграла, молодець. Я, мабуть, занадто намагалася контролювати ситуацію. Треба було більше довіряти іншим, особливо в першому раунді, коли всі були налаштовані на співпрацю. Алєг і Роман Романюк виявилися не такими надійними, як я думала. Наступного разу буду обережнішою з ними.",
+      "trust_snapshot": {
+        "agent_synth_c": 0.33,
+        "agent_synth_h": 0.33,
+        "agent_synth_d": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 415.56,
+      "winner": "agent_synth_g",
+      "betrayals_received": 27,
+      "cooperations_received": 53,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Я розчарована, що не змогла досягти кращого результату. Виходить, довіряла не тим. Вождь виявився найхитрішим, але його тактика принесла йому перемогу. Наступного разу буду обережнішою з Алєгом та Мартою, вони мене зрадили найбільше. Можливо, варто більше довіряти тим, хто стабільно співпрацює, як Павло. Треба краще розбиратися в людях, щоб ефективніше розподіляти ресурси.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.66,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 1.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 1.0,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 0.66,
+        "agent_synth_natalka": 0.66
       }
     }
   ],

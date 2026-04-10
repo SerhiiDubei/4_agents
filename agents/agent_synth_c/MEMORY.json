@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_c",
-  "total_score": 173.1048,
+  "total_score": 73.6648,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -786,6 +786,124 @@
         "agent_synth_dimonchyk": 0.0,
         "agent_synth_mykyta": 0.0,
         "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 7.59,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_d": 1.0
+      }
+    },
+    {
+      "game_id": "4b439b3c",
+      "rounds_played": 2,
+      "final_score": 13.01,
+      "winner": "agent_synth_c",
+      "betrayals_received": 0,
+      "cooperations_received": 2,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_d": 0.66
+      }
+    },
+    {
+      "game_id": "c1b25ed0",
+      "rounds_played": 2,
+      "final_score": 11.15,
+      "winner": "agent_synth_c",
+      "betrayals_received": 1,
+      "cooperations_received": 1,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_d": 1.0
+      }
+    },
+    {
+      "game_id": "d434e537",
+      "rounds_played": 3,
+      "final_score": 17.64,
+      "winner": "agent_synth_c",
+      "betrayals_received": 1,
+      "cooperations_received": 2,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отож, я переміг. Хоч і не без втрат. Роман Романюк спочатку показав себе ненадійним, але потім повністю змінив свою поведінку, що принесло мені значну вигоду. Треба буде придивитися до нього уважніше, можливо, в майбутньому він стане цінним союзником. В цілому, я задоволений результатом, хоч і є над чим працювати. Головне – не забувати, що люди можуть змінюватися, і важливо вміти адаптуватися до нових обставин.",
+      "trust_snapshot": {
+        "agent_synth_d": 1.0
+      }
+    },
+    {
+      "game_id": "a6ed4d77",
+      "rounds_played": 2,
+      "final_score": 33.15,
+      "winner": "agent_synth_h",
+      "betrayals_received": 3,
+      "cooperations_received": 3,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Що ж, Марта виявилася хитрішою, ніж я думав. Її м'які зради коштували мені перемоги, але я запам'ятаю це. Наступного разу буду обережнішим з нею. Катерина, навпаки, спочатку здавалася ненадійною, але потім почала співпрацювати. Романа можна вважати вірним союзником. Треба буде використати це в майбутньому.",
+      "trust_snapshot": {
+        "agent_synth_h": 0.33,
+        "agent_synth_f": 1.0,
+        "agent_synth_d": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 422.67,
+      "winner": "agent_synth_g",
+      "betrayals_received": 48,
+      "cooperations_received": 32,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, гра завершилась. Вождь виявився хитрішим за мене, але я теж дещо зрозумів. Роман Романюк, звичайно, завжди готовий підставити плече, але його лояльність коштує дорого. А от від Павла та Марти я очікував більшої послідовності, їхні дії були непередбачувані. Наступного разу буду обережнішим з Вовою, його щедрість виявилась фальшивою. І, мабуть, не варто так сліпо довіряти Артурчику.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 0.66,
+        "agent_synth_i": 0.33,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.33,
+        "agent_65c37face813": 0.33,
+        "agent_synth_jesus": 0.33,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 73.66,
+      "winner": "agent_synth_d",
+      "betrayals_received": 13,
+      "cooperations_received": 3,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Здається, моя щедрість не була оцінена належним чином. Я розраховував на більш тісну співпрацю, але отримав лише розчарування. Вождь, схоже, зрозумів, як можна трохи виграти, але цього недостатньо. У наступній грі буду обережнішим з Дімончиком і Сергієм, їхня допомога виявилася занадто дорогою.",
+      "trust_snapshot": {
+        "agent_synth_d": 0.33,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_g": 0.33,
+        "agent_synth_n": 1.0
       }
     }
   ],

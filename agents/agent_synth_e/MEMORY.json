@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_e",
-  "total_score": 172.6401,
+  "total_score": 400.7751,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -513,6 +513,35 @@
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 0.33,
         "agent_synth_natalka": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 400.78,
+      "winner": "agent_synth_g",
+      "betrayals_received": 46,
+      "cooperations_received": 34,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Чорт забирай, програв Вождю. Я думав, що контролюю ситуацію, але стільки зрад... Особливо боляче від тих, кому намагався допомогти, як Алєг та Марта. Наступного разу буду жорсткішим з самого початку, не буду давати їм шансу скористатися моєю добротою. Хіба що Катерина Марсова та Микита були вірні до кінця, варто було б з ними триматися ближче.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.0,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.0,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 0.66,
+        "agent_synth_n": 0.66,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 0.0,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.66
       }
     }
   ],

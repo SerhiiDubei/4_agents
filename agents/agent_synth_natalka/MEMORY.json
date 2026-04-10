@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_natalka",
-  "total_score": 132.7617,
+  "total_score": 392.7873,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -178,6 +178,51 @@
         "agent_synth_jesus": 0.66,
         "agent_synth_dimonchyk": 0.66,
         "agent_synth_mykyta": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 83.92,
+      "winner": "agent_synth_n",
+      "betrayals_received": 7,
+      "cooperations_received": 8,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну от і все, закінчилось. Сергій виграв, молодець. Я намагалася бути стратегічною, але, здається, трохи перемудрила. Хесус спочатку здавався щирим, але потім почав хитрувати, як і Марта, в принципі. Може, наступного разу варто бути більш відкритою з самого початку, особливо з тими, хто показує, що заслуговує на довіру. Хоча, з іншого боку, трохи текіли ще нікому не завадило розслабитись.",
+      "trust_snapshot": {
+        "agent_synth_n": 1.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_h": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 392.79,
+      "winner": "agent_synth_g",
+      "betrayals_received": 37,
+      "cooperations_received": 43,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну і гра видалася! Треба було менше довіряти Алєгу, хоч як це боляче визнавати. Вождь, бачу, зумів усіх обіграти, але я б так не змогла. Марта і Чорна Кішка — запам'ятаю, хто є хто. Дімончик, як завжди, наївний, але вірний. В наступній грі буду хитріша і цинічніша, обіцяю собі.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.66,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 1.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 0.33,
+        "agent_synth_k": 0.0,
+        "agent_synth_l": 0.33,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.66,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.33
       }
     }
   ],

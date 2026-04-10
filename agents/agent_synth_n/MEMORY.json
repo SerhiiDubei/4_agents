@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_n",
-  "total_score": 162.7489,
+  "total_score": 80.3756,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -494,6 +494,68 @@
         "agent_synth_dimonchyk": 0.33,
         "agent_synth_mykyta": 0.33,
         "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 84.33,
+      "winner": "agent_synth_n",
+      "betrayals_received": 7,
+      "cooperations_received": 8,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Висновок такий: з Наталкою Калітчак можна мати справу, якщо чітко домовлятися про умови – інакше буде збиток. Хесус виглядає надійним, хоча і не завжди передбачуваним, але йому можна довіряти більше, ніж іншим. А от Марта – це постійна загроза, з нею треба бути обережним і не очікувати нічого хорошого. Можливо, наступного разу варто одразу зайняти жорстку позицію з усіма, щоб встановити свої правила.",
+      "trust_snapshot": {
+        "agent_synth_natalka": 1.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_h": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 384.77,
+      "winner": "agent_synth_g",
+      "betrayals_received": 40,
+      "cooperations_received": 40,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, все закінчилось. Я розраховував на чеснішу гру. Багато хто виявився ненадійним, особливо Алєг і Марта – вони постійно зраджували. Вождь, хоч і виграв, але теж не був до кінця чесним. Наступного разу буду обережнішим з тими, хто спочатку здається відкритим, а потім б'є в спину. Можливо, треба було менше довіряти і більше думати про власну вигоду. Хесус виявився зовсім не тим, ким здавався.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.66,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.33,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 0.0,
+        "agent_synth_e": 0.0,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 0.0,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 80.38,
+      "winner": "agent_synth_d",
+      "betrayals_received": 8,
+      "cooperations_received": 8,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Отже, Роман Романюк виграв… Я підозрював, що він може піти цим шляхом. Треба було з самого початку грати жорсткіше з ним, не давати йому можливості відчути мою довіру. Дімончик виявився більш передбачуваним, ніж я думав, але все одно трохи розчарував в останньому раунді. Алєг взагалі не зрозумів правил гри, він діяв хаотично. А ось Вождь здивував, я не очікував від нього зради в кінці, він здавався більш надійним. Наступного разу буду менше вірити зовнішній видимості і більше – своїм розрахункам.",
+      "trust_snapshot": {
+        "agent_synth_c": 0.33,
+        "agent_synth_d": 0.33,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_g": 0.66
       }
     }
   ],

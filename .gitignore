@@ -33,3 +33,9 @@ sim_report*.html
 
 # macOS
 .DS_Store
+
+# Temp / IDE
+*.tmp
+*.temp
+.claude/
+out.tmp

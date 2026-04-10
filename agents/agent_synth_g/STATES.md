@@ -1,29 +1,29 @@
 # STATES — Вождь
-# Round 2
+# Round 4
 
-tension:          0.000
-fear:             0.015
+tension:          0.170
+fear:             0.037
 dominance:        1.000
-anger:            0.000
-interest:         0.986
+anger:            0.005
+interest:         1.000
 talk_cooldown:    0
 attention_target: 
 mood:             dominant
 
 ## Trust
-  agent_65c37face813: 0.961
-  agent_synth_c: 0.588
-  agent_synth_d: 0.201
-  agent_synth_dimonchyk: 0.944
-  agent_synth_e: 0.607
+  agent_65c37face813: 0.914
+  agent_synth_c: 0.000
+  agent_synth_d: 0.946
+  agent_synth_dimonchyk: 0.884
+  agent_synth_e: 0.055
   agent_synth_f: 1.000
-  agent_synth_h: 0.322
-  agent_synth_i: 0.000
-  agent_synth_j: 1.000
-  agent_synth_jesus: 0.977
-  agent_synth_k: 0.554
-  agent_synth_l: 0.303
-  agent_synth_m: 0.920
-  agent_synth_mykyta: 0.691
-  agent_synth_n: 0.838
-  agent_synth_natalka: 0.062
+  agent_synth_h: 0.156
+  agent_synth_i: 0.525
+  agent_synth_j: 0.877
+  agent_synth_jesus: 0.972
+  agent_synth_k: 1.000
+  agent_synth_l: 0.195
+  agent_synth_m: 0.882
+  agent_synth_mykyta: 0.958
+  agent_synth_n: 0.430
+  agent_synth_natalka: 0.864

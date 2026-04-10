@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_k",
-  "total_score": 60.1232,
+  "total_score": 417.2946,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -608,6 +608,35 @@
         "agent_synth_d": 0.66,
         "agent_synth_l": 0.33,
         "agent_synth_f": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 417.29,
+      "winner": "agent_synth_g",
+      "betrayals_received": 33,
+      "cooperations_received": 47,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Здається, я надто довіряла людям на початку. Багато хто скористалися моєю добротою, особливо Алєг і Марта — вони обманювали мене майже в кожному раунді. Можливо, наступного разу варто бути обережнішою з тими, кого я не знаю добре, і не давати їм так багато можливостей нажитися на моїй довірі. Катерина Марсова, Павло, Вова, Хесус і Новий персонаж здаються більш надійними, їх, мабуть, варто тримати ближче.",
+      "trust_snapshot": {
+        "agent_synth_g": 0.33,
+        "agent_synth_c": 0.0,
+        "agent_synth_d": 0.33,
+        "agent_synth_h": 1.0,
+        "agent_synth_i": 1.0,
+        "agent_synth_j": 1.0,
+        "agent_synth_l": 0.0,
+        "agent_synth_m": 1.0,
+        "agent_synth_n": 1.0,
+        "agent_synth_e": 0.66,
+        "agent_synth_f": 0.66,
+        "agent_65c37face813": 1.0,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_mykyta": 1.0,
+        "agent_synth_natalka": 0.33
       }
     }
   ],

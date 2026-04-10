@@ -1,6 +1,6 @@
 {
   "agent_id": "agent_synth_d",
-  "total_score": 73.9666,
+  "total_score": 93.527,
   "reveals_used": 0,
   "trust_history": {},
   "game_history": [
@@ -652,6 +652,124 @@
         "agent_synth_l": 1.0,
         "agent_synth_f": 1.0,
         "agent_synth_k": 0.66
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 1,
+      "final_score": 2.98,
+      "winner": "agent_synth_c",
+      "betrayals_received": 1,
+      "cooperations_received": 0,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_c": 0.33
+      }
+    },
+    {
+      "game_id": "4b439b3c",
+      "rounds_played": 2,
+      "final_score": 4.67,
+      "winner": "agent_synth_c",
+      "betrayals_received": 2,
+      "cooperations_received": 0,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_c": 0.0
+      }
+    },
+    {
+      "game_id": "c1b25ed0",
+      "rounds_played": 2,
+      "final_score": 4.82,
+      "winner": "agent_synth_c",
+      "betrayals_received": 2,
+      "cooperations_received": 0,
+      "final_mood": "hostile",
+      "reveals_used": 0,
+      "conclusion": "",
+      "trust_snapshot": {
+        "agent_synth_c": 0.0
+      }
+    },
+    {
+      "game_id": "d434e537",
+      "rounds_played": 3,
+      "final_score": 15.26,
+      "winner": "agent_synth_c",
+      "betrayals_received": 1,
+      "cooperations_received": 2,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От і все, закінчилось. Я чомусь думав, що зможу краще. Алєг виявився хитрішим, ніж я очікував. Спочатку він був обережним, а потім, коли я повірив йому, трохи підставив мене. Наступного разу буду обережнішим з Алєгом, не буду так сліпо довіряти. Може, варто більше слухати свою інтуїцію, а не намагатися бути надто добрим.",
+      "trust_snapshot": {
+        "agent_synth_c": 1.0
+      }
+    },
+    {
+      "game_id": "a6ed4d77",
+      "rounds_played": 2,
+      "final_score": 25.21,
+      "winner": "agent_synth_h",
+      "betrayals_received": 4,
+      "cooperations_received": 2,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "От і все, закінчилось. Марта виграла... Чотири рази зрадили, лише двічі допомогли. Я довірився всім у першому раунді, а вони мене так підвели, особливо Марта і Катерина Марсова. Алєг хоч трохи, але підтримав. У другому раунді я вже не був таким наївним, але все одно Марта і Катерина знову мене підвели. Наступного разу буду обережнішим з ними, а до Алєга придивлюсь уважніше. Може, в ньому є більше щирості, ніж я думав.",
+      "trust_snapshot": {
+        "agent_synth_c": 1.0,
+        "agent_synth_h": 0.33,
+        "agent_synth_f": 0.33
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 5,
+      "final_score": 420.57,
+      "winner": "agent_synth_g",
+      "betrayals_received": 34,
+      "cooperations_received": 46,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ну що ж, закінчилось і це випробування. Вождь виявився найхитрішим, треба буде наступного разу уважніше до нього придивитися. Я надто довіряв людям, особливо на початку, а вони цим користувалися. Алєг, Марта і Тайлер Дерден показали себе не з кращої сторони, більше не буду їм довіряти. З іншого боку, Вова, Хесус, Катерина Марсова, Наталка Калітчак та Дімончик підтримували мене, це приємно. Треба цінувати тих, хто поруч, і не боятися бути обережнішим.",
+      "trust_snapshot": {
+        "agent_synth_g": 1.0,
+        "agent_synth_c": 0.33,
+        "agent_synth_h": 0.0,
+        "agent_synth_i": 0.66,
+        "agent_synth_j": 1.0,
+        "agent_synth_k": 0.66,
+        "agent_synth_l": 0.66,
+        "agent_synth_m": 0.0,
+        "agent_synth_n": 0.66,
+        "agent_synth_e": 0.33,
+        "agent_synth_f": 1.0,
+        "agent_65c37face813": 0.66,
+        "agent_synth_jesus": 1.0,
+        "agent_synth_dimonchyk": 0.33,
+        "agent_synth_mykyta": 0.0,
+        "agent_synth_natalka": 1.0
+      }
+    },
+    {
+      "game_id": "live_run",
+      "rounds_played": 4,
+      "final_score": 93.53,
+      "winner": "agent_synth_d",
+      "betrayals_received": 4,
+      "cooperations_received": 12,
+      "final_mood": "dominant",
+      "reveals_used": 0,
+      "conclusion": "Ох і напружений видався час! З одного боку, я переміг, але з іншого – відчуваю гіркий присмак зради. Дімончик – щира душа, йому можна довіряти. Вождь, здається, спершу вагався, але потім показав себе чесним партнером. А ось Алєг… від нього я очікував більшої порядності. Сергій теж здивував, але в кращий бік, він виявився більш надійним, ніж я думав. Наступного разу буду обережнішим з тими, хто спочатку здається дуже привабливим, і більше цінуватиму тих, хто показує свою відданість діями.",
+      "trust_snapshot": {
+        "agent_synth_c": 0.33,
+        "agent_synth_dimonchyk": 1.0,
+        "agent_synth_g": 1.0,
+        "agent_synth_n": 1.0
       }
     }
   ],
