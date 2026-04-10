@@ -31,9 +31,15 @@ class ReasoningResult:
     thought: str
     # Legacy: agent_id -> float (cooperation). Extended: agent_id -> {dim_id: float}
     intents: Dict[str, Union[float, Dict[str, float]]] = field(default_factory=dict)
+    # New: structured social actions list [{target, type, value, visibility}, ...]
+    # Populated when LLM returns new "actions" format; empty when using legacy intents
+    social_actions: List[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return {"thought": self.thought, "intents": self.intents}
+        d = {"thought": self.thought, "intents": self.intents}
+        if self.social_actions:
+            d["social_actions"] = self.social_actions
+        return d
 
     @classmethod
     def empty(cls, thought: str = "") -> "ReasoningResult":
@@ -44,7 +50,7 @@ class ReasoningResult:
 # JSON schema for structured output
 # ---------------------------------------------------------------------------
 
-# Schema allows intents to be agent_id -> number (cooperation) or agent_id -> {cooperation, support}
+# Legacy schema: intents as agent_id -> float (kept for fallback parsing)
 _INTENTS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -58,6 +64,48 @@ _INTENTS_SCHEMA = {
     "additionalProperties": False,
 }
 
+# New schema: explicit social actions list
+# LLM declares WHO + WHAT + HOW MUCH + visibility
+# intents kept as optional fallback field
+_ACTIONS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "thought": {"type": "string"},
+        "actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "target":     {"type": "string"},
+                    "type":       {"type": "string",
+                                   "enum": ["share_food","alliance","warn",
+                                            "ignore","betray","reciprocate","deceive"]},
+                    "value":      {"type": "number", "minimum": 0, "maximum": 2},
+                    "visibility": {"type": "string", "enum": ["public","private"]},
+                },
+                "required": ["target", "type", "value", "visibility"],
+            },
+        },
+        "intents": {
+            "type": "object",
+            "additionalProperties": True,
+        },
+    },
+    "required": ["thought", "actions"],
+    "additionalProperties": False,
+}
+
+# Action type -> cooperation float mapping (for backward compat with decision_engine)
+_ACTION_TYPE_TO_COOP = {
+    "share_food":  1.0,
+    "alliance":    1.0,
+    "reciprocate": 0.66,
+    "ignore":      0.33,
+    "warn":        0.33,
+    "deceive":     0.33,
+    "betray":      0.0,
+}
+
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
@@ -67,33 +115,42 @@ You do not know you are simulated. You exist fully. You have your own memories, 
 
 {soul_md}
 
-You are about to decide how much to cooperate with each person in the room.
+You are about to decide what social actions to take toward people in the room.
 Think in first person. Ukrainian language. Use the people's NAMES in your thoughts — not codes or IDs.
 
 People in the room with you: {peers_named}
 
-COOPERATION SCALE — you must assign exactly one value per person:
-  0.0  = betray them completely (you give them nothing, take what you can)
-  0.33 = soft defect (lean away, keep distance, minimal cooperation)
-  0.66 = conditional cooperate (you give something, but hold back)
-  1.0  = full trust (you cooperate fully, you expect the same back)
+You have a social budget of {budget_pool} to distribute this round.
+The total value of all your actions MUST NOT exceed {budget_pool}.
+You MUST declare at least 1 action.
+
+ACTION TYPES:
+  share_food  — give resources, build trust (positive, costs budget)
+  alliance    — form explicit bond (positive, costs budget)
+  reciprocate — return a favor (positive, costs budget)
+  warn        — signal distrust publicly or privately (negative, costs budget)
+  deceive     — mislead about your intentions (negative, costs budget)
+  betray      — openly work against them (negative, costs budget)
+  ignore      — do nothing toward them (neutral, costs 0 budget)
+
+VISIBILITY: "public" = everyone sees it. "private" = only that person sees it.
 
 Return JSON with two fields:
   "thought" — your internal reasoning (2-4 sentences, first person, Ukrainian, use their NAMES)
-  "intents" — one value per person: use their agent ID as key. Value is a number (0/0.33/0.66/1) for cooperation, or an object {{ "cooperation": number, "support": number }} for both axes.
+  "actions" — list of actions. Each has: target (agent ID), type, value (0.0–{budget_pool}), visibility
 
-Example (if you are Кир and others are Надя, Рекс, Льов):
+Example (if you are Кир with budget 1.2, others are Надя agent_511a6f9e, Рекс agent_synth_c, Льов agent_synth_d):
 {{
-  "thought": "Надя зрадила мене минулого разу, тому не довіряю. З Льовом хочу спробувати співпрацю...",
-  "intents": {{
-    "agent_511a6f9e": 0.33,
-    "agent_synth_c": 0.0,
-    "agent_synth_d": 0.66
-  }}
+  "thought": "Надя зрадила мене минулого разу, але Льов тримається чесно. Підтримаю Льова, а Наді дам зрозуміти що я пам'ятаю...",
+  "actions": [
+    {{"target": "agent_synth_d", "type": "share_food",  "value": 0.8, "visibility": "private"}},
+    {{"target": "agent_511a6f9e","type": "warn",        "value": 0.3, "visibility": "public"}},
+    {{"target": "agent_synth_c", "type": "ignore",      "value": 0.0, "visibility": "public"}}
+  ]
 }}
-Support scale (optional): 0 = passive, 1 = full support. If you omit support, it is inferred from your profile.
 
-Your "thought" must be a natural internal monologue. NO numbers, NO "0.66", NO "soft-C", NO "coop/betray" terms. Use only names and feelings."""
+Your "thought" must be a natural internal monologue. NO numbers, NO "0.66", NO technical terms. Use only names and feelings.
+The sum of all action values must be ≤ {budget_pool}."""
 
 
 # ---------------------------------------------------------------------------
@@ -188,48 +245,82 @@ def _format_trust(trust_scores: dict, names: dict = None) -> str:
 # LLM call
 # ---------------------------------------------------------------------------
 
-def _call_structured(system: str, user: str, model: str) -> ReasoningResult:
+def _call_structured(system: str, user: str, model: str, budget_pool: float = 1.0) -> ReasoningResult:
     from pipeline.seed_generator import call_openrouter
+    # Try new actions[] schema first
     raw = call_openrouter(
         system_prompt=system,
         user_prompt=user,
         model=model,
         temperature=0.75,
-        max_tokens=300,
+        max_tokens=400,
         timeout=45,
-        json_schema=_INTENTS_SCHEMA,
+        json_schema=_ACTIONS_SCHEMA,
     )
     try:
         parsed = json.loads(raw)
         thought = str(parsed.get("thought", "")).strip()
+
+        # ── NEW FORMAT: actions[] ─────────────────────────────────
+        raw_actions = parsed.get("actions")
+        if raw_actions and isinstance(raw_actions, list):
+            social_actions = []
+            intents: Dict[str, Union[float, Dict[str, float]]] = {}
+            valid_types = set(_ACTION_TYPE_TO_COOP.keys())
+
+            for item in raw_actions:
+                if not isinstance(item, dict):
+                    continue
+                target = str(item.get("target", "")).strip()
+                atype  = str(item.get("type", "ignore")).strip()
+                value  = float(item.get("value", 0.0))
+                vis    = str(item.get("visibility", "public")).strip()
+
+                if not target:
+                    continue
+                if atype not in valid_types:
+                    atype = "ignore"
+                if vis not in ("public", "private"):
+                    vis = "public"
+                value = max(0.0, min(value, budget_pool))
+
+                social_actions.append({
+                    "target": target, "type": atype,
+                    "value": round(value, 3), "visibility": vis,
+                })
+                # Backward-compat intents: map action type → cooperation float
+                intents[target] = _ACTION_TYPE_TO_COOP.get(atype, 0.5)
+
+            return ReasoningResult(
+                thought=thought,
+                intents=intents,
+                social_actions=social_actions,
+            )
+
+        # ── LEGACY FALLBACK: intents{} ────────────────────────────
         raw_intents = parsed.get("intents", {})
-        _ACTIONS = [0.0, 0.33, 0.66, 1.0]
+        _COOP_LEVELS = [0.0, 0.33, 0.66, 1.0]
 
         def snap_val(v) -> float:
             try:
                 f = float(v)
-                return min(_ACTIONS, key=lambda a: abs(a - f))
+                return min(_COOP_LEVELS, key=lambda a: abs(a - f))
             except (TypeError, ValueError):
                 return 0.5
 
-        intents: Dict[str, Union[float, Dict[str, float]]] = {}
+        intents = {}
         for agent_id, val in raw_intents.items():
             try:
                 if isinstance(val, (int, float)):
                     intents[agent_id] = snap_val(val)
                 elif isinstance(val, dict):
-                    dim_vals = {}
-                    for dim_id, dval in val.items():
-                        dim_vals[dim_id] = snap_val(dval)
-                    if dim_vals:
-                        intents[agent_id] = dim_vals
-                    else:
-                        intents[agent_id] = 0.5
-                else:
-                    pass
+                    dim_vals = {k: snap_val(v) for k, v in val.items()}
+                    intents[agent_id] = dim_vals if dim_vals else 0.5
             except (TypeError, ValueError):
                 pass
-        return ReasoningResult(thought=thought, intents=intents)
+
+        return ReasoningResult(thought=thought, intents=intents, social_actions=[])
+
     except (json.JSONDecodeError, KeyError, TypeError):
         return ReasoningResult.empty(thought=raw[:300] if raw else "")
 
@@ -258,6 +349,7 @@ def generate_reasoning(
     situation_reflection: str = "",
     round_event_text: str = "",
     event_participants: Optional[List[str]] = None,
+    budget_pool: float = 1.0,   # current social budget (from SocialState)
 ) -> ReasoningResult:
     """
     Generate structured per-target reasoning for this round.
@@ -292,6 +384,7 @@ def generate_reasoning(
         display_name=display_name,
         soul_md=soul_md[:900],
         peers_named=peers_named,
+        budget_pool=round(budget_pool, 2),
     )
 
     rounds_left = total_rounds - round_number
@@ -364,4 +457,4 @@ def generate_reasoning(
 
     user = "\n".join(user_parts)
 
-    return _call_structured(system, user, model)
+    return _call_structured(system, user, model, budget_pool=budget_pool)
