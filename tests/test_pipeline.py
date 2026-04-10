@@ -226,13 +226,14 @@ def _():
                 f"delta_key '{slot.delta_key}' in context '{ctx.context_id}' not found in delta_table"
 
 
-@test("soul_template: 6 sections load with instruction and tov_example")
+@test("soul_template: 8 sections load with instruction and tov_example")
 def _():
     from pipeline.soul_compiler import load_soul_template
     sections = load_soul_template()
-    assert len(sections) == 6, f"Expected 6 sections, got {len(sections)}"
+    assert len(sections) == 8, f"Expected 8 sections, got {len(sections)}"
     expected = ["Identity", "How You See Others", "What You Never Say Out Loud",
-                "What Makes You Feel Safe", "Under Pressure", "Decision Instinct"]
+                "What Makes You Feel Safe", "Under Pressure", "Decision Instinct",
+                "Voice", "Body Language"]
     for i, sec in enumerate(sections):
         assert sec.section == expected[i], f"Section {i} mismatch: {sec.section}"
         assert sec.instruction, f"Missing instruction in '{sec.section}'"

@@ -274,6 +274,32 @@ def _run_game_in_thread(session_id: str) -> None:
         _tw_log(f"Session created in {time.perf_counter() - t_session_start:.2f}s")
         _sessions_progress[session_id] = {"round": 0, "tick": 0, "active": len(agent_ids)}
 
+        # ── MCS: init NPC mood states ────────────────────────────────────────
+        _mcs_ok = False
+        _mcs_states: dict[str, Any] = {}
+        _mcs_engine: Any = None
+        _mcs_processor: Any = None
+        _openrouter_key = ""
+        try:
+            import os as _os
+            from simulation.mcs.state import NpcState as _NpcState
+            from simulation.mcs.world_engine import WorldEngine as _WorldEngine, WorldConfig as _WorldConfig
+            from simulation.mcs.tick_processor import TickProcessor as _TickProcessor
+            _openrouter_key = _os.environ.get("OPENROUTER_API_KEY", "")
+            _mcs_engine = _WorldEngine(_WorldConfig(agents=list(agent_ids)))
+            _mcs_processor = _TickProcessor(llm_interval=10)
+            for _aid in agent_ids:
+                _core_p = ROOT / "agents" / _aid / "CORE.json"
+                _soul_p = ROOT / "agents" / _aid / "SOUL.md"
+                if _core_p.exists():
+                    _core_d = json.loads(_core_p.read_text(encoding="utf-8"))
+                    _soul_d = _soul_p.read_text(encoding="utf-8") if _soul_p.exists() else ""
+                    _mcs_states[_aid] = _NpcState.from_soul_and_core(_aid, _soul_d, _core_d)
+            _mcs_ok = bool(_mcs_states)
+            _tw_log(f"MCS initialized: {len(_mcs_states)} agent mood states")
+        except Exception as _mcs_init_err:
+            _tw_log(f"MCS init skipped (non-fatal): {_mcs_init_err}")
+
         codes_catalog = load_codes()
         _tw_log("Entering main game loop...")
 
@@ -328,6 +354,40 @@ def _run_game_in_thread(session_id: str) -> None:
                 log_round_start(session, round_num, t, t, {**sit, **_log_extra})
                 apply_mana_per_round(session, t)
                 _tw_log(f"Round {round_num} (tick {t}) | drain={drain}s | active={len(session.active_players())}")
+
+                # ── MCS: mood tick (Level 1 math, Level 2 background LLM) ──
+                if _mcs_ok and _mcs_engine and _mcs_states:
+                    for _p in session.active_players():
+                        _mid = _p.agent_id
+                        if _mid not in _mcs_states:
+                            continue
+                        _mcs_ev = _mcs_engine.next_event(_mid)
+                        _mcs_states[_mid], _mdelta = _mcs_processor.tick_level1(
+                            _mcs_states[_mid], _mcs_ev
+                        )
+                        _mst = _mcs_states[_mid]
+                        session.event_log.append({
+                            "event_type": "mcs_mood",
+                            "round_num": round_num,
+                            "tick": t,
+                            "agent_id": _mid,
+                            "energy": round(_mst.mood.energy, 2),
+                            "fear": round(_mst.mood.fear, 2),
+                            "tension": round(_mst.mood.tension, 2),
+                            "persona": _mst.personas.dominant(),
+                            "delta": _mdelta.value,
+                        })
+                        # Level 2: fire-and-forget LLM reflection in daemon thread
+                        if _openrouter_key and _mst.needs_llm(_mcs_processor.llm_interval):
+                            def _run_l2(_s=_mcs_states[_mid], _aid=_mid):
+                                try:
+                                    _updated = _mcs_processor.tick_level2(
+                                        _s, ROOT / "agents", _openrouter_key
+                                    )
+                                    _mcs_states[_aid] = _updated
+                                except Exception:
+                                    pass
+                            threading.Thread(target=_run_l2, daemon=True).start()
 
                 # ── SHOP phase: buy as many codes as mana allows ──────────
                 t_shop = time.perf_counter()

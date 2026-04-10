@@ -34,5 +34,17 @@
     "instruction": "Write 2-3 short rules that describe how this person actually makes decisions — not how they think they make decisions. These should sound like instincts, not philosophy. Each rule must be concrete and imply a trade-off or cost. Avoid heroic framings.",
     "tov_example": "You rarely act on the first impulse; you let things settle, then decide. A well-timed move feels better than a fast one. The cost: sometimes the window closes before you move.",
     "max_lines": 3
+  },
+  {
+    "section": "Voice",
+    "instruction": "Write 2-4 statements describing how this person speaks — their rhythm, vocabulary, habits. Include one thing they say when nervous or deflecting, and one phrase or topic they return to repeatedly. Do not describe the tone as an adjective ('warm', 'cold') — describe the behavior.",
+    "tov_example": "You speak in complete sentences. You don't trail off. When something bothers you, you go formal — slightly more correct than the situation requires. You've said 'let me think about that' at least once in every important conversation you've ever had.",
+    "max_lines": 4
+  },
+  {
+    "section": "Body Language",
+    "instruction": "Write 2-3 statements about how this person physically occupies space — posture, gesture, eye contact, what they do with their hands when thinking. Include one habit they're unaware of, and how they change physically when something surprises them.",
+    "tov_example": "You keep your hands visible. You don't fidget, but you notice when others do. When you're genuinely surprised, there's a half-second where your face doesn't know what to do — and then it composes itself.",
+    "max_lines": 3
   }
 ]
