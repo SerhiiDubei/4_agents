@@ -511,14 +511,27 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
         if budget_state:
             sf += '<div class="sf-budget">'
             for aid, bs in sorted(budget_state.items()):
-                pool     = bs.get("pool", bs.get("budget_pool", 0))
-                spent    = bs.get("spent", bs.get("budget_spent_last", 0))
-                received = bs.get("received", bs.get("received_last_round", 0))
+                pool  = float(bs.get("pool", bs.get("budget_pool", 0)) or 0)
+                spent = float(bs.get("spent", bs.get("budget_spent_last", 0)) or 0)
+                # received може бути dict {agent_id: value} або float
+                received_raw = bs.get("received", bs.get("received_last_round", 0))
+                if isinstance(received_raw, dict):
+                    received_total = sum(received_raw.values())
+                    received_detail = " ".join(
+                        f'<span class="dim">{dn(src)}:{v:.2f}</span>'
+                        for src, v in sorted(received_raw.items())
+                    )
+                    received_str = (
+                        f'<span class="sf-received">{received_total:.2f}</span> '
+                        f'<span class="sf-received-detail">({received_detail})</span>'
+                    )
+                else:
+                    received_str = f'<span class="sf-received">{float(received_raw or 0):.2f}</span>'
                 sf += (
                     f'<div class="sf-budget-row"><span class="agent-name">{dn(aid)}</span>: '
                     f'пул=<span class="sf-pool">{pool:.2f}</span> '
                     f'витрачено=<span class="sf-spent">{spent:.2f}</span> '
-                    f'отримано=<span class="sf-received">{received:.2f}</span></div>\n'
+                    f'отримано={received_str}</div>\n'
                 )
             sf += "</div>"
         if trust_delta:
@@ -947,6 +960,8 @@ code { color: #86efac; font-size: 0.9em; }
 .sf-received   { color: #34d399; }
 .sf-trust-pos  { color: #4ade80; font-weight: 600; }
 .sf-trust-neg  { color: #f87171; font-weight: 600; }
+.sf-received-detail { font-size: 0.82em; color: #6b7280; }
+.dim { color: #6b7280; }
 """
 
 

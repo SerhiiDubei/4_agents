@@ -921,6 +921,99 @@ def print_reflections(round_result, agent_ids, names: dict = None):
             print(f"  {DIM}{disp:10s}  (no reflection){RESET}", flush=True)
 
 
+_ACTION_ICONS = {
+    "alliance": "🤝", "betray": "🗡", "deceive": "🎭",
+    "share_food": "🍎", "ignore": "○", "warn": "⚠", "reciprocate": "↩",
+}
+_ACTION_CLR = {
+    "alliance": GREEN, "betray": RED, "deceive": YELLOW,
+    "share_food": GREEN, "ignore": DIM, "warn": YELLOW, "reciprocate": CYAN,
+}
+
+PURPLE = "\033[95m"
+
+
+def print_social_fabric(round_result, agent_ids, names: dict = None):
+    """Виводить Social Fabric: соціальні дії, зміни довіри, бюджет."""
+    names = names or {}
+    social_actions = getattr(round_result, "social_actions", {})
+    budget_state   = getattr(round_result, "budget_state", {})
+    trust_delta    = getattr(round_result, "trust_delta", {})
+
+    if not social_actions and not trust_delta:
+        print(f"  {DIM}(no social fabric data){RESET}", flush=True)
+        return
+
+    # ── Соціальні дії ─────────────────────────────────────────────────
+    if social_actions:
+        for aid in agent_ids:
+            acts = social_actions.get(aid, [])
+            if not acts:
+                continue
+            disp = _n(aid, names)
+            for act in acts:
+                if isinstance(act, dict):
+                    atype  = act.get("type", "?")
+                    target = act.get("target", "?")
+                    val    = act.get("value", 0.0)
+                    vis    = act.get("visibility", "public")
+                else:
+                    atype  = getattr(act, "type", "?")
+                    target = getattr(act, "target", "?")
+                    val    = getattr(act, "value", 0.0)
+                    vis    = getattr(act, "visibility", "public")
+
+                icon  = _ACTION_ICONS.get(atype, "●")
+                color = _ACTION_CLR.get(atype, WHITE)
+                vis_s = f"[{DIM}pub{RESET}]" if vis == "public" else f"[{CYAN}dm{RESET}]"
+                print(
+                    f"  {BOLD}{disp:10s}{RESET}  "
+                    f"{color}{icon} {atype:12s}{RESET}  →  "
+                    f"{BOLD}{_n(target, names):10s}{RESET}  "
+                    f"val={val:.2f}  {vis_s}",
+                    flush=True,
+                )
+
+    # ── Зміни довіри ──────────────────────────────────────────────────
+    delta_rows = sorted(
+        [(aid, pid, d)
+         for aid, peers in trust_delta.items()
+         for pid, d in peers.items()
+         if abs(d) > 0.005],
+        key=lambda x: -abs(x[2]),
+    )
+    if delta_rows:
+        print(flush=True)
+        for aid, pid, d in delta_rows:
+            color = GREEN if d >= 0 else RED
+            sign  = "+" if d >= 0 else ""
+            print(
+                f"  довіра  {CYAN}{_n(aid, names):10s}{RESET} → "
+                f"{CYAN}{_n(pid, names):10s}{RESET}  "
+                f"{color}{sign}{d:+.3f}{RESET}",
+                flush=True,
+            )
+
+    # ── Бюджет (компактно) ────────────────────────────────────────────
+    if budget_state:
+        print(flush=True)
+        for aid in agent_ids:
+            bs = budget_state.get(aid)
+            if not bs:
+                continue
+            pool  = float(bs.get("pool", 0) or 0)
+            spent = float(bs.get("spent", 0) or 0)
+            recv_raw = bs.get("received", 0)
+            recv = sum(recv_raw.values()) if isinstance(recv_raw, dict) else float(recv_raw or 0)
+            print(
+                f"  бюджет  {CYAN}{_n(aid, names):10s}{RESET}  "
+                f"пул={PURPLE}{pool:.2f}{RESET}  "
+                f"витрачено={RED}{spent:.2f}{RESET}  "
+                f"отримано={GREEN}{recv:.2f}{RESET}",
+                flush=True,
+            )
+
+
 def print_state_changes(round_result, prev_snapshots, agent_ids, names: dict = None):
     names = names or {}
     curr = round_result.state_snapshots
@@ -1107,6 +1200,10 @@ def main():
             # ── 8. РЕФЛЕКСІЇ (нотатки в пам'ять) ─────────────────────
             header(f"РАУНД {rn}/{self.total_rounds}  ·  РЕФЛЕКСІЇ")
             print_reflections(round_result, self.agent_ids, self.names)
+
+            # ── 9. SOCIAL FABRIC ──────────────────────────────────────
+            header(f"РАУНД {rn}/{self.total_rounds}  ·  SOCIAL FABRIC")
+            print_social_fabric(round_result, self.agent_ids, self.names)
 
             # Update prev snapshots for next round diff
             self.prev_snaps = dict(round_result.state_snapshots)

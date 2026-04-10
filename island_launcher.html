@@ -101,6 +101,33 @@ textarea::placeholder{color:var(--muted)}
 .ll.done{color:var(--green);font-weight:700;margin-top:10px}
 .ll.hd{font-weight:700;color:#fff}
 
+/* ── SOCIAL FABRIC lines ── */
+.sf-row{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:4px;font-size:0.74rem;margin:1px 0}
+.sf-row:hover{background:var(--s2)}
+.sf-actor{font-weight:700;min-width:80px;color:var(--text)}
+.sf-badge{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.sf-alliance{background:rgba(61,214,140,.15);color:#3dd68c;border:1px solid rgba(61,214,140,.35)}
+.sf-betray{background:rgba(242,95,92,.15);color:#f25f5c;border:1px solid rgba(242,95,92,.35)}
+.sf-deceive{background:rgba(247,183,49,.15);color:#f7b731;border:1px solid rgba(247,183,49,.35)}
+.sf-share_food{background:rgba(61,214,140,.12);color:#3dd68c;border:1px solid rgba(61,214,140,.25)}
+.sf-ignore{background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.3)}
+.sf-warn{background:rgba(247,183,49,.12);color:#f7b731;border:1px solid rgba(247,183,49,.25)}
+.sf-reciprocate{background:rgba(79,142,247,.12);color:#4f8ef7;border:1px solid rgba(79,142,247,.25)}
+.sf-arrow{color:var(--muted);flex-shrink:0}
+.sf-target{font-weight:600;min-width:80px;color:var(--text)}
+.sf-val{color:var(--muted);font-size:0.67rem}
+.sf-vis-pub{color:var(--muted);font-size:0.65rem;background:var(--s2);padding:0 5px;border-radius:3px}
+.sf-vis-dm{color:#a78bfa;font-size:0.65rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);padding:0 5px;border-radius:3px}
+.sf-trust-row{display:flex;align-items:center;gap:6px;padding:1px 4px;font-size:0.72rem;margin:1px 0}
+.sf-trust-label{color:var(--muted);font-size:0.65rem;min-width:44px}
+.sf-trust-pos{color:#3dd68c;font-weight:700}
+.sf-trust-neg{color:#f25f5c;font-weight:700}
+.sf-budget-row{display:flex;align-items:center;gap:10px;padding:2px 4px;font-size:0.71rem;color:var(--muted);margin:1px 0}
+.sf-budget-actor{font-weight:700;color:var(--text);min-width:80px}
+.sf-budget-pool{color:#a78bfa}
+.sf-budget-spent{color:#f25f5c}
+.sf-budget-recv{color:#3dd68c}
+
 /* ── WORLD ENGINE PANEL ── */
 .we-panel{padding:14px 18px;background:var(--bg)}
 
@@ -376,6 +403,7 @@ g('roundsSlider').addEventListener('input',function(){ g('roundsVal').textConten
 // currentSection tracks the open <details>-style element
 
 let currentSection = null;
+let currentSectionName = '';
 
 function getSectionColor(name){
   if(/СИТУАЦ/i.test(name)) return '#4f8ef7';
@@ -386,6 +414,7 @@ function getSectionColor(name){
   if(/НАРАТИВ/i.test(name)) return '#c8b4f7';
   if(/СТАНУ/i.test(name)) return '#fd9644';
   if(/РЕФЛЕКС/i.test(name)) return '#6b7280';
+  if(/SOCIAL FABRIC/i.test(name)) return '#a78bfa';
   return 'var(--muted)';
 }
 
@@ -430,10 +459,22 @@ function appendLog(line){
     const sectionName = sectionMatch[3].trim();
     const {sect, body} = openLogSection('Раунд '+sectionMatch[1]+' · '+sectionName);
     currentSection = body;
+    currentSectionName = sectionName;
     panel.appendChild(sect);
     lineCount++;
     g('lineCount').textContent = String(lineCount);
     return;
+  }
+
+  // Special rich rendering for SOCIAL FABRIC section
+  if(currentSectionName && /SOCIAL FABRIC/i.test(currentSectionName)){
+    const sfEl = renderSocialFabricLine(line);
+    if(sfEl && currentSection){
+      currentSection.appendChild(sfEl);
+      lineCount++;
+      g('lineCount').textContent = String(lineCount);
+      return;
+    }
   }
 
   const div = mk('div','ll '+lineClass(line).trim());
@@ -453,6 +494,61 @@ function appendLog(line){
   if(atBottom) panel.scrollTop = panel.scrollHeight;
 
   if(lineClass(line)==='score') finalScoreLines.push(line);
+}
+
+// ── SOCIAL FABRIC line renderer ────────────────────────────────────────────────
+const SF_ICONS = {alliance:'🤝',betray:'🗡️',deceive:'🎭',share_food:'🍎',ignore:'○',warn:'⚠️',reciprocate:'↩️'};
+const SF_ACTIONS = ['alliance','betray','deceive','share_food','ignore','warn','reciprocate'];
+
+function renderSocialFabricLine(line){
+  // Action row: "  Actor   🤝 alliance   →  Target   val=0.50  [pub]"
+  const actionTypes = SF_ACTIONS.join('|');
+  const actionRe = new RegExp(`^\\s+(\\S[^\\t→]+?)\\s{2,}[^ ]*\\s*(${actionTypes})\\s+→\\s+(\\S[^\\t]+?)\\s+val=([\\d.]+)\\s+(\\[pub\\]|\\[dm\\])`, 'i');
+  const am = line.match(actionRe);
+  if(am){
+    const actor=am[1].trim(), atype=am[2].toLowerCase(), target=am[3].trim(), val=parseFloat(am[4]), vis=am[5];
+    const icon = SF_ICONS[atype]||'●';
+    const row = mk('div','sf-row');
+    const actorEl = mk('span','sf-actor', actor);
+    const badge = mk('span',`sf-badge sf-${atype}`, `${icon} ${atype}`);
+    const arrow = mk('span','sf-arrow','→');
+    const targetEl = mk('span','sf-target', target);
+    const valEl = mk('span','sf-val',`val=${val.toFixed(2)}`);
+    const visEl = mk('span', vis.includes('dm') ? 'sf-vis-dm':'sf-vis-pub', vis.includes('dm')?'🔒 приватно':'👁 публічно');
+    [actorEl, badge, arrow, targetEl, valEl, visEl].forEach(el=>row.appendChild(el));
+    return row;
+  }
+
+  // Trust row: "  довіра  Actor  →  Target   +0.023"
+  const trustRe = /^\s+довіра\s+(\S[^→]+?)\s+→\s+(\S[^+\-\d]+?)\s+([+\-][\d.]+)/;
+  const tm = line.match(trustRe);
+  if(tm){
+    const from=tm[1].trim(), to=tm[2].trim(), delta=parseFloat(tm[3]);
+    const row = mk('div','sf-trust-row');
+    const lbl = mk('span','sf-trust-label','довіра');
+    const fromEl = mk('span','sf-actor', from);
+    const arr = mk('span','sf-arrow','→');
+    const toEl = mk('span','sf-actor', to);
+    const sign = delta>=0?'+':'';
+    const dEl = mk('span', delta>=0?'sf-trust-pos':'sf-trust-neg', sign+delta.toFixed(3));
+    [lbl, fromEl, arr, toEl, dEl].forEach(el=>row.appendChild(el));
+    return row;
+  }
+
+  // Budget row: "  бюджет  Actor   пул=5.00  витрачено=2.00  отримано=3.00"
+  const budRe = /^\s+бюджет\s+(\S[^\s]+)\s+пул=([\d.]+)\s+витрачено=([\d.]+)\s+отримано=([\d.]+)/;
+  const bm = line.match(budRe);
+  if(bm){
+    const actor=bm[1].trim(), pool=parseFloat(bm[2]), spent=parseFloat(bm[3]), recv=parseFloat(bm[4]);
+    const row = mk('div','sf-budget-row');
+    row.appendChild(mk('span','sf-budget-actor', actor));
+    row.appendChild(mk('span','sf-budget-pool', `пул ${pool.toFixed(2)}`));
+    row.appendChild(mk('span','sf-budget-spent', `↑${spent.toFixed(2)} витрачено`));
+    row.appendChild(mk('span','sf-budget-recv', `↓${recv.toFixed(2)} отримано`));
+    return row;
+  }
+
+  return null; // fallback to plain text
 }
 
 // ── WORLD ENGINE tab ───────────────────────────────────────────────────────────
@@ -743,7 +839,7 @@ function buildSummary(){
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
 async function launchSim(){
   if(running) return;
-  running=true; lineCount=0; weRoundCount=0; llmCallCount=0; llmCurrentRound=0; llmCurrentRoundEl=null; currentSection=null;
+  running=true; lineCount=0; weRoundCount=0; llmCallCount=0; llmCurrentRound=0; llmCurrentRoundEl=null; currentSection=null; currentSectionName='';
   finalScoreLines.length=0;
 
   const btn=g('btnLaunch'); const dot=g('statusDot');
