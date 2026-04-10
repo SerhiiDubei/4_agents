@@ -317,7 +317,7 @@ var MODULE_DETAIL = {
       { arrow: '&#8592;', text: 'Отримує', source: 'states_md (емоційний стан)' },
       { arrow: '&#8594;', text: 'Повертає дію в', source: 'game_engine / tw_loop' },
     ],
-    bug: { id:'CRIT-1', desc:'_action_scores() має penalty = strategic_horizon * 0.33. Для більшості агентів це тягне всіх до 0.66 незалежно від cooperation_bias.', fix:'Переглянути penalty формулу. Role-based agents (snake, gambler) мають давати принципово різні score distributions.' }
+    bug: { id:'CRIT-1 / T1.1', desc:'_action_scores() містить strategic_score = -abs(action-0.66)*sh*0.4. Це блокує steal (0.0). risk_appetite не використовується для steal direction → ролі не диференціюють. cooperation_bias≈70 для всіх агентів.', fix:'Зменшити вагу strategic_score АБО додати risk_appetite як позитивний фактор steal. Перевірити що role overlays (snake: coop-25) реально дають різні score distributions.' }
   },
   'ac_pipeline': {
     title: 'agent_context.py (pipeline)', file: 'pipeline/agent_context.py',
@@ -448,12 +448,13 @@ var PROCESSES = {
     ],
     steps: [
       '1. dialog_engine генерує публічні + DM повідомлення',
-      '2. talk_transition аналізує тон &rarr; STATES update',
-      '3. decision_engine вибирає дію (CRIT-1!)',
+      '2. talk_transition аналізує тон → STATES update',
+      '3. decision_engine вибирає дію (BUG T1.1: strategic_score blocks steal)',
       '4. payoff_matrix розраховує виплати',
-      '5. state_machine оновлює емоції',
-      '6. memory.log_round() записує в MEMORY.json',
-      '7. reflection.reflect_on_round() &rarr; LLM нотатка',
+      '5. Social Fabric: round_actions → apply_round() → trust_delta + budget_update ✓ ACTIVE',
+      '6. state_machine оновлює емоції',
+      '7. memory.log_round() записує в MEMORY.json',
+      '8. reflection.reflect_on_round() → LLM нотатка',
     ]
   },
 
@@ -505,9 +506,10 @@ var PROCESSES = {
       '1. CoreParams.from_dict(CORE.json)',
       '2. ROLE_CORE_OVERLAYS застосовується',
       '3. _action_scores(): softmax розрахунок',
-      '   BUG: penalty = horizon * 0.33 &rarr; всі 0.66',
+      '   BUG T1.1: strategic_score = -abs(action-0.66)*sh*0.4 → steal impossible',
+      '   BUG T1.3: risk_appetite not used for steal direction → roles uniform',
       '4. reasoning.py будує думку агента',
-      '5. choose_action() &rarr; 0.0/0.33/0.66/1.0',
+      '5. choose_action() → 0.0/0.33/0.66/1.0',
     ]
   },
 

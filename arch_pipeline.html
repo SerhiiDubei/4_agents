@@ -372,21 +372,28 @@ header {
       <div class="dp-title">decision_engine.py</div>
       <div class="dp-tag" style="color:var(--c-pipeline)">DECISION ENGINE</div>
       <div class="dp-bug-box">
-        <div class="dp-bug-id">CRIT-1: strategic_horizon PENALTY CLAMPS ALL TO 0.66</div>
+        <div class="dp-bug-id">CRIT-1 / T1.1: strategic_score BLOCKS STEAL</div>
         <div class="dp-bug-desc">
-          _action_scores() applies a fixed penalty when strategic_horizon is above threshold, regardless of role or context. The softmax collapses — action 0.66 (PARTIAL COOP) dominates for all agents, killing behavioral diversity.
+          _action_scores() contains strategic_score = -abs(action-0.66)*sh*0.4 which penalizes any deviation from 0.66. Combined with horizon penalty — steal (0.0) is effectively impossible. <strong>risk_appetite is not used for steal direction</strong> — high-risk roles get no steal boost. Roles don't differentiate: cooperation_bias≈70 for all agents.
         </div>
       </div>
       <div class="dp-section">
         <div class="dp-section-hdr">_action_scores() — Affected Logic</div>
         <div class="dp-code"><span class="kw">def</span> _action_scores(core, reasoning):
   scores = [<span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>]
-  <span class="bug-line"># BUG: horizon penalty not gated on role</span>
-  <span class="bug-line">if core[<span class="val">"strategic_horizon"</span>] &gt; 40:</span>
-  <span class="bug-line">    scores[0] -= 999  # locks out 0.0</span>
-  <span class="bug-line">    scores[1] -= 999  # locks out 0.33</span>
-  <span class="bug-line">    scores[3] -= 999  # locks out 1.0</span>
+  <span class="bug-line"># BUG T1.1: strategic_score kills steal direction</span>
+  <span class="bug-line">sh = core[<span class="val">"strategic_horizon"</span>] / <span class="val">100</span></span>
+  <span class="bug-line">strategic_score = -abs(action - <span class="val">0.66</span>) * sh * <span class="val">0.4</span></span>
+  <span class="bug-line"># risk_appetite NOT used → roles don't steal</span>
   return softmax(scores)</div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-section-hdr">Fix Required</div>
+        <div style="font-size:10px; color:var(--dim); line-height:1.6;">
+          1. Reduce strategic_score weight OR gate it on role.<br>
+          2. Add risk_appetite as positive steal-direction factor.<br>
+          3. Verify role CORE overlays (snake: coop-25) actually propagate to _action_scores().
+        </div>
       </div>
       <div class="dp-section">
         <div class="dp-section-hdr">Resulting Action Distribution</div>

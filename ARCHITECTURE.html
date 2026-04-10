@@ -12,8 +12,16 @@
   --c-data: #4dbb80; --c-pipeline: #5b9bd5; --c-game: #b06ee0;
   --c-server: #e0944a; --c-frontend: #4dbba0; --c-story: #b0b060;
   --c-bug: #e05050;
+  --c-active: #4dbb80;
+  --c-wip: #e0944a;
 }
 body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; min-height:100vh; }
+
+/* ── STATUS BADGES ── */
+.badge { display:inline-flex; align-items:center; gap:3px; border-radius:4px; padding:1px 7px; font-size:9px; font-weight:700; letter-spacing:.5px; vertical-align:middle; margin-left:5px; }
+.badge-active { background:rgba(77,187,128,.18); border:1px solid rgba(77,187,128,.45); color:#4dbb80; }
+.badge-ready  { background:rgba(91,155,213,.18); border:1px solid rgba(91,155,213,.45); color:#5b9bd5; }
+.badge-bug    { background:rgba(224,80,80,.15);  border:1px solid rgba(224,80,80,.45);  color:#e05050; }
 
 header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:20px; }
 .logo { font-size:20px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
@@ -103,7 +111,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 <header>
   <div>
     <div class="logo">4 AGENTS</div>
-    <div class="sub">Architecture Map &mdash; 2026-03-22</div>
+    <div class="sub">Architecture Map &mdash; 2026-04-10</div>
   </div>
   <div class="navtabs">
     <a href="architecture.html" class="ntab act">&#9776; Layers</a>
@@ -192,6 +200,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
       <div class="mod" onclick="sel(this,'d-diag')"><div class="mname" style="color:var(--c-game)">dialog_engine.py</div><div class="mdesc">LLM-генерація діалогу: публічні + DM повідомлення</div><div class="mfile">simulation/dialog_engine.py</div></div>
       <div class="mod" onclick="sel(this,'d-pm')"><div class="mname" style="color:var(--c-game)">payoff_matrix.py</div><div class="mdesc">PD виплати: T=7, R=5, P=2, S=0.5 для кожної пари</div><div class="mfile">simulation/payoff_matrix.py</div></div>
       <div class="mod" onclick="sel(this,'d-rev')"><div class="mname" style="color:var(--c-game)">reveal_skill.py</div><div class="mdesc">Скілл: розкрити дію суперника цього раунду</div><div class="mfile">simulation/reveal_skill.py</div></div>
+      <div class="mod" onclick="sel(this,'d-sf')"><div class="mname" style="color:var(--c-data)">Social Fabric <span class="badge badge-active">&#10003; ACTIVE</span></div><div class="mdesc">7 дій: alliance/betray/deceive/share_food/warn/ignore/reciprocate. Бюджет-система + trust delta.</div><div class="mfile">simulation/social_fabric.py</div></div>
     </div>
     <div style="font-size:9px;color:var(--c-game);margin:14px 0 5px;letter-spacing:1px">&#9658; TIME WARS (game_modes/time_wars/)</div>
     <div class="mods">
@@ -266,6 +275,27 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   </div>
 </div>
 
+<!-- ══ LAYER 6: MCS ══ -->
+<div class="conn"><div class="cline"></div><span style="color:#5b9bd5">&#9658; MCS інтегрується в Island через game_engine.py</span><div class="cline"></div></div>
+<div class="layer" id="l-mcs">
+  <div class="layer-hdr" onclick="toggle('l-mcs')">
+    <div class="lnum" style="background:#1a0d2e;color:#a78bfa">MCS</div>
+    <div class="lname" style="color:#a78bfa">MCS — MULTI-CONSCIOUSNESS SYSTEM <span class="badge badge-ready">CODE READY</span></div>
+    <div class="ltag">4 персони &middot; Level1 math tick &middot; Level2 LLM daemon</div>
+    <a href="mcs_architecture_visual.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
+    <div class="larrow">&#9658;</div>
+  </div>
+  <div class="layer-body">
+    <div style="font-size:9px;color:var(--dim);margin:8px 0 2px">4 внутрішніх персони кожного агента. Level1 — детермінований tick, Level2 — LLM daemon.</div>
+    <div class="mods">
+      <div class="mod"><div class="mname" style="color:#f87171">&#128737; Protector</div><div class="mdesc">"Що треба захистити?" — загрози, несправедливість</div><div class="mfile">simulation/mcs/</div></div>
+      <div class="mod"><div class="mname" style="color:#fbbf24">&#9889; Instinct</div><div class="mdesc">"Що я відчуваю зараз?" — тіло, емоції, hunger</div><div class="mfile">simulation/mcs/</div></div>
+      <div class="mod"><div class="mname" style="color:#4f9eff">&#129504; Thinker</div><div class="mdesc">"Які будуть наслідки?" — аналіз, стратегія</div><div class="mfile">simulation/mcs/</div></div>
+      <div class="mod"><div class="mname" style="color:#4ade80">&#127917; Mask</div><div class="mdesc">"Що від мене очікують?" — соціальний контекст</div><div class="mfile">simulation/mcs/</div></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ DATA FLOWS ══ -->
 <div class="flows">
   <div class="flows-hdr" onclick="toggleFlows()">&#9658; KEY DATA FLOWS</div>
@@ -301,8 +331,17 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
         <div class="step"><span class="snum">6</span><span>event_log += {type, actor, target, time_delta, outcome, roll}</span></div>
       </div>
     </div>
+    <div class="fi" style="border-color:var(--c-data)">
+      <div class="fi-title">&#9315; SOCIAL FABRIC (Island) <span class="badge badge-active">&#10003; ACTIVE</span></div>
+      <div class="fs">
+        <div class="step"><span class="snum">1</span><span>після кожного раунду: <span class="sfile">social_fabric.apply_round(agents, actions)</span></span></div>
+        <div class="step"><span class="snum">2</span><span>7 типів дій: alliance / betray / deceive / share_food / warn / ignore / reciprocate</span></div>
+        <div class="step"><span class="snum">3</span><span>action_budget -= 1 per action &rarr; trust_delta обраховується</span></div>
+        <div class="step"><span class="snum">4</span><span>SSE accordion: 9 секцій в island_launcher.html включно з SOCIAL FABRIC блоком</span></div>
+      </div>
+    </div>
     <div class="fi" style="border-color:var(--c-pipeline)">
-      <div class="fi-title">&#9315; AGENT INIT PIPELINE</div>
+      <div class="fi-title">&#9316; AGENT INIT PIPELINE</div>
       <div class="fs">
         <div class="step"><span class="snum">1</span><span>POST /generate-seed &rarr; <span class="sfile">seed_generator</span> &rarr; session_id</span></div>
         <div class="step"><span class="snum">2</span><span>&times;7 POST /generate-question &rarr; <span class="sfile">question_engine</span> &rarr; LLM питання</span></div>
@@ -323,16 +362,31 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   <div class="stats">
     <div class="stat"><div class="sval">17</div><div class="slbl">Агентів</div></div>
     <div class="stat"><div class="sval">2</div><div class="slbl">Game Modes</div></div>
-    <div class="stat"><div class="sval">4</div><div class="slbl">Критичні баги</div></div>
+    <div class="stat"><div class="sval">5</div><div class="slbl">Критичні баги</div></div>
     <div class="stat"><div class="sval">128+</div><div class="slbl">Ігор в логах</div></div>
   </div>
 
   <div class="section">
+    <div class="stitle" style="color:var(--c-data)">&#10003; Нові системи (ACTIVE)</div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.3)">
+      <div class="bid" style="color:#4dbb80">Social Fabric &#10003; ACTIVE</div>
+      <div class="btitle">7 типів дій між агентами — бюджет-система + trust delta</div>
+      <div class="bfile">simulation/social_fabric.py · island SSE accordion (9 секцій)</div>
+    </div>
+    <div class="bug-card" style="background:rgba(91,155,213,.07);border-color:rgba(91,155,213,.3)">
+      <div class="bid" style="color:#5b9bd5">MCS &mdash; CODE READY</div>
+      <div class="btitle">4 персони (Protector/Instinct/Thinker/Mask) · Level1 math tick + Level2 LLM daemon</div>
+      <div class="bfile">simulation/mcs/ · ініціалізується в game_engine.py</div>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="stitle" style="color:var(--c-bug)">&#9888; Критичні баги</div>
-    <div class="bug-card"><div class="bid">CRIT-1</div><div class="btitle">Агенти завжди кооперують</div><div class="bfile">decision_engine.py &mdash; strategic_horizon penalty</div></div>
-    <div class="bug-card"><div class="bid">CRIT-2</div><div class="btitle">Dialog &rarr; Action loop broken</div><div class="bfile">loop.py &mdash; last_messages не в контексті рішення</div></div>
+    <div class="bug-card"><div class="bid">CRIT-1</div><div class="btitle">Steal не відбувається — strategic_score блокує</div><div class="bfile">decision_engine.py — strategic_score = -abs(action-0.66)*sh*0.4</div></div>
+    <div class="bug-card"><div class="bid">CRIT-2</div><div class="btitle">COMM декорація — last_messages не передаються</div><div class="bfile">loop.py (Time Wars) передає last_messages=[]</div></div>
     <div class="bug-card"><div class="bid">CRIT-3</div><div class="btitle">SOUL.md не в decision prompts</div><div class="bfile">agent_context.build_context() &mdash; ігнорує особистість</div></div>
     <div class="bug-card"><div class="bid">CRIT-4</div><div class="btitle">storytell/ відключений від TW</div><div class="bfile">round_narrative.py не викликається з loop.py</div></div>
+    <div class="bug-card"><div class="bid">CRIT-5</div><div class="btitle">Ролі не диференціюють &mdash; cooperation_bias≈70 у всіх</div><div class="bfile">Skills не тригеряться (залежать від steal якого немає)</div></div>
   </div>
 
   <div class="section">
@@ -499,6 +553,24 @@ def generate_round_narrative(
 <span class="cc"># round_narrative.generate(...)</span>
 <span class="cc"># потрібно додати після кожного тіку</span></div>
     <div class="dnote dbug">&#9888; CRIT-4: підключити виклик у loop.py після run_action_phase(). Нарратив зробить гру живою.</div>
+  </div>
+
+  <!-- ══ SOCIAL FABRIC panel ══ -->
+  <div id="d-sf" class="detail">
+    <div class="dtitle">Social Fabric <span class="badge badge-active">&#10003; ACTIVE</span></div>
+    <div class="code"><span class="cc"># 7 типів дій між агентами:</span>
+alliance      <span class="cc"># спілка (trust+0.3)</span>
+betray        <span class="cc"># зрада (trust-0.4)</span>
+deceive       <span class="cc"># обман (trust-0.2)</span>
+share_food    <span class="cc"># ресурс (trust+0.2)</span>
+warn          <span class="cc"># попередження (trust+0.1)</span>
+ignore        <span class="cc"># ігнорування (trust-0.1)</span>
+reciprocate   <span class="cc"># відплата (взаємодія)</span>
+
+<span class="cc"># Бюджет-система:</span>
+action_budget_per_round = 3
+<span class="cc"># apply_round() → trust_delta + budget</span></div>
+    <div class="dnote">Повністю реалізовано. Вбудовано в Island game через game_engine.py. SSE accordion UI — 9 секцій включно з SOCIAL FABRIC блоком.</div>
   </div>
 
   <!-- ══ DATA LAYER panels ══ -->
@@ -995,6 +1067,19 @@ phosphor-glow на текст
 &lt;TypewriterText text="..." speed={50}/&gt;
 <span class="cc">// char-by-char reveal</span></div>
     <div class="dnote">Три декоративних компоненти дають загальний cyberpunk/terminal вигляд. CRT scanlines — CSS-only, без JS.</div>
+  </div>
+
+  <!-- ══ STATUS BLOCK ══ -->
+  <div class="section" style="margin-top:18px;padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);line-height:1.8;">
+    <div style="font-size:10px;font-weight:bold;color:var(--text);margin-bottom:6px;">Project Status — 2026-04-10</div>
+    <div><span style="color:#4dbb80">&#10003;</span> Social Fabric — 7 actions, budget system, trust delta <span class="badge badge-active">ACTIVE</span></div>
+    <div><span style="color:#5b9bd5">&#10003;</span> MCS (Multi-Consciousness System) — 4 personas <span class="badge badge-ready">CODE READY</span></div>
+    <div><span style="color:#4dbb80">&#10003;</span> Live SSE accordion UI — 9 секцій (island_launcher.html)</div>
+    <div><span style="color:#4dbb80">&#10003;</span> Hub на port 8000, /init endpoint</div>
+    <div><span style="color:#4dbb80">&#10003;</span> export_game_log.py — HTML з Social Fabric + MCS блоками</div>
+    <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
+      <span style="color:var(--c-bug)">&#9888;</span> T1.1 Steal blocked &nbsp;|&nbsp; <span style="color:var(--c-bug)">&#9888;</span> T1.2 COMM empty &nbsp;|&nbsp; <span style="color:var(--c-bug)">&#9888;</span> T1.3 Roles uniform
+    </div>
   </div>
 
 </div><!-- /panel -->

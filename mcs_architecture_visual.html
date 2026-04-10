@@ -88,7 +88,7 @@ main{flex:1;position:relative;overflow:hidden;min-height:0;display:flex;flex-dir
 <header>
   <div class="logo">
     <h1>MCS · <em>Multi-Consciousness System</em></h1>
-    <p>Interactive architecture · 4 layers · click nodes for details</p>
+    <p>Interactive architecture · 4 layers · click nodes for details &nbsp;·&nbsp; <span style="color:#4dbb80;font-weight:700;">CODE READY</span> — Level1 math tick active, Level2 LLM daemon ready · ініціалізується в Island через <em>game_engine.py</em></p>
   </div>
   <nav class="tabs" id="tabs">
     <button class="tab l1 active" data-layer="1"><span class="tn">L1</span>System</button>
@@ -112,8 +112,8 @@ main{flex:1;position:relative;overflow:hidden;min-height:0;display:flex;flex-dir
 var LAYERS = {
   1: {
     title:'L1 — System Architecture',
-    ds_simple:'Весь оркестр системи. Гравець або Світ запускають подію → вона проходить через Redis та Celery → MCS обробляє → результат зберігається.',
-    ds_tech:'FastAPI:8000 → Redis queues(HIGH/MED/LOW) → Celery workers → MCS core → PostgreSQL / LLM',
+    ds_simple:'Весь оркестр системи. Гравець або Світ запускають подію → вона проходить через Redis та Celery → MCS обробляє → результат зберігається. | Status: CODE READY — Level1 math tick active, Level2 LLM daemon ready. MCS ініціалізується в Island через game_engine.py.',
+    ds_tech:'FastAPI:8000 → Redis queues(HIGH/MED/LOW) → Celery workers → MCS core → PostgreSQL / LLM | simulation/mcs/ — 4 персони (Protector/Instinct/Thinker/Mask)',
     zoneBands:[
       {top:0,  h:28, bg:'rgba(79,158,255,.04)',  lbl:'INPUT',      lc:'#4f9eff33', lx:'1%'},
       {top:28, h:28, bg:'rgba(167,139,250,.04)', lbl:'TRANSPORT',  lc:'#a78bfa33', lx:'1%'},

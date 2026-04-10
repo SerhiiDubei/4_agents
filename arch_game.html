@@ -366,7 +366,8 @@ header {
             <div class="sub-step">Levels: <span class="hi">0.0 · 0.33 · 0.66 · 1.0</span></div>
             <div class="sub-step">Weighted by mood, trust, fear, tension</div>
           </div>
-          <div class="bug-badge">🐛 BUG CRIT-1 — softmax temp not calibrated</div>
+          <div class="bug-badge">🔴 BUG T1.1 — strategic_score = -abs(action-0.66)*sh*0.4 blocks steal</div>
+          <div class="bug-badge">🔴 BUG T1.3 — Roles not differentiating (cooperation_bias≈70 all agents)</div>
         </div>
       </div>
       <div class="flow-arrow island-col">↓</div>
@@ -418,6 +419,23 @@ header {
       </div>
       <div class="flow-arrow island-col">↓</div>
 
+      <!-- Step 5b: Social Fabric -->
+      <div class="flow-step" style="border-color:rgba(77,187,128,0.45);background:rgba(77,187,128,0.04);">
+        <div class="step-num island" style="background:rgba(77,187,128,0.18);color:#4dbb80;border-color:rgba(77,187,128,0.4);">SF</div>
+        <div class="step-icon">🕸️</div>
+        <div class="step-content">
+          <div class="step-title">Social Fabric <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(77,187,128,.18);border:1px solid rgba(77,187,128,.45);border-radius:4px;padding:1px 6px;font-size:9px;color:#4dbb80;font-weight:700;margin-left:5px;">✓ ACTIVE</span></div>
+          <div class="step-file">simulation/social_fabric.py</div>
+          <div class="step-detail">Round social actions applied after payoffs</div>
+          <div class="sub-steps">
+            <div class="sub-step">7 actions: <span class="hi">alliance · betray · deceive · share_food · warn · ignore · reciprocate</span></div>
+            <div class="sub-step">Flow: <span>round_actions → apply_round() → trust_delta + budget_update</span></div>
+            <div class="sub-step">Budget: <span class="hi">3 actions per agent per round</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow island-col">↓</div>
+
       <!-- Step 6 -->
       <div class="flow-step">
         <div class="step-num island">6</div>
@@ -446,10 +464,15 @@ header {
         </div>
         <div class="stat-sep"></div>
         <div class="stat-item">
+          <div class="stat-val">9</div>
+          <div class="stat-lbl">SSE Sections</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
           <div class="stat-val">~1:40</div>
           <div class="stat-lbl">per Round</div>
         </div>
-        <div class="stats-file">Entry point: <span>simulation/game_engine.py</span></div>
+        <div class="stats-file">Entry point: <span>simulation/game_engine.py</span> · Live UI: <span>island_launcher.html (SSE accordion · 9 sections incl. SOCIAL FABRIC)</span></div>
       </div>
 
     </div><!-- /col-body island -->
@@ -490,8 +513,9 @@ header {
           <div class="sub-steps">
             <div class="sub-step">Actions: <span>COOPERATE</span> / <span class="warn">STEAL</span> / <span>PASS</span></div>
           </div>
-          <div class="bug-badge">🐛 BUG CRIT-2 — last_messages not passed to LLM</div>
-          <div class="bug-badge">🐛 BUG CRIT-3 — SOUL.md missing from agent context</div>
+          <div class="bug-badge">🔴 BUG T1.2 — loop.py passes last_messages=[] (COMM decorative)</div>
+          <div class="bug-badge">🔴 BUG CRIT-3 — SOUL.md missing from agent context</div>
+          <div class="bug-badge">🔴 BUG CRIT-5 — Skills not triggering (depend on steal which is blocked)</div>
         </div>
       </div>
       <div class="flow-arrow tw-col">↓</div>
