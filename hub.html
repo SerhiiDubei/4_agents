@@ -110,13 +110,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="status"><span class="dot green"></span>порт 8000 · /island</div>
   </a>
 
-  <a class="card stripe-yellow" href="http://localhost:5174" target="_blank" id="cardTW">
-    <div class="card-icon">⚔️</div>
-    <div class="card-title">Time Wars</div>
-    <div class="card-desc">Тік-симуляція. Агенти накопичують або крадуть час, використовують скіли та коди.</div>
-    <span class="card-tag tag-dev">В розробці</span>
-    <div class="status"><span class="dot yellow"></span>порт 5174 · окремий сервер</div>
-  </a>
 
 </div>
 
@@ -195,17 +188,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <a href="/health">health</a>
 </div>
 
-<script>
-// If Time Wars server is not reachable locally, mark card as external/disabled info
-// (just visual hint, no blocking)
-const twCard = document.getElementById('cardTW');
-if(twCard && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
-  twCard.href = '#';
-  twCard.querySelector('.card-desc').textContent += ' (запускається окремо: python serve_time_wars.py --port 5174)';
-  twCard.querySelector('.dot').className = 'dot';
-  twCard.querySelector('.status').lastChild.textContent = 'не доступний на Railway';
-}
-</script>
 
 </body>
 </html>
