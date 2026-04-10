@@ -478,6 +478,70 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
                 reasoning_html += "</div>\n"
             reasoning_html += "</div>"
 
+    # Social Fabric section — social actions + budget state + trust delta
+    _ACTION_ICONS = {
+        "alliance": "🤝", "betray": "🗡", "deceive": "🎭",
+        "share_food": "🍎", "ignore": "○", "warn": "⚠", "reciprocate": "↩",
+    }
+    social_actions = round_data.get("🔷_social_actions", {})
+    budget_state   = round_data.get("🔷_budget_state", {})
+    trust_delta    = round_data.get("🔷_trust_delta", {})
+    social_fabric_html = ""
+    if social_actions or budget_state or trust_delta:
+        sf = '<div class="section-label">SOCIAL FABRIC (соціальні дії · бюджет · довіра)</div>'
+        sf += '<div class="social-fabric-block">'
+        if social_actions:
+            sf += '<div class="sf-actions">'
+            for aid, acts in sorted(social_actions.items()):
+                for act in acts:
+                    tgt   = dn(act.get("target", "?"))
+                    atype = act.get("type", "?")
+                    icon  = _ACTION_ICONS.get(atype, "●")
+                    val   = act.get("value", 0)
+                    vis   = act.get("visibility", "public")
+                    sf += (
+                        f'<div class="sf-action-row">'
+                        f'<span class="agent-name">{dn(aid)}</span> {icon} '
+                        f'<span class="sf-action-type sf-{atype}">{atype}</span> → '
+                        f'<span class="agent-name">{tgt}</span> '
+                        f'<span class="sf-value">val={val:.2f}</span> '
+                        f'<span class="sf-vis sf-vis-{vis}">[{vis}]</span></div>\n'
+                    )
+            sf += "</div>"
+        if budget_state:
+            sf += '<div class="sf-budget">'
+            for aid, bs in sorted(budget_state.items()):
+                pool     = bs.get("pool", bs.get("budget_pool", 0))
+                spent    = bs.get("spent", bs.get("budget_spent_last", 0))
+                received = bs.get("received", bs.get("received_last_round", 0))
+                sf += (
+                    f'<div class="sf-budget-row"><span class="agent-name">{dn(aid)}</span>: '
+                    f'пул=<span class="sf-pool">{pool:.2f}</span> '
+                    f'витрачено=<span class="sf-spent">{spent:.2f}</span> '
+                    f'отримано=<span class="sf-received">{received:.2f}</span></div>\n'
+                )
+            sf += "</div>"
+        if trust_delta:
+            delta_rows = [
+                (aid, pid, d)
+                for aid, peers in sorted(trust_delta.items())
+                for pid, d in sorted(peers.items())
+                if abs(d) > 0.001
+            ]
+            if delta_rows:
+                sf += '<div class="sf-trust">'
+                for aid, pid, d in delta_rows:
+                    sign = "+" if d >= 0 else ""
+                    cls  = "sf-trust-pos" if d >= 0 else "sf-trust-neg"
+                    sf += (
+                        f'<div class="sf-trust-row"><span class="agent-name">{dn(aid)}</span> → '
+                        f'<span class="agent-name">{dn(pid)}</span>: '
+                        f'довіра <span class="{cls}">{sign}{d:.3f}</span></div>\n'
+                    )
+                sf += "</div>"
+        sf += "</div>"
+        social_fabric_html = sf
+
     return f"""
 <div class="round" id="round-{rnum}">
     <div class="round-header">── Round {rnum} ──────────────────────────────────</div>
@@ -491,6 +555,7 @@ def _build_round(round_data: dict, agent_reflections: dict, agent_reasonings: di
     {payoffs_html}
     {consequences_html}
     {reflections_html}
+    {social_fabric_html}
 </div>"""
 
 
@@ -849,6 +914,39 @@ body {
 }
 
 code { color: #86efac; font-size: 0.9em; }
+
+/* ── Social Fabric block ── */
+.social-fabric-block {
+    border-left: 3px solid #7c3aed;
+    background: #0d0a1a;
+    padding: 10px 14px;
+    margin: 6px 0;
+}
+.sf-actions, .sf-budget, .sf-trust {
+    margin-bottom: 8px;
+}
+.sf-action-row, .sf-budget-row, .sf-trust-row {
+    padding: 3px 0;
+    font-size: 0.92em;
+    color: #c4b5fd;
+}
+.sf-action-type { font-weight: 600; text-transform: uppercase; font-size: 0.85em; letter-spacing: 0.5px; }
+.sf-alliance   { color: #34d399; }
+.sf-betray     { color: #f87171; }
+.sf-deceive    { color: #fbbf24; }
+.sf-share_food { color: #a3e635; }
+.sf-ignore     { color: #6b7280; }
+.sf-warn       { color: #fb923c; }
+.sf-reciprocate { color: #60a5fa; }
+.sf-value      { color: #9ca3af; font-size: 0.85em; }
+.sf-vis        { font-size: 0.78em; padding: 1px 5px; border-radius: 8px; margin-left: 4px; }
+.sf-vis-public  { background: #1e3a5f; color: #7dd3fc; }
+.sf-vis-private { background: #3b1f2a; color: #f9a8d4; }
+.sf-pool       { color: #a78bfa; }
+.sf-spent      { color: #f87171; }
+.sf-received   { color: #34d399; }
+.sf-trust-pos  { color: #4ade80; font-weight: 600; }
+.sf-trust-neg  { color: #f87171; font-weight: 600; }
 """
 
 

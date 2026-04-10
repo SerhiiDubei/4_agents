@@ -98,8 +98,33 @@ table.state th {{ color: #9ca3af; font-weight: 600; }}
 .event.state_snapshot {{ border-left-color: #22d3ee; }}
 .event.round_start {{ border-left-color: #0ea5e9; }}
 .event.player_intent {{ border-left-color: #8b5cf6; }}
+.event.comm_message {{ border-left-color: #0ea5e9; }}
+.event.mcs_mood {{ border-left-color: #a855f7; }}
 .event .delta {{ color: #a3e635; }}
 .event .delta.neg {{ color: #f87171; }}
+/* ── COMM block inside round ── */
+.comm-block {{ margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b; }}
+.comm-block h4 {{ color: #6b7280; font-size: 0.82em; letter-spacing: 0.5px; margin-bottom: 6px; }}
+.comm-msg {{ font-size: 0.87em; padding: 4px 8px; margin: 2px 0; border-radius: 3px; color: #94a3b8; line-height: 1.5; }}
+.comm-msg.ch-public {{ background: #0d1b2e; }}
+.comm-msg.ch-dm {{ background: #120a2e; color: #c084fc; }}
+.comm-msg .sender {{ font-weight: 700; color: #a3e635; margin-right: 6px; }}
+.comm-msg .ch-tag {{ font-size: 0.75em; color: #4b5563; margin-left: 4px; }}
+/* ── MCS Mood block inside round ── */
+.mood-section {{ margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b; }}
+.mood-section h4 {{ color: #6b7280; font-size: 0.82em; letter-spacing: 0.5px; margin-bottom: 8px; }}
+.mood-row {{ display: flex; align-items: center; gap: 12px; margin: 5px 0; flex-wrap: wrap; }}
+.mood-agent {{ color: #a3e635; min-width: 110px; font-weight: 600; font-size: 0.88em; }}
+.mood-bars {{ display: flex; gap: 14px; align-items: flex-end; }}
+.mood-bar-item {{ display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }}
+.mood-bar-label {{ color: #6b7280; font-size: 0.70em; text-transform: uppercase; letter-spacing: 0.4px; }}
+.mood-bar-track {{ width: 64px; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }}
+.mood-bar-fill {{ height: 100%; border-radius: 3px; }}
+.mood-persona {{ font-size: 0.78em; font-style: italic; color: #c084fc; min-width: 80px; }}
+.mood-delta-badge {{ font-size: 0.72em; padding: 1px 5px; border-radius: 8px; font-weight: 600; }}
+.mood-delta-badge.stable {{ background: #1e293b; color: #4b5563; }}
+.mood-delta-badge.shift {{ background: #1c1a07; color: #f59e0b; }}
+.mood-delta-badge.explosive {{ background: #2a0d0d; color: #f87171; }}
 .round-block {{ margin: 24px 0; border: 1px solid #334155; background: #0f172a; padding: 16px; border-radius: 6px; }}
 .round-block h3 {{ color: #38bdf8; font-size: 1.1em; margin-bottom: 10px; }}
 .round-timer {{ color: #7dd3fc; margin-bottom: 8px; font-size: 0.95em; }}
@@ -180,6 +205,8 @@ if (roundStarts.length > 0) {{
     const intentByAgent = {{}};
     intents.forEach(e => {{ intentByAgent[e.agent_id] = e; }});
     const outcomes = events.filter(e => outcomeTypes.includes(e.event_type) && e.tick === tick);
+    const commMsgs = events.filter(e => e.event_type === "comm_message" && e.round_num === roundNum);
+    const moodEvs  = events.filter(e => e.event_type === "mcs_mood"     && e.round_num === roundNum);
     const playersHtml = players.map(p => {{
       const intent = intentByAgent[p.agent_id];
       const thought = intent && intent.thought ? intent.thought : "";
@@ -224,14 +251,45 @@ if (roundStarts.length > 0) {{
       }}).join("");
       outcomesHtml = `<div class="round-outcomes"><h4>Наслідки раунду</h4><div>${{outcomesHtml}}</div></div>`;
     }}
-    return `<div class="round-block" id="round-${{roundNum}}"><h3>Раунд ${{roundNum}}</h3><div class="round-timer">${{timerLine}}</div><div class="round-situation">${{situationStr}}</div><div class="players-in-round">${{playersHtml}}</div>${{outcomesHtml}}</div>`;
+    // ── COMM messages block ──────────────────────────────────────────────
+    let commHtml = "";
+    if (commMsgs.length > 0) {{
+      const msgs = commMsgs.map(m => {{
+        const ch = m.channel || "public";
+        const isDm = ch.startsWith("dm_");
+        const chClass = isDm ? "ch-dm" : "ch-public";
+        const chTag = isDm ? `<span class="ch-tag">[DM]</span>` : `<span class="ch-tag">[pub]</span>`;
+        const text = (m.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<div class="comm-msg ${{chClass}}"><span class="sender">${{name(m.sender_id || m.sender_id_name || "")}}</span>${{chTag}} ${{text}}</div>`;
+      }}).join("");
+      commHtml = `<div class="comm-block"><h4>Діалог (COMM)</h4>${{msgs}}</div>`;
+    }}
+    // ── MCS Mood block ───────────────────────────────────────────────────
+    let moodHtml = "";
+    if (moodEvs.length > 0) {{
+      function renderMoodBar(label, value, color) {{
+        const pct = Math.round((value || 0) * 100);
+        return `<div class="mood-bar-item"><span class="mood-bar-label">${{label}}</span><div class="mood-bar-track"><div class="mood-bar-fill" style="width:${{pct}}%;background:${{color}}"></div></div></div>`;
+      }}
+      const moodRows = moodEvs.map(m => {{
+        const bars = [
+          renderMoodBar("енергія", m.energy || 0, "#22c55e"),
+          renderMoodBar("страх",   m.fear    || 0, "#ef4444"),
+          renderMoodBar("напруга", m.tension || 0, "#f59e0b"),
+        ].join("");
+        const deltaClass = m.delta || "stable";
+        return `<div class="mood-row"><span class="mood-agent">${{name(m.agent_id)}}</span><div class="mood-bars">${{bars}}</div><span class="mood-persona">${{m.persona || ""}}</span><span class="mood-delta-badge ${{deltaClass}}">${{deltaClass}}</span></div>`;
+      }}).join("");
+      moodHtml = `<div class="mood-section"><h4>MCS Mood</h4>${{moodRows}}</div>`;
+    }}
+    return `<div class="round-block" id="round-${{roundNum}}"><h3>Раунд ${{roundNum}}</h3><div class="round-timer">${{timerLine}}</div><div class="round-situation">${{situationStr}}</div><div class="players-in-round">${{playersHtml}}</div>${{outcomesHtml}}${{commHtml}}${{moodHtml}}</div>`;
   }}).join("");
   document.getElementById("rounds-view").innerHTML = roundsHtml;
 }} else {{
   document.getElementById("rounds-section").style.display = "none";
 }}
 
-const eventTypesToShow = ["cooperate", "steal", "code_buy", "code_use", "storm", "crisis", "elimination", "skill_trigger", "game_over"];
+const eventTypesToShow = ["cooperate", "steal", "code_buy", "code_use", "storm", "crisis", "elimination", "skill_trigger", "game_over", "comm_message", "mcs_mood"];
 const otherEvents = events.filter(e => eventTypesToShow.includes(e.event_type) || (e.event_type === "steal" && e.target_effect));
 function rawFields(e) {{ const skip = ["event_type", "timestamp"]; return Object.entries(e).filter(([k]) => !skip.includes(k)).map(([k, v]) => `<dt>${{k}}</dt><dd>${{typeof v === "object" ? JSON.stringify(v) : v}}</dd>`).join(""); }}
 let lastTick = -1;
@@ -251,6 +309,19 @@ document.getElementById("events").innerHTML = otherEvents.map(e => {{
   else if (e.event_type === "elimination") text = `💀 ${{name(e.target_id)}} вибув`;
   else if (e.event_type === "skill_trigger") text = `⚡ ${{name(e.actor_id)}} ${{e.skill_id}} <span class="delta">+${{e.time_delta_seconds}} сек</span>`;
   else if (e.event_type === "game_over") text = `🏁 Гра завершена. Переможець: ${{e.winner_id ? name(e.winner_id) : "—"}}`;
+  else if (e.event_type === "comm_message") {{
+    const isDm = (e.channel || "").startsWith("dm_");
+    const msgText = (e.text || "").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const chLabel = isDm ? "[DM]" : "[pub]";
+    text = `💬 <b style="color:#a3e635">${{name(e.sender_id || "")}}</b> <span style="color:#4b5563;font-size:0.8em">${{chLabel}}</span> ${{msgText}}`;
+  }}
+  else if (e.event_type === "mcs_mood") {{
+    const en = e.energy != null ? Math.round(e.energy * 100) : "?";
+    const fe = e.fear   != null ? Math.round(e.fear   * 100) : "?";
+    const te = e.tension!= null ? Math.round(e.tension* 100) : "?";
+    const deltaColor = e.delta === "explosive" ? "#f87171" : e.delta === "shift" ? "#f59e0b" : "#4b5563";
+    text = `🧠 <b style="color:#a3e635">${{name(e.agent_id)}}</b> · персона: <span style="color:#c084fc">${{e.persona || "—"}}</span> · енергія: <span style="color:#22c55e">${{en}}%</span> · страх: <span style="color:#ef4444">${{fe}}%</span> · напруга: <span style="color:#f59e0b">${{te}}%</span> <span style="color:${{deltaColor}};font-size:0.8em">[${{e.delta || "stable"}}]</span>`;
+  }}
   else text = JSON.stringify(e);
   html += `<div class="event ${{e.event_type}}"><div>${{text}}</div><div class="event-details"><dl>${{rawFields(e)}}</dl></div></div>`;
   return html;
