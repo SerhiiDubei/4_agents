@@ -1772,11 +1772,21 @@ def _index_path() -> Path:
 
 @app.get("/")
 async def serve_index():
+    """Root → Hub (navigation). Init pipeline moved to /init."""
+    hub = _root_dir / "hub.html"
+    if hub.exists():
+        return FileResponse(str(hub), media_type="text/html")
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/hub")
+
+
+@app.get("/init")
+async def serve_init():
+    """Agent initialization React SPA (was at /)."""
     idx = _index_path()
     if idx.exists():
         return FileResponse(idx)
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/hub")
+    return PlainTextResponse("Init app not built — run: cd frontend && npm run build", status_code=404)
 
 
 # ---------------------------------------------------------------------------
