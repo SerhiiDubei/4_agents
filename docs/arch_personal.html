@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 Agents — Architecture Map</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#060b18;color:#c9d4e8;font-family:'Inter','Segoe UI',system-ui,sans-serif;}
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;background:rgba(7,16,31,0.95);backdrop-filter:blur(12px);border-bottom:1px solid #141f35;display:flex;align-items:center;padding:0 20px;gap:12px;z-index:200;}
+.logo{font-size:13px;font-weight:700;color:#fff;}
+.logo em{font-style:normal;color:#34d399;}
+.badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:#0a1e18;color:#34d399;border:1px solid #1a5a40;letter-spacing:.06em;text-transform:uppercase;}
+.nav-links{margin-left:auto;display:flex;gap:8px;}
+.nav-link{font-size:10px;color:#2a4d7a;text-decoration:none;border:1px solid #141f35;padding:4px 12px;border-radius:5px;transition:all .2s;}
+.nav-link:hover{color:#4f9eff;border-color:#1a2d4a;}
+.filters{position:fixed;top:60px;left:16px;display:flex;flex-direction:column;gap:5px;z-index:150;}
+.filter-btn{font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid #1a2d4a;background:rgba(10,20,40,0.85);cursor:pointer;transition:all .18s;text-align:left;display:flex;align-items:center;gap:6px;white-space:nowrap;color:#8ab8d8;}
+.filter-btn:hover{background:rgba(15,30,60,0.95);}
+.filter-btn.active{background:rgba(10,20,40,0.95);}
+.f-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.filter-sep{height:1px;background:#0d1a2d;margin:4px 0;}
+.filter-label{font-size:9px;color:#2a4060;letter-spacing:.08em;text-transform:uppercase;padding:0 2px;}
+.legend{position:fixed;bottom:14px;left:16px;display:flex;flex-direction:column;gap:5px;z-index:150;}
+.legend-group{display:flex;gap:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:9px;}
+.hint{position:fixed;bottom:14px;right:340px;font-size:9px;color:#1e3a5a;text-align:right;line-height:1.8;z-index:150;}
+#canvas{width:100%;height:100%;cursor:grab;user-select:none;}
+#canvas:active{cursor:grabbing;}
+.panel{position:fixed;top:48px;right:0;width:320px;height:calc(100vh - 48px);background:rgba(5,12,25,0.97);backdrop-filter:blur(16px);border-left:1px solid #141f35;padding:20px 18px;overflow-y:auto;z-index:150;transform:translateX(100%);transition:transform .3s ease;}
+.panel.open{transform:translateX(0);}
+.panel-close{position:absolute;top:12px;right:12px;background:none;border:1px solid #1a2d4a;color:#5a7a9a;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;}
+.panel-close:hover{color:#fff;border-color:#4f9eff;}
+.panel-status{display:inline-flex;align-items:center;gap:6px;font-size:9px;font-weight:700;padding:3px 10px;border-radius:4px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;}
+.panel-name{font-size:17px;font-weight:700;color:#fff;margin-bottom:3px;}
+.panel-sub{font-size:10px;color:#3a6080;margin-bottom:12px;font-family:monospace;}
+.panel-section{margin-top:14px;}
+.panel-section h3{font-size:9px;font-weight:700;color:#2a4060;text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid #0d1a2d;}
+.panel-section p{font-size:11px;line-height:1.65;color:#7a9aba;}
+.panel-files{display:flex;flex-direction:column;gap:3px;}
+.panel-file{font-size:9px;font-family:monospace;color:#3a6080;background:#07101e;padding:3px 7px;border-radius:3px;border-left:2px solid #1a2d4a;}
+.panel-issues{display:flex;flex-direction:column;gap:4px;}
+.panel-issue{font-size:10px;color:#d97070;background:#180808;padding:4px 8px;border-radius:4px;border-left:2px solid #7a2020;line-height:1.5;}
+.panel-issue .issue-id{font-weight:700;color:#f87171;margin-right:4px;}
+.panel-gaps{display:flex;flex-direction:column;gap:4px;}
+.panel-gap{font-size:10px;color:#a78bfa;background:#100818;padding:4px 8px;border-radius:4px;border-left:2px solid #4a2080;line-height:1.5;}
+.panel-connects{display:flex;flex-direction:column;gap:3px;}
+.panel-conn{font-size:10px;padding:3px 0;border-bottom:1px solid #0a1628;}
+.s-working{background:#0a1e10;color:#34d399;border:1px solid #1a4a22;}
+.s-partial{background:#1a1408;color:#fbbf24;border:1px solid #4a3808;}
+.s-broken{background:#1a0808;color:#f87171;border:1px solid #4a1a1a;}
+.s-branch{background:#0a1428;color:#60a5fa;border:1px solid #1a3060;}
+.s-planned{background:#100818;color:#a78bfa;border:1px solid #3a1a60;}
+.s-dead{background:#0d1018;color:#6b7280;border:1px solid #1e2535;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">4 Agents &middot; <em>Architecture Map</em></div>
+  <span class="badge">Personal · Deep View</span>
+  <div class="nav-links">
+    <a class="nav-link" href="mcs_architecture_visual.html">MCS v1</a>
+    <a class="nav-link" href="mcs_v2.html">MCS v2</a>
+    <a class="nav-link" href="mcs_v3.html">MCS v3</a>
+    <a class="nav-link" href="mcs_v4_interactive.html">MCS v4</a>
+    <a class="nav-link" href="PRODUCT_ROADMAP.html">Roadmap</a>
+  </div>
+</div>
+
+<div class="filters" id="filterPanel">
+  <div class="filter-label">Статус</div>
+  <button class="filter-btn active" data-filter="working" style="color:#34d399;">
+    <span class="f-dot" style="background:#34d399;"></span>Working
+  </button>
+  <button class="filter-btn active" data-filter="partial" style="color:#fbbf24;">
+    <span class="f-dot" style="background:#fbbf24;"></span>Partial / Issues
+  </button>
+  <button class="filter-btn active" data-filter="broken" style="color:#f87171;">
+    <span class="f-dot" style="background:#f87171;"></span>Broken
+  </button>
+  <button class="filter-btn active" data-filter="dead" style="color:#6b7280;">
+    <span class="f-dot" style="background:#6b7280;"></span>Dead code
+  </button>
+  <div class="filter-sep"></div>
+  <div class="filter-label">Гілки</div>
+  <button class="filter-btn active" data-filter="branch" style="color:#60a5fa;">
+    <span class="f-dot" style="background:#60a5fa;"></span>In branch
+  </button>
+  <button class="filter-btn active" data-filter="planned" style="color:#a78bfa;">
+    <span class="f-dot" style="background:#a78bfa;"></span>Planned / 0 коду
+  </button>
+</div>
+
+<div class="legend">
+  <div class="legend-group">
+    <div class="legend-item" style="color:#34d399;">
+      <svg width="22" height="4"><line x1="0" y1="2" x2="22" y2="2" stroke="#34d399" stroke-width="2"/></svg>
+      Working зв'язок
+    </div>
+    <div class="legend-item" style="color:#f87171;">
+      <svg width="22" height="4"><line x1="0" y1="2" x2="22" y2="2" stroke="#f87171" stroke-width="2" stroke-dasharray="4,3"/></svg>
+      Broken
+    </div>
+    <div class="legend-item" style="color:#60a5fa;">
+      <svg width="22" height="4"><line x1="0" y1="2" x2="22" y2="2" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4,3"/></svg>
+      Branch
+    </div>
+    <div class="legend-item" style="color:#a78bfa;">
+      <svg width="22" height="4"><line x1="0" y1="2" x2="22" y2="2" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4,3"/></svg>
+      Planned
+    </div>
+  </div>
+  <div style="font-size:9px;color:#1e3a5a;margin-top:3px;">
+    <span style="color:#f87171;font-weight:700;">N</span> = issue count &nbsp;·&nbsp;
+    <span style="color:#a78bfa;font-weight:700;">N</span> = gaps to fill
+  </div>
+</div>
+
+<div class="hint">
+  Scroll — zoom &nbsp;·&nbsp; Drag canvas — pan<br>
+  Click node — details &nbsp;·&nbsp; Drag node — move
+</div>
+
+<svg id="canvas"></svg>
+
+<div class="panel" id="panel">
+  <button class="panel-close" id="panelClose">&times;</button>
+  <div class="panel-name" id="panelName"></div>
+  <div class="panel-sub" id="panelSub"></div>
+  <span class="panel-status" id="panelStatus"></span>
+  <div id="panelBody"></div>
+</div>
+
+<script>
+'use strict';
+
+// All node/edge data is static application data, not user input.
+// Text from NODES is escaped via esc() before SVG insertion.
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
+var NODES = [
+  {
+    id:'agent-identity', name:'Agent Identity', sub:'SOUL / BIO / CORE / MEMORY \u00b7 17 \u0430\u0433\u0435\u043d\u0442\u0456\u0432',
+    status:'partial', x:160, y:80, w:200, h:68,
+    what:'17 \u0430\u0433\u0435\u043d\u0442\u0456\u0432 \u0437 \u043f\u043e\u0432\u043d\u0438\u043c\u0438 \u043f\u0440\u043e\u0444\u0456\u043b\u044f\u043c\u0438. SOUL.md \u2014 8-\u0440\u043e\u0437\u0434\u0456\u043b\u043e\u0432\u0430 \u043e\u0441\u043e\u0431\u0438\u0441\u0442\u0456\u0441\u0442\u044c (2nd person Ukrainian). CORE.json \u2014 \u0447\u0438\u0441\u043b\u043e\u0432\u0456 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0438: cooperation_bias, deception_tendency, strategic_horizon, risk_appetite. MEMORY.json \u2014 \u043a\u0440\u043e\u0441-\u0456\u0433\u0440\u043e\u0432\u0430 \u043f\u0430\u043c\u02bc\u044f\u0442\u044c.',
+    files:['agents/{id}/SOUL.md','agents/{id}/CORE.json','agents/{id}/BIO.md','agents/{id}/MEMORY.json','agents/roster.json'],
+    issues:[
+      'soul_template.json \u0437\u0430\u0441\u0442\u0430\u0440\u0456\u043b\u0438\u0439 \u2014 6 \u0440\u043e\u0437\u0434\u0456\u043b\u0456\u0432 \u0437\u0430\u043c\u0456\u0441\u0442\u044c 8 (\u0432\u0456\u0434\u0441\u0443\u0442\u043d\u0456 Voice, Body Language)',
+      '14 \u0437 17 profile \u0432 roster.json \u043f\u043e\u0440\u043e\u0436\u043d\u0456 (\u0442\u0456\u043b\u044c\u043a\u0438 Natalka/Dimonchyk/Mykyta \u0437\u0430\u043f\u043e\u0432\u043d\u0435\u043d\u0456)',
+      '\u0412\u0418\u0421-5/6: meta_params.json \u0456 question_contexts.json \u043d\u0435 \u043f\u0456\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0456 \u0434\u043e \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0456\u0457 SOUL'
+    ],
+    gaps:[],
+    connects:['\u2192 Pipeline Core (SOUL \u0447\u0438\u0442\u0430\u0454\u0442\u044c\u0441\u044f \u0432 reasoning)','\u2192 Decision Engine (CORE params \u2192 scoring)','\u2190 Roles System (\u0411\u0420\u041e\u041a\u0415\u041d: \u0440\u043e\u043b\u044c \u043d\u0435 \u0437\u0430\u043f\u0438\u0441\u0443\u0454\u0442\u044c\u0441\u044f \u0432 CORE.json)']
+  },
+  {
+    id:'roles-system', name:'Roles System', sub:'snake / gambler / banker / peacekeeper',
+    status:'broken', x:415, y:80, w:200, h:68,
+    what:'4 \u0440\u043e\u043b\u0456 \u0437 8 \u043d\u0430\u0432\u0438\u0447\u043a\u0430\u043c\u0438 \u043a\u043e\u0436\u043d\u0430 (ON_STEAL_SUCCESS, ON_STEAL_FAIL, ON_GAME_END). \u041c\u0430\u044e\u0442\u044c \u043c\u043e\u0434\u0438\u0444\u0456\u043a\u0443\u0432\u0430\u0442\u0438 CORE \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0438 \u0447\u0435\u0440\u0435\u0437 ROLE_CORE_OVERLAYS.',
+    files:['game_modes/time_wars/roles.json','pipeline/agent_context.py (ROLE_CORE_OVERLAYS)','game_modes/time_wars/skills.py'],
+    issues:[
+      '\u041a\u0420\u0418\u0422-3: \u0436\u043e\u0434\u043d\u043e\u043c\u0443 \u0430\u0433\u0435\u043d\u0442\u0443 \u0440\u043e\u043b\u044c \u043d\u0435 \u043f\u0440\u0438\u0437\u043d\u0430\u0447\u0435\u043d\u0430 \u2014 \u043d\u0435\u043c\u0430\u0454 \u043f\u043e\u043b\u044f role \u0432 CORE.json',
+      'ROLE_CORE_OVERLAYS \u0432\u0438\u0437\u043d\u0430\u0447\u0435\u043d\u0456 \u0432 \u043a\u043e\u0434\u0456 \u0430\u043b\u0435 \u043d\u0456\u043a\u043e\u043b\u0438 \u043d\u0435 \u0437\u0430\u0441\u0442\u043e\u0441\u043e\u0432\u0443\u044e\u0442\u044c\u0441\u044f \u0432 Island',
+      'Skills (apply_*) \u0437\u0430\u043b\u0435\u0436\u0430\u0442\u044c \u0432\u0456\u0434 steal \u2014 \u0430 steal \u043d\u0456\u043a\u043e\u043b\u0438 \u043d\u0435 \u0432\u0456\u0434\u0431\u0443\u0432\u0430\u0454\u0442\u044c\u0441\u044f'
+    ],
+    gaps:['\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u043d\u0435 \u043f\u0440\u0438\u0437\u043d\u0430\u0447\u0435\u043d\u043d\u044f \u0440\u043e\u043b\u0435\u0439 \u043f\u0440\u0438 create_session()'],
+    connects:['\u2192 Agent Identity (\u0411\u0420\u041e\u041a\u0415\u041d: \u0440\u043e\u043b\u044c \u043d\u0435 \u0437\u0430\u043f\u0438\u0441\u0443\u0454\u0442\u044c\u0441\u044f)','\u2192 Decision Engine (\u0411\u0420\u041e\u041a\u0415\u041d: overlays \u043d\u0435 \u0437\u0430\u0441\u0442\u043e\u0441\u043e\u0432\u0443\u044e\u0442\u044c\u0441\u044f)']
+  },
+  {
+    id:'payoff-matrix', name:'Payoff Matrix', sub:'cooperation / steal / support payoffs',
+    status:'partial', x:670, y:80, w:200, h:68,
+    what:'\u0420\u043e\u0437\u0440\u0430\u0445\u043e\u0432\u0443\u0454 payoff \u0434\u043b\u044f \u043a\u043e\u0436\u043d\u043e\u0457 \u043a\u043e\u043c\u0431\u0456\u043d\u0430\u0446\u0456\u0457 \u0434\u0456\u0439 (cooperate/cooperate, cooperate/steal). \u0412\u0438\u0437\u043d\u0430\u0447\u0430\u0454 labels \u0434\u043b\u044f \u0434\u0456\u0439.',
+    files:['simulation/payoff_matrix.py'],
+    issues:[
+      '\u041a\u0420\u0418\u0422-2: \u043f\u043e\u0440\u043e\u0433\u0438 \u0440\u043e\u0437\u0445\u043e\u0434\u044f\u0442\u044c\u0441\u044f \u043c\u0456\u0436 \u043f\u0456\u0434\u0441\u0438\u0441\u0442\u0435\u043c\u0430\u043c\u0438 (0.33/0.66 \u0442\u0443\u0442, 0.15/0.45/0.75 \u0432 dialog, 0.4/0.66 \u0432 reveal)',
+      'Support dimension (weight=0.5) \u0432\u0438\u0437\u043d\u0430\u0447\u0435\u043d\u0430 \u0430\u043b\u0435 game_engine \u043d\u0456\u043a\u043e\u043b\u0438 \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u0454 multi-dim actions'
+    ],
+    gaps:['simulation/constants.py \u0437 \u0454\u0434\u0438\u043d\u0438\u043c\u0438 \u043f\u043e\u0440\u043e\u0433\u0430\u043c\u0438'],
+    connects:['\u2190 Island Engine (\u0434\u0456\u0457 \u0430\u0433\u0435\u043d\u0442\u0456\u0432 \u2192 payoff calculation)']
+  },
+  {
+    id:'pipeline-core', name:'Pipeline Core', sub:'soul compiler \u00b7 reasoning \u00b7 memory \u00b7 state machine',
+    status:'partial', x:60, y:230, w:215, h:68,
+    what:'\u042f\u0434\u0440\u043e \u043e\u0431\u0440\u043e\u0431\u043a\u0438 \u0430\u0433\u0435\u043d\u0442\u0430: \u043a\u043e\u043c\u043f\u0456\u043b\u044f\u0446\u0456\u044f SOUL \u2192 LLM \u043f\u0440\u043e\u043c\u043f\u0442, reasoning \u043f\u0440\u043e \u0441\u0438\u0442\u0443\u0430\u0446\u0456\u044e, \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043d\u044f \u043f\u0430\u043c\u02bc\u044f\u0442\u0456 \u043c\u0456\u0436 \u0456\u0433\u0440\u0430\u043c\u0438.',
+    files:['pipeline/soul_compiler.py','pipeline/reasoning.py','pipeline/memory.py','pipeline/state_machine.py','pipeline/reflection.py'],
+    issues:[
+      '\u0412\u0418\u0421-1: 5 \u043a\u043e\u043f\u0456\u0439 _cooperation_val() \u0432 \u0440\u0456\u0437\u043d\u0438\u0445 \u0444\u0430\u0439\u043b\u0430\u0445',
+      '\u0412\u0418\u0421-2: 3\u20134 \u043a\u043e\u043f\u0456\u0457 call_openrouter() \u0437 \u0440\u0456\u0437\u043d\u0438\u043c\u0438 timeout/retry/temperature',
+      '\u0421\u0415\u0420-18: ~100 \u0440\u044f\u0434\u043a\u0456\u0432 dead code \u0432 reflection.py'
+    ],
+    gaps:['pipeline/utils.py \u2014 \u043e\u0434\u0438\u043d _cooperation_val()','pipeline/llm_client.py \u2014 \u043e\u0434\u0438\u043d call_openrouter()'],
+    connects:['\u2190 Agent Identity (\u0447\u0438\u0442\u0430\u0454 SOUL/CORE)','\u2192 Decision Engine (reasoning context)']
+  },
+  {
+    id:'decision-engine', name:'Decision Engine', sub:'action scoring \u00b7 utility computation',
+    status:'broken', x:325, y:230, w:215, h:68,
+    what:'\u0412\u0438\u0440\u0456\u0448\u0443\u0454 \u044f\u043a\u0443 \u0434\u0456\u044e \u0432\u0438\u043a\u043e\u043d\u0443\u0454 \u0430\u0433\u0435\u043d\u0442 (cooperate/steal/support/code/shop). \u0420\u0430\u0445\u0443\u0454 utility score \u0434\u043b\u044f \u043a\u043e\u0436\u043d\u043e\u0457 \u0434\u0456\u0457 \u043d\u0430 \u043e\u0441\u043d\u043e\u0432\u0456 CORE \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0456\u0432.',
+    files:['game_modes/time_wars/agent_context.py','pipeline/decision.py'],
+    issues:[
+      'STEAL \u043d\u0456\u043a\u043e\u043b\u0438 \u043d\u0435 \u0432\u0456\u0434\u0431\u0443\u0432\u0430\u0454\u0442\u044c\u0441\u044f: cooperation_bias=70 \u2192 level > 0.33 \u0437\u0430\u0432\u0436\u0434\u0438',
+      '\u0420\u043e\u043b\u0456 \u043d\u0435 \u0437\u0430\u0441\u0442\u043e\u0441\u043e\u0432\u0443\u044e\u0442\u044c\u0441\u044f \u2014 \u0432\u0441\u0456 \u0430\u0433\u0435\u043d\u0442\u0438 \u043f\u043e\u0432\u043e\u0434\u044f\u0442\u044c\u0441\u044f \u043e\u0434\u043d\u0430\u043a\u043e\u0432\u043e (24 cooperation \u0443 \u043a\u043e\u0436\u043d\u043e\u0433\u043e)',
+      '\u041a\u0420\u0418\u0422-7: situation_reflections \u0433\u0435\u043d\u0435\u0440\u0443\u044e\u0442\u044c\u0441\u044f \u0430\u043b\u0435 \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u044e\u0442\u044c\u0441\u044f \u0441\u044e\u0434\u0438',
+      '\u041a\u0420\u0418\u0422-1: Dialog \u0456\u0433\u043d\u043e\u0440\u0443\u0454\u0442\u044c\u0441\u044f \u043f\u0440\u0438 scoring'
+    ],
+    gaps:['\u0441\u0442\u0456\u043b scoring \u0447\u0435\u0440\u0435\u0437 deception_tendency + risk_appetite \u043d\u0430\u043f\u0440\u044f\u043c\u0443'],
+    connects:['\u2190 Pipeline Core (reasoning context)','\u2190 Dialog Engine (\u0411\u0420\u041e\u041a\u0415\u041d: dialog \u0456\u0433\u043d\u043e\u0440\u0443\u0454\u0442\u044c\u0441\u044f \u2014 \u041a\u0420\u0418\u0422-1)','\u2190 Roles System (\u0411\u0420\u041e\u041a\u0415\u041d: overlays \u043d\u0435 \u0437\u0430\u0441\u0442\u043e\u0441\u043e\u0432\u0443\u044e\u0442\u044c\u0441\u044f)','\u2192 Island Engine','\u2192 Time Wars Engine']
+  },
+  {
+    id:'dialog-engine', name:'Dialog Engine', sub:'LLM dialog generation \u00b7 DM system',
+    status:'partial', x:590, y:230, w:215, h:68,
+    what:'\u0413\u0435\u043d\u0435\u0440\u0443\u0454 \u043f\u0440\u0438\u0440\u043e\u0434\u043d\u043e\u043c\u043e\u0432\u043d\u0438\u0439 \u0434\u0456\u0430\u043b\u043e\u0433 \u043c\u0456\u0436 \u0430\u0433\u0435\u043d\u0442\u0430\u043c\u0438 \u0432 \u0440\u0430\u0443\u043d\u0434\u0456. \u041f\u0456\u0434\u0442\u0440\u0438\u043c\u0443\u0454 DM (\u043f\u0440\u044f\u043c\u0456 \u043f\u043e\u0432\u0456\u0434\u043e\u043c\u043b\u0435\u043d\u043d\u044f) \u043c\u0456\u0436 \u0430\u0433\u0435\u043d\u0442\u0430\u043c\u0438. Flat, stepped, legacy \u0440\u0435\u0436\u0438\u043c\u0438.',
+    files:['simulation/dialog_engine.py'],
+    issues:[
+      '\u041a\u0420\u0418\u0422-1: dialog_heard \u0431\u0443\u0434\u0443\u0454\u0442\u044c\u0441\u044f \u0430\u043b\u0435 \u041d\u0415 \u043f\u0435\u0440\u0435\u0434\u0430\u0454\u0442\u044c\u0441\u044f \u0432 generate_reasoning() \u2014 \u0434\u0456\u0430\u043b\u043e\u0433 \u0434\u0435\u043a\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u0438\u0439',
+      '\u0412\u0418\u0421-8: 2 \u043c\u0435\u0440\u0442\u0432\u0456 \u0433\u0435\u043d\u0435\u0440\u0430\u0442\u043e\u0440\u0438 (stepped, legacy) \u2014 \u0442\u0456\u043b\u044c\u043a\u0438 flat mode \u043f\u0440\u0430\u0446\u044e\u0454',
+      '\u041d\u0418\u0417-7: \u0442\u0456\u043b\u044c\u043a\u0438 \u043e\u0441\u0442\u0430\u043d\u043d\u0456\u0439 DM \u043e\u0431\u0440\u043e\u0431\u043b\u044f\u0454\u0442\u044c\u0441\u044f, \u043f\u043e\u043f\u0435\u0440\u0435\u0434\u043d\u0456 \u0456\u0433\u043d\u043e\u0440\u0443\u044e\u0442\u044c\u0441\u044f'
+    ],
+    gaps:['\u041f\u0435\u0440\u0435\u0434\u0430\u0442\u0438 last_messages \u2192 decision engine'],
+    connects:['\u2192 Island Engine (dialog per round)','\u2192 Decision Engine (\u0411\u0420\u041e\u041a\u0415\u041d: \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0456\u0433\u043d\u043e\u0440\u0443\u0454\u0442\u044c\u0441\u044f \u2014 \u041a\u0420\u0418\u0422-1)','\u2190 Time Wars Engine (\u0411\u0420\u041e\u041a\u0415\u041d: COMM\u2192ACTION \u2014 \u041a\u0420\u0418\u0422-8)']
+  },
+  {
+    id:'island-engine', name:'Island Game Engine', sub:"Prisoner's Dilemma \u00b7 \u0440\u0430\u0443\u043d\u0434\u0438 \u00b7 \u043d\u0430\u0440\u0430\u0442\u0438\u0432",
+    status:'partial', x:120, y:390, w:225, h:68,
+    what:'\u0413\u043e\u043b\u043e\u0432\u043d\u0438\u0439 \u0456\u0433\u0440\u043e\u0432\u0438\u0439 loop \u0434\u043b\u044f Island. \u041a\u0435\u0440\u0443\u0454 \u0440\u0430\u0443\u043d\u0434\u0430\u043c\u0438, \u0432\u0438\u043a\u043b\u0438\u043a\u0430\u0454 dialog engine, \u0437\u0431\u0438\u0440\u0430\u0454 \u0440\u0456\u0448\u0435\u043d\u043d\u044f \u0430\u0433\u0435\u043d\u0442\u0456\u0432, \u0440\u0430\u0445\u0443\u0454 payoffs, \u0433\u0435\u043d\u0435\u0440\u0443\u0454 \u043d\u0430\u0440\u0430\u0442\u0438\u0432.',
+    files:['simulation/game_engine.py','server/main.py \u2192 /start-game'],
+    issues:[
+      '\u041a\u0420\u0418\u0422-4: generate_round_narrative() \u0432 try/except: pass \u2014 narrative="" \u043c\u043e\u0432\u0447\u043a\u0438 \u0444\u0435\u0439\u043b\u0438\u0442\u044c',
+      '\u041a\u0420\u0418\u0422-6: reveal_requests \u0437\u0430\u0432\u0436\u0434\u0438 \u043f\u043e\u0440\u043e\u0436\u043d\u0456\u0439 \u2192 Reveal Skill \u043c\u0435\u0440\u0442\u0432\u0438\u0439',
+      '\u041a\u0420\u0418\u0422-7: situation_reflections \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u044e\u0442\u044c\u0441\u044f \u0432 decision',
+      '\u0412\u0418\u0421-14: roster.json \u0456 BIO.md \u0447\u0438\u0442\u0430\u044e\u0442\u044c\u0441\u044f \u0437 \u0434\u0438\u0441\u043a\u0443 \u043d\u0430 \u043a\u041e\u0416\u0415\u041d \u0440\u0430\u0443\u043d\u0434'
+    ],
+    gaps:['\u041f\u0456\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0438 storytell \u2192 generate_round_narrative()','\u041a\u0435\u0448\u0443\u0432\u0430\u043d\u043d\u044f roster/BIO \u043d\u0430 \u0441\u0442\u0430\u0440\u0442 \u0433\u0440\u0438'],
+    connects:['\u2190 Decision Engine','\u2190 Dialog Engine','\u2192 Payoff Matrix','\u2192 Storytell (\u0411\u0420\u041e\u041a\u0415\u041d: \u043d\u0435 \u043f\u0456\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e \u2014 \u041a\u0420\u0418\u0422-4)','\u2192 Frontend Hub (\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0438 \u0440\u0430\u0443\u043d\u0434\u0443)']
+  },
+  {
+    id:'time-wars-engine', name:'Time Wars Engine', sub:'tick-based \u00b7 \u0440\u043e\u043b\u0456 \u00b7 \u043a\u043e\u0434\u0438 \u00b7 shop \u00b7 COMM',
+    status:'partial', x:490, y:390, w:225, h:68,
+    what:'Real-time battle royale. \u0410\u0433\u0435\u043d\u0442\u0438 \u043e\u0442\u0440\u0438\u043c\u0443\u044e\u0442\u044c/\u0432\u0442\u0440\u0430\u0447\u0430\u044e\u0442\u044c TIME \u0440\u0435\u0441\u0443\u0440\u0441. \u0424\u0430\u0437\u0438: COMM \u2192 SHOP \u2192 CODE \u2192 ACTION. SSE streaming \u0434\u043e frontend.',
+    files:['serve_time_wars.py','game_modes/time_wars/loop.py','game_modes/time_wars/shop.py','game_modes/time_wars/codes.json'],
+    issues:[
+      '\u041a\u0420\u0418\u0422-8: ACTION \u0432\u0438\u0440\u0456\u0448\u0443\u0454\u0442\u044c\u0441\u044f \u0414\u041e \u0442\u043e\u0433\u043e \u044f\u043a COMM \u0437\u0430\u0432\u0435\u0440\u0448\u0443\u0454\u0442\u044c\u0441\u044f \u2014 90 \u0441\u0435\u043a timeout \u0456\u0433\u043d\u043e\u0440\u0443\u0454 \u0434\u0456\u0430\u043b\u043e\u0433',
+      '\u0412\u0418\u0421-9: codes.json \u043c\u043e\u0436\u0435 \u043d\u0435 \u0456\u0441\u043d\u0443\u0432\u0430\u0442\u0438 \u2192 SHOP \u043f\u0440\u043e\u043f\u0443\u0441\u043a\u0430\u0454\u0442\u044c\u0441\u044f \u043c\u043e\u0432\u0447\u043a\u0438',
+      '\u0421\u0415\u0420-12: CODE \u0444\u0430\u0437\u0430 \u043d\u0435 \u0447\u0435\u0440\u0435\u0437 decision_engine',
+      '\u0412\u0418\u0421-13: human player UI \u0432\u0456\u0434\u0441\u0443\u0442\u043d\u0456\u0439 (\u043b\u043e\u0433\u0456\u043a\u0430 \u0454, frontend \u043d\u0435\u043c\u0430)'
+    ],
+    gaps:['\u041f\u0435\u0440\u0435\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0443\u0432\u0430\u0442\u0438: COMM \u0437\u0430\u043a\u0456\u043d\u0447\u0443\u0454\u0442\u044c\u0441\u044f \u2192 \u0440\u0456\u0448\u0435\u043d\u043d\u044f \u2192 ACTION','Human player UI'],
+    connects:['\u2190 Decision Engine','\u2190 Dialog Engine (\u0411\u0420\u041e\u041a\u0415\u041d: COMM \u043d\u0435 \u0432\u043f\u043b\u0438\u0432\u0430\u0454 \u043d\u0430 \u0440\u0456\u0448\u0435\u043d\u043d\u044f \u2014 \u041a\u0420\u0418\u0422-8)','\u2190 Roles System','\u2192 Frontend Hub (SSE streaming)','\u2192 MCS Engine (\u0411\u0420\u0410\u041d\u0427 + PLANNED)']
+  },
+  {
+    id:'storytell', name:'Storytell Module', sub:'round narrative \u00b7 character arc \u00b7 events',
+    status:'dead', x:60, y:540, w:215, h:68,
+    what:'\u0413\u0435\u043d\u0435\u0440\u0443\u0454 \u043a\u0456\u043d\u0435\u043c\u0430\u0442\u043e\u0433\u0440\u0430\u0444\u0456\u0447\u043d\u0438\u0439 \u043d\u0430\u0440\u0430\u0442\u0438\u0432 \u043a\u043e\u0436\u043d\u043e\u0433\u043e \u0440\u0430\u0443\u043d\u0434\u0443: \u043e\u043f\u0438\u0441 \u0441\u0438\u0442\u0443\u0430\u0446\u0456\u0457, character arc \u043c\u0456\u0436 \u0456\u0433\u0440\u0430\u043c\u0438, escalation \u043d\u0430\u043f\u0440\u0443\u0433\u0438, consequence carryover (\u0437\u0440\u0430\u0434\u0430 \u2192 \u043c\u0430\u0439\u0431\u0443\u0442\u043d\u0456 \u043f\u043e\u0434\u0456\u0457).',
+    files:['storytell/round_narrative.py','storytell/round_events.py','storytell/character_arc.py'],
+    issues:[
+      '\u041f\u043e\u0432\u043d\u0456\u0441\u0442\u044e decoupled \u0432\u0456\u0434 \u043e\u0431\u043e\u0445 \u0456\u0433\u0440\u043e\u0432\u0438\u0445 \u0440\u0435\u0436\u0438\u043c\u0456\u0432 (Island \u0456 Time Wars)',
+      'round_narrative.py \u0406\u0421\u041d\u0423\u0404 \u0430\u043b\u0435 \u043d\u0456\u043a\u043e\u043b\u0438 \u043d\u0435 \u0432\u0438\u043a\u043b\u0438\u043a\u0430\u0454\u0442\u044c\u0441\u044f \u0432 game_engine.py loop',
+      'Genre/mood/stakes \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u044e\u0442\u044c\u0441\u044f \u0432 LLM \u043f\u0440\u043e\u043c\u043f\u0442\u0438',
+      '\u0426\u0435 Pillar #1 \u0437 backlog \u2014 \u0437\u0430\u043b\u0438\u0448\u0438\u0432\u0441\u044f \u043d\u0435\u0440\u0435\u0430\u043b\u0456\u0437\u043e\u0432\u0430\u043d\u0438\u043c'
+    ],
+    gaps:['\u041f\u0456\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0438: game_engine.py \u2192 generate_round_narrative()','\u041f\u0435\u0440\u0435\u0434\u0430\u0442\u0438 genre/mood/stakes \u0432 LLM \u043f\u0440\u043e\u043c\u043f\u0442\u0438','Character Arc \u043c\u0456\u0436 \u0440\u0430\u0443\u043d\u0434\u0430\u043c\u0438'],
+    connects:['\u2190 Island Engine (\u0411\u0420\u041e\u041a\u0415\u041d: \u043c\u0430\u0454 \u0432\u0438\u043a\u043b\u0438\u043a\u0430\u0442\u0438\u0441\u044c per round)','\u2190 Time Wars Engine (PLANNED: \u043d\u0435 \u0440\u0435\u0430\u043b\u0456\u0437\u043e\u0432\u0430\u043d\u043e)']
+  },
+  {
+    id:'mcs-engine', name:'MCS Engine', sub:'ruflo/mcs-engine \u00b7 autonomous NPC tick processor',
+    status:'branch', x:325, y:540, w:215, h:68,
+    what:'\u041d\u043e\u0432\u0438\u0439 \u0430\u0432\u0442\u043e\u043d\u043e\u043c\u043d\u0438\u0439 \u0434\u0432\u0438\u0436\u043e\u043a \u0434\u043b\u044f NPC \u0442\u0456\u043a\u0456\u0432. \u041e\u0431\u0440\u043e\u0431\u043b\u044f\u0454 \u0442\u0456\u043a\u0438 \u043d\u0435\u0437\u0430\u043b\u0435\u0436\u043d\u043e \u0432\u0456\u0434 game loop. \u0412\u043a\u043b\u044e\u0447\u0430\u0454 world_engine, persona system, runner, state management.',
+    files:['simulation/mcs/__init__.py','simulation/mcs/tick_processor.py','simulation/mcs/world_engine.py','simulation/mcs/persona.py','simulation/mcs/runner.py','simulation/mcs/state.py'],
+    issues:['\u041d\u0435 \u0437\u043b\u0438\u0442\u043e \u0432 main (\u0433\u0456\u043b\u043a\u0430 ruflo/mcs-engine)','\u0417\u0430\u043b\u0435\u0436\u0438\u0442\u044c \u0432\u0456\u0434 Social Fabric (\u0442\u0435\u0436 \u0432 branch)'],
+    gaps:['Merge \u0432 main \u043f\u0456\u0441\u043b\u044f review','\u0406\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0456\u044f \u0437 Time Wars Engine'],
+    connects:['\u2192 Social Fabric (branch internal)','\u2192 Agent Identity (\u0447\u0438\u0442\u0430\u0454 persona)','\u2190 Time Wars Engine (PLANNED: ticks \u0437 MCS)']
+  },
+  {
+    id:'social-fabric', name:'Social Fabric', sub:'ruflo/mcs-engine \u00b7 trust \u00b7 budget \u00b7 directed actions',
+    status:'branch', x:585, y:540, w:215, h:68,
+    what:'\u0421\u0438\u0441\u0442\u0435\u043c\u0430 \u0441\u043e\u0446\u0456\u0430\u043b\u044c\u043d\u0438\u0445 \u0432\u0437\u0430\u0454\u043c\u043e\u0434\u0456\u0439: \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0456 \u0434\u0456\u0457 \u0437 \u0431\u044e\u0434\u0436\u0435\u0442\u043e\u043c, trust \u043c\u0456\u0436 \u0430\u0433\u0435\u043d\u0442\u0430\u043c\u0438, \u0432\u0430\u043b\u0456\u0434\u0430\u0446\u0456\u044f targets. \u041e\u0441\u0442\u0430\u043d\u043d\u044f \u0440\u043e\u0431\u043e\u0442\u0430 \u0432 \u0433\u0456\u043b\u0446\u0456.',
+    files:['simulation/social_fabric.py','tests/test_social_fabric.py'],
+    issues:['\u041d\u0435 \u0437\u043b\u0438\u0442\u043e \u0432 main (\u0433\u0456\u043b\u043a\u0430 ruflo/mcs-engine)','\u041f\u043e\u0442\u0440\u0435\u0431\u0443\u0454 MCS Engine \u0434\u043b\u044f \u043f\u043e\u0432\u043d\u043e\u0457 \u0444\u0443\u043d\u043a\u0446\u0456\u043e\u043d\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u0456'],
+    gaps:['Merge + \u0456\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0456\u044f \u0437 Island \u0442\u0430 Time Wars'],
+    connects:['\u2190 MCS Engine (branch internal)','\u2192 Decision Engine (PLANNED: trust \u2192 scoring)','\u2192 Dialog Engine (PLANNED: trust \u2192 dialog)']
+  },
+  {
+    id:'frontend', name:'Frontend Hub', sub:'React + TypeScript + Vite \u00b7 \u043f\u043e\u0440\u0442 5173',
+    status:'partial', x:60, y:690, w:215, h:68,
+    what:'Web UI. Hub \u043f\u0430\u0433\u0435 (\u043d\u0430\u0432\u0456\u0433\u0430\u0446\u0456\u044f \u043c\u0456\u0436 \u043c\u043e\u0434\u0443\u043b\u044f\u043c\u0438), Island Launcher, Time Wars Monitor (real-time \u0442\u0456\u043a\u0438), LLM I/O tab (\u0434\u0435\u0431\u0430\u0433 \u043f\u0440\u043e\u043c\u043f\u0442\u0456\u0432 \u0456 \u0432\u0456\u0434\u043f\u043e\u0432\u0456\u0434\u0435\u0439).',
+    files:['frontend/src/','hub.html','island_launcher.html'],
+    issues:['\u0412\u0418\u0421-12: Auth UI \u0432\u0456\u0434\u0441\u0443\u0442\u043d\u0456\u0439 \u2014 backend \u0454, login/register \u0444\u043e\u0440\u043c\u0438 \u043d\u0435\u043c\u0430\u0454','\u0412\u0418\u0421-13: Human player UI \u0434\u043b\u044f TW \u0432\u0456\u0434\u0441\u0443\u0442\u043d\u0456\u0439','\u0422\u0034 \u0432 backlog: Island UI \u043d\u0435 \u0432\u0456\u0434\u043f\u043e\u0432\u0456\u0434\u0430\u0454 reference screens'],
+    gaps:['Auth UI','Human player interface \u0434\u043b\u044f Time Wars','Real-time Island visualization'],
+    connects:['\u2190 Island Engine (\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0438 \u0440\u0430\u0443\u043d\u0434\u0443)','\u2190 Time Wars Engine (SSE streaming)','\u2192 FastAPI Server (REST API calls)']
+  },
+  {
+    id:'fastapi', name:'FastAPI Servers', sub:'\u043f\u043e\u0440\u0442 8000 (Island) + \u043f\u043e\u0440\u0442 5174 (Time Wars)',
+    status:'partial', x:325, y:690, w:215, h:68,
+    what:'\u0414\u0432\u0430 \u043e\u043a\u0440\u0435\u043c\u0456 FastAPI \u0441\u0435\u0440\u0432\u0435\u0440\u0438. Server 8000: agent init pipeline, auth, Island game. Server 5174: Time Wars loop, SSE streaming.',
+    files:['server/main.py','serve_time_wars.py','run.py'],
+    issues:['\u0414\u0432\u0430 \u043e\u043a\u0440\u0435\u043c\u0456 \u0441\u0435\u0440\u0432\u0435\u0440\u0438 \u2014 \u0437\u0430\u043f\u043b\u0430\u043d\u043e\u0432\u0430\u043d\u043e \u043e\u0431\u02bc\u0454\u0434\u043d\u0430\u0442\u0438','\u0421\u0415\u0426-2: Rate limiting \u043d\u0430 LLM endpoints \u0432\u0456\u0434\u0441\u0443\u0442\u043d\u0456\u0439','\u0421\u0415\u0426-1: JWT expiry \u043d\u0435 \u043f\u0435\u0440\u0435\u0432\u0456\u0440\u044f\u0454\u0442\u044c\u0441\u044f'],
+    gaps:['\u041e\u0431\u02bc\u0454\u0434\u043d\u0430\u0442\u0438 \u0432 \u043e\u0434\u0438\u043d \u0441\u0435\u0440\u0432\u0435\u0440','Rate limiting','JWT expiry validation'],
+    connects:['\u2190 Frontend Hub (REST API calls)','\u2192 Island Engine','\u2192 Time Wars Engine','\u2192 Pipeline Core (agent init)']
+  },
+  {
+    id:'deploy', name:'Railway Deploy', sub:'git push \u2192 auto-deploy \u00b7 railway.toml',
+    status:'working', x:590, y:690, w:200, h:68,
+    what:'\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u043d\u0438\u0439 deploy \u043d\u0430 Railway \u043f\u0440\u0438 git push. \u041f\u043e\u0442\u0440\u0435\u0431\u0443\u0454 OPENROUTER_API_KEY \u0456 JWT_SECRET_KEY \u0432 Variables.',
+    files:['railway.toml','Procfile','run.py','.python-version'],
+    issues:[],
+    gaps:[],
+    connects:['\u2192 FastAPI Servers (\u0434\u0435\u043f\u043b\u043e\u0457\u0442\u044c \u043e\u0431\u0438\u0434\u0432\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0438)']
+  },
+  {
+    id:'redis-celery', name:'Redis / Celery', sub:'async LLM queue \u00b7 PLANNED \u00b7 0 \u0440\u044f\u0434\u043a\u0456\u0432 \u043a\u043e\u0434\u0443',
+    status:'planned', x:840, y:540, w:200, h:68,
+    what:'\u0417\u0430\u043f\u043b\u0430\u043d\u043e\u0432\u0430\u043d\u043e \u0434\u043b\u044f async LLM \u0432\u0438\u043a\u043b\u0438\u043a\u0456\u0432. \u0417\u0430\u0440\u0430\u0437 \u0432\u0441\u0456 LLM calls \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u0456 \u2014 ~13 \u0432\u0438\u043a\u043b\u0438\u043a\u0456\u0432 \u043d\u0430 \u0440\u0430\u0443\u043d\u0434 \u00d7 45 \u0441\u0435\u043a = \u043f\u043e\u0442\u0435\u043d\u0446\u0456\u0439\u043d\u043e 10+ \u0445\u0432 \u043d\u0430 \u0440\u0430\u0443\u043d\u0434.',
+    files:['(\u043d\u0435 \u0456\u0441\u043d\u0443\u0454)'],
+    issues:['\u0412\u0418\u0421-10: 0 \u0440\u044f\u0434\u043a\u0456\u0432 \u043a\u043e\u0434\u0443. \u0422\u0456\u043b\u044c\u043a\u0438 \u0432 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0456\u0457','\u0411\u0435\u0437 \u0446\u044c\u043e\u0433\u043e 10+ \u043f\u0430\u0440\u0430\u043b\u0435\u043b\u044c\u043d\u0438\u0445 \u0456\u0433\u043e\u0440 = \u0442\u0430\u0439\u043c\u0430\u0443\u0442\u0438'],
+    gaps:['asyncio TaskQueue (\u043f\u0440\u043e\u0441\u0442\u0456\u0448\u0438\u0439)','Celery + Redis (production)'],
+    connects:['\u2190 FastAPI Servers (PLANNED: async LLM calls)']
+  },
+];
+
+var EDGES = [
+  {s:'agent-identity', t:'pipeline-core', type:'working', label:'SOUL/CORE \u2192 reasoning'},
+  {s:'agent-identity', t:'decision-engine', type:'partial', label:'CORE params \u2192 scoring'},
+  {s:'roles-system', t:'agent-identity', type:'broken', label:'\u041a\u0420\u0418\u0422-3: \u0440\u043e\u043b\u044c \u043d\u0435 \u0432 CORE.json'},
+  {s:'roles-system', t:'decision-engine', type:'broken', label:'overlays \u043d\u0435 \u0437\u0430\u0441\u0442\u043e\u0441\u043e\u0432\u0443\u044e\u0442\u044c\u0441\u044f'},
+  {s:'pipeline-core', t:'decision-engine', type:'working', label:'reasoning context'},
+  {s:'dialog-engine', t:'island-engine', type:'working', label:'dialog per round'},
+  {s:'dialog-engine', t:'decision-engine', type:'broken', label:'\u041a\u0420\u0418\u0422-1: dialog \u0456\u0433\u043d\u043e\u0440\u0443\u0454\u0442\u044c\u0441\u044f'},
+  {s:'decision-engine', t:'island-engine', type:'working', label:'\u0440\u0456\u0448\u0435\u043d\u043d\u044f \u0430\u0433\u0435\u043d\u0442\u0430'},
+  {s:'decision-engine', t:'time-wars-engine', type:'working', label:'\u0440\u0456\u0448\u0435\u043d\u043d\u044f \u0430\u0433\u0435\u043d\u0442\u0430'},
+  {s:'island-engine', t:'payoff-matrix', type:'working', label:'\u0434\u0456\u0457 \u2192 payoffs'},
+  {s:'island-engine', t:'storytell', type:'broken', label:'\u041a\u0420\u0418\u0422-4: narrative \u043d\u0435 \u0432\u0438\u043a\u043b\u0438\u043a\u0430\u0454\u0442\u044c\u0441\u044f'},
+  {s:'time-wars-engine', t:'dialog-engine', type:'broken', label:'\u041a\u0420\u0418\u0422-8: COMM\u2192ACTION broken'},
+  {s:'mcs-engine', t:'social-fabric', type:'branch', label:'branch internal'},
+  {s:'mcs-engine', t:'agent-identity', type:'branch', label:'\u0447\u0438\u0442\u0430\u0454 persona'},
+  {s:'time-wars-engine', t:'mcs-engine', type:'planned', label:'PLANNED: ticks \u0437 MCS'},
+  {s:'social-fabric', t:'decision-engine', type:'planned', label:'PLANNED: trust \u2192 scoring'},
+  {s:'island-engine', t:'frontend', type:'working', label:'\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0438 \u0440\u0430\u0443\u043d\u0434\u0443'},
+  {s:'time-wars-engine', t:'frontend', type:'working', label:'SSE streaming'},
+  {s:'frontend', t:'fastapi', type:'working', label:'REST API calls'},
+  {s:'fastapi', t:'island-engine', type:'working', label:'start-game'},
+  {s:'fastapi', t:'time-wars-engine', type:'working', label:'TW server'},
+  {s:'fastapi', t:'pipeline-core', type:'working', label:'agent init'},
+  {s:'fastapi', t:'redis-celery', type:'planned', label:'PLANNED: async LLM'},
+  {s:'deploy', t:'fastapi', type:'working', label:'auto-deploy'},
+];
+
+// ─── RENDER STATE ────────────────────────────────────────────────────────────
+
+var svg = document.getElementById('canvas');
+var panel = document.getElementById('panel');
+var panelClose = document.getElementById('panelClose');
+
+var vx = 0, vy = 0, vscale = 1;
+var dragging = false, panStart = null;
+var dragInfo = null;
+var selectedNode = null;
+var activeFilters = new Set(['working','partial','broken','dead','branch','planned']);
+
+var nodePositions = {};
+NODES.forEach(function(n){ nodePositions[n.id] = {x:n.x, y:n.y}; });
+
+var STATUS_COLOR = {working:'#34d399',partial:'#fbbf24',broken:'#f87171',branch:'#60a5fa',planned:'#a78bfa',dead:'#4b5563'};
+var STATUS_LABEL = {working:'Working',partial:'Partial / Issues',broken:'Broken',branch:'In Branch (не злито)',planned:'Planned',dead:'Dead Code'};
+var EDGE_COLOR   = {working:'#1a5a40',broken:'#7a2020',branch:'#1a3060',planned:'#3a1a60',partial:'#4a3808'};
+var EDGE_HICOLOR = {working:'#34d399',broken:'#f87171',branch:'#60a5fa',planned:'#a78bfa',partial:'#fbbf24'};
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+function render(){
+  var W = window.innerWidth, H = window.innerHeight;
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  var visIds = new Set(NODES.filter(function(n){ return activeFilters.has(n.status); }).map(function(n){return n.id;}));
+
+  // Build SVG parts as array then join — avoids repeated string concat
+  var parts = [];
+
+  // Defs
+  parts.push('<defs>');
+  ['working','broken','branch','planned','partial'].forEach(function(t){
+    var c = EDGE_COLOR[t];
+    parts.push('<marker id="arr-'+t+'" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="'+c+'"/></marker>');
+    var h = EDGE_HICOLOR[t];
+    parts.push('<marker id="arrh-'+t+'" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="'+h+'"/></marker>');
+  });
+  parts.push('<filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>');
+  parts.push('</defs>');
+
+  parts.push('<g id="vp" transform="translate('+vx+','+vy+') scale('+vscale+')">');
+
+  // Layer bands
+  var bands = [
+    {y:55,h:120,label:'IDENTITY \u0026 ROLES',c:'rgba(52,211,153,0.03)'},
+    {y:205,h:120,label:'LOGIC LAYER',c:'rgba(96,165,250,0.03)'},
+    {y:365,h:120,label:'GAME MODES',c:'rgba(251,191,36,0.03)'},
+    {y:515,h:125,label:'DISCONNECTED / IN BRANCH',c:'rgba(167,139,250,0.03)'},
+    {y:665,h:120,label:'INFRASTRUCTURE',c:'rgba(100,116,139,0.03)'},
+  ];
+  bands.forEach(function(b){
+    parts.push('<rect x="40" y="'+b.y+'" width="1060" height="'+b.h+'" rx="8" fill="'+b.c+'" stroke="rgba(255,255,255,0.025)" stroke-width="1"/>');
+    parts.push('<text x="56" y="'+(b.y+16)+'" font-size="8" font-weight="700" letter-spacing="0.1em" fill="rgba(255,255,255,0.06)" font-family="Inter,system-ui">'+b.label+'</text>');
+  });
+
+  // Edges
+  EDGES.forEach(function(e){
+    if(!visIds.has(e.s)||!visIds.has(e.t)) return;
+    var sn = NODES.find(function(n){return n.id===e.s;}), tn = NODES.find(function(n){return n.id===e.t;});
+    if(!sn||!tn) return;
+    var sp = nodePositions[e.s], tp = nodePositions[e.t];
+    var sx = sp.x+sn.w/2, sy = sp.y+sn.h/2, tx = tp.x+tn.w/2, ty = tp.y+tn.h/2;
+    var dx = tx-sx, dy = ty-sy, len = Math.sqrt(dx*dx+dy*dy)||1;
+    var nx = dx/len, ny = dy/len;
+
+    function edgePt(cx,cy,w,h,px,py){
+      if(Math.abs(px*(h/2))>Math.abs(py*(w/2))){ return {x:cx+(px>0?w/2:-w/2),y:cy+(px>0?w/2:-w/2)*py/px}; }
+      return {x:cx+(py>0?h/2:-h/2)*px/py,y:cy+(py>0?h/2:-h/2)};
+    }
+    var p1 = edgePt(sx,sy,sn.w,sn.h,nx,ny);
+    var p2 = edgePt(tx,ty,tn.w,tn.h,-nx,-ny);
+    var mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+    var qx=mx-ny*35, qy=my+nx*35;
+
+    var isSel = selectedNode&&(selectedNode.id===e.s||selectedNode.id===e.t);
+    var col = isSel ? EDGE_HICOLOR[e.type] : EDGE_COLOR[e.type];
+    var markId = isSel ? 'arrh-'+e.type : 'arr-'+e.type;
+    var isDash = (e.type!=='working'&&e.type!=='partial');
+    var dashAttr = isDash ? 'stroke-dasharray="6,4"' : '';
+    var sw = isSel ? 2 : 1.5;
+    var op = isSel ? 0.95 : 0.5;
+
+    parts.push('<path d="M'+p1.x.toFixed(1)+','+p1.y.toFixed(1)+' Q'+qx.toFixed(1)+','+qy.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1)+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" '+dashAttr+' marker-end="url(#'+markId+')" opacity="'+op+'"/>');
+
+    if(isSel&&e.label){
+      var lx=(p1.x+qx+p2.x)/3, ly=(p1.y+qy+p2.y)/3-8;
+      parts.push('<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="8" fill="'+col+'" text-anchor="middle" font-family="Inter,system-ui" paint-order="stroke" stroke="#060b18" stroke-width="3">'+esc(e.label)+'</text>');
+    }
+  });
+
+  // Nodes
+  NODES.forEach(function(n){
+    if(!visIds.has(n.id)) return;
+    var p = nodePositions[n.id];
+    var col = STATUS_COLOR[n.status];
+    var isSel = selectedNode&&selectedNode.id===n.id;
+    var bg = isSel ? 'rgba(255,255,255,0.06)' : 'rgba(7,16,31,0.88)';
+    var bw = isSel ? 2 : 1.5;
+    var bop = isSel ? 0.9 : 0.45;
+    var filt = isSel ? ' filter="url(#glow)"' : '';
+    var nc = n.issues.length, gc = n.gaps.length;
+
+    parts.push('<g class="nd" data-id="'+n.id+'" transform="translate('+p.x.toFixed(1)+','+p.y.toFixed(1)+')" cursor="pointer"'+filt+'>');
+    parts.push('<rect width="'+n.w+'" height="'+n.h+'" rx="8" fill="'+bg+'" stroke="'+col+'" stroke-width="'+bw+'" stroke-opacity="'+bop+'"/>');
+    // top color strip
+    parts.push('<rect width="'+n.w+'" height="3" rx="2" fill="'+col+'" opacity="0.75"/>');
+
+    // branch badge
+    if(n.status==='branch'){
+      parts.push('<rect x="'+(n.w-80)+'" y="7" width="73" height="14" rx="3" fill="#0a1428" stroke="#1a3060" stroke-width="1"/>');
+      parts.push('<text x="'+(n.w-44)+'" y="18" font-size="7" font-weight="700" fill="#60a5fa" text-anchor="middle" font-family="monospace">ruflo/mcs-engine</text>');
+    }
+
+    // badge indicators: red=issues, purple=gaps
+    var badgeY = n.status==='branch' ? 30 : 14;
+    if(nc>0){
+      parts.push('<circle cx="'+(n.w-9)+'" cy="'+badgeY+'" r="8" fill="#180808" stroke="#5a1818" stroke-width="1"/>');
+      parts.push('<text x="'+(n.w-9)+'" y="'+(badgeY+4)+'" font-size="8" font-weight="700" fill="#f87171" text-anchor="middle">'+nc+'</text>');
+    }
+    if(gc>0){
+      var gx = nc>0 ? n.w-24 : n.w-9;
+      parts.push('<circle cx="'+gx+'" cy="'+badgeY+'" r="8" fill="#10091a" stroke="#3a1860" stroke-width="1"/>');
+      parts.push('<text x="'+gx+'" y="'+(badgeY+4)+'" font-size="8" font-weight="700" fill="#a78bfa" text-anchor="middle">'+gc+'</text>');
+    }
+
+    var nameColor = isSel ? '#ffffff' : '#d4e4f4';
+    parts.push('<text x="12" y="28" font-size="12" font-weight="700" fill="'+nameColor+'" font-family="Inter,system-ui">'+esc(n.name)+'</text>');
+    var shortSub = n.sub.length>30 ? n.sub.substring(0,29)+'\u2026' : n.sub;
+    parts.push('<text x="12" y="44" font-size="9" fill="'+col+'" opacity="0.85" font-family="monospace">'+esc(shortSub)+'</text>');
+    parts.push('<text x="12" y="60" font-size="8" fill="'+col+'" opacity="0.45" font-weight="600" font-family="Inter,system-ui">'+esc(STATUS_LABEL[n.status])+'</text>');
+    parts.push('</g>');
+  });
+
+  parts.push('</g>');
+
+  // Use a trusted SVG string built from our own static data (all escaped via esc())
+  svg.innerHTML = parts.join('');
+
+  svg.querySelectorAll('.nd').forEach(function(el){
+    el.addEventListener('mousedown', onNodeMouseDown, {passive:false});
+    el.addEventListener('click', onNodeClick);
+  });
+}
+
+// ─── PANEL ───────────────────────────────────────────────────────────────────
+
+function makePanelBody(node){
+  var frag = document.createDocumentFragment();
+
+  function sec(title, cb){
+    var div = document.createElement('div');
+    div.className = 'panel-section';
+    var h3 = document.createElement('h3');
+    h3.textContent = title;
+    div.appendChild(h3);
+    cb(div);
+    frag.appendChild(div);
+  }
+
+  sec('Що це робить', function(div){
+    var p = document.createElement('p');
+    p.textContent = node.what;
+    div.appendChild(p);
+  });
+
+  if(node.files.length){
+    sec('Файли ('+node.files.length+')', function(div){
+      var wrap = document.createElement('div');
+      wrap.className = 'panel-files';
+      node.files.forEach(function(f){
+        var d = document.createElement('div');
+        d.className = 'panel-file';
+        d.textContent = f;
+        wrap.appendChild(d);
+      });
+      div.appendChild(wrap);
+    });
+  }
+
+  if(node.issues.length){
+    sec('Проблеми ('+node.issues.length+')', function(div){
+      var wrap = document.createElement('div');
+      wrap.className = 'panel-issues';
+      node.issues.forEach(function(issue){
+        var d = document.createElement('div');
+        d.className = 'panel-issue';
+        var m = issue.match(/^(КРИТ-\d+|ВИС-\d+|СЕР-\d+|НИЗ-\d+|SEC-\d+|ROB-\d+):\s*/);
+        if(m){
+          var badge = document.createElement('span');
+          badge.className = 'issue-id';
+          badge.textContent = m[1];
+          d.appendChild(badge);
+          d.appendChild(document.createTextNode(issue.slice(m[0].length)));
+        } else {
+          d.textContent = issue;
+        }
+        wrap.appendChild(d);
+      });
+      div.appendChild(wrap);
+    });
+  }
+
+  if(node.gaps.length){
+    sec('Що потрібно додати ('+node.gaps.length+')', function(div){
+      var wrap = document.createElement('div');
+      wrap.className = 'panel-gaps';
+      node.gaps.forEach(function(g){
+        var d = document.createElement('div');
+        d.className = 'panel-gap';
+        d.textContent = g;
+        wrap.appendChild(d);
+      });
+      div.appendChild(wrap);
+    });
+  }
+
+  if(node.connects.length){
+    sec("Зв'язки", function(div){
+      var wrap = document.createElement('div');
+      wrap.className = 'panel-connects';
+      node.connects.forEach(function(c){
+        var d = document.createElement('div');
+        d.className = 'panel-conn';
+        var color = '#5a8aaa';
+        if(c.includes('BROKEN')) color = '#f87171';
+        else if(c.includes('branch') || c.includes('БРАНЧ')) color = '#60a5fa';
+        else if(c.includes('PLANNED')) color = '#a78bfa';
+        d.style.color = color;
+        d.textContent = c;
+        wrap.appendChild(d);
+      });
+      div.appendChild(wrap);
+    });
+  }
+
+  return frag;
+}
+
+function openPanel(node){
+  selectedNode = node;
+  document.getElementById('panelName').textContent = node.name;
+  document.getElementById('panelSub').textContent = node.sub;
+  var st = document.getElementById('panelStatus');
+  st.textContent = STATUS_LABEL[node.status];
+  st.className = 'panel-status s-'+node.status;
+  var body = document.getElementById('panelBody');
+  body.innerHTML = '';
+  body.appendChild(makePanelBody(node));
+  panel.classList.add('open');
+  render();
+}
+
+function closePanel(){
+  panel.classList.remove('open');
+  selectedNode = null;
+  render();
+}
+
+panelClose.addEventListener('click', closePanel);
+
+// ─── INPUT ───────────────────────────────────────────────────────────────────
+
+var nodeDragStart = null;
+var dragNodeId = null;
+
+function onNodeMouseDown(e){
+  e.stopPropagation();
+  var id = e.currentTarget.getAttribute('data-id');
+  var p = nodePositions[id];
+  nodeDragStart = {id:id, mx:e.clientX, my:e.clientY, ox:p.x, oy:p.y};
+  dragNodeId = id;
+  window.addEventListener('mousemove', onNodeMove);
+  window.addEventListener('mouseup', onNodeUp);
+}
+
+function onNodeMove(e){
+  if(!nodeDragStart) return;
+  var dx = (e.clientX - nodeDragStart.mx)/vscale;
+  var dy = (e.clientY - nodeDragStart.my)/vscale;
+  nodePositions[nodeDragStart.id] = {x: nodeDragStart.ox+dx, y: nodeDragStart.oy+dy};
+  render();
+}
+
+function onNodeUp(e){
+  var moved = Math.abs(e.clientX-nodeDragStart.mx)>4||Math.abs(e.clientY-nodeDragStart.my)>4;
+  if(!moved){/* click handled by onClick */}
+  nodeDragStart = null;
+  dragNodeId = null;
+  window.removeEventListener('mousemove', onNodeMove);
+  window.removeEventListener('mouseup', onNodeUp);
+}
+
+function onNodeClick(e){
+  e.stopPropagation();
+  var id = e.currentTarget.getAttribute('data-id');
+  var node = NODES.find(function(n){return n.id===id;});
+  if(!node) return;
+  if(selectedNode&&selectedNode.id===id){ closePanel(); return; }
+  openPanel(node);
+}
+
+svg.addEventListener('mousedown', function(e){
+  if(dragNodeId) return;
+  panStart = {mx:e.clientX, my:e.clientY, vx:vx, vy:vy};
+  dragging = true;
+});
+window.addEventListener('mousemove', function(e){
+  if(!dragging||!panStart||dragNodeId) return;
+  vx = panStart.vx+(e.clientX-panStart.mx);
+  vy = panStart.vy+(e.clientY-panStart.my);
+  render();
+});
+window.addEventListener('mouseup', function(){
+  dragging = false;
+  panStart = null;
+});
+svg.addEventListener('click', function(e){
+  if(e.target===svg) closePanel();
+});
+svg.addEventListener('wheel', function(e){
+  e.preventDefault();
+  var rect = svg.getBoundingClientRect();
+  var mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  var delta = e.deltaY>0 ? 0.88 : 1.12;
+  var ns = Math.max(0.25, Math.min(2.5, vscale*delta));
+  vx = mx-(mx-vx)*(ns/vscale);
+  vy = my-(my-vy)*(ns/vscale);
+  vscale = ns;
+  render();
+},{passive:false});
+
+document.querySelectorAll('.filter-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var f = btn.getAttribute('data-filter');
+    if(activeFilters.has(f)){ activeFilters.delete(f); btn.classList.remove('active'); }
+    else{ activeFilters.add(f); btn.classList.add('active'); }
+    render();
+  });
+});
+
+window.addEventListener('resize', render);
+
+// Center on load
+(function center(){
+  var W = window.innerWidth, H = window.innerHeight;
+  vscale = Math.min((W-340)/1080, (H-80)/800, 1);
+  vx = Math.max(20, (W - 1080*vscale)/2);
+  vy = 60;
+  render();
+})();
+</script>
+</body>
+</html>
