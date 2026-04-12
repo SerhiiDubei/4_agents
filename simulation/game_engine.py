@@ -861,6 +861,48 @@ def run_simulation(
 
             # --- Reveal window ---
             round_reveals = []
+
+            # Auto-reveal heuristic: agents with tokens use reveal in mid-game
+            # (rounds 3..total_rounds-2) against their least-trusted opponent.
+            # Trigger condition: lowest trust < 0.40 (suspicious of betrayal).
+            _mid_start = max(3, total_rounds // 3)
+            _mid_end   = total_rounds - 1
+            if _mid_start <= round_num <= _mid_end:
+                for _agent in agents:
+                    if not reveal_tracker.can_reveal(_agent.agent_id):
+                        continue
+                    # Find least-trusted opponent not yet investigated
+                    _trust_map = _agent.states.trust
+                    _candidates = [
+                        (tid, _trust_map.get(tid, 0.5))
+                        for tid in agent_ids
+                        if tid != _agent.agent_id
+                        and not reveal_tracker.was_investigated_by(_agent.agent_id, tid)
+                    ]
+                    if not _candidates:
+                        continue
+                    _least_trusted_id, _min_trust = min(_candidates, key=lambda x: x[1])
+                    if _min_trust < 0.40:
+                        _auto_req = {_agent.agent_id: _least_trusted_id}
+                        for revealer_id, target_id in _auto_req.items():
+                            record = reveal_tracker.use_reveal(
+                                revealer_id=revealer_id,
+                                target_id=target_id,
+                                round_number=round_num,
+                                action_log=action_log,
+                                all_agent_ids=agent_ids,
+                            )
+                            if record:
+                                round_reveals.append(record)
+                                revealer_agent = next(
+                                    (a for a in agents if a.agent_id == revealer_id), None
+                                )
+                                if revealer_agent and record.trust_delta_applied != 0.0:
+                                    current_trust = revealer_agent.states.trust.get(target_id, 0.5)
+                                    new_trust = max(0.0, min(1.0, current_trust + record.trust_delta_applied))
+                                    revealer_agent.states.trust[target_id] = round(new_trust, 4)
+
+            # Also apply any explicitly scheduled reveal_requests
             if reveal_requests and round_num in reveal_requests:
                 for revealer_id, target_id in reveal_requests[round_num].items():
                     record = reveal_tracker.use_reveal(
