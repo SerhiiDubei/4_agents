@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storytell Pipeline — 4 Agents</title>
+<style>
+:root{
+  --bg:#0d0f14;--s1:#161920;--s2:#1e2330;--s3:#252b3a;
+  --border:#2a3045;--text:#e8eaf0;--muted:#6b7280;
+  --purple:#a78bfa;--blue:#4f8ef7;--green:#3dd68c;--yellow:#f7b731;
+  --orange:#fd9644;--red:#f25f5c;--pink:#f472b6;--teal:#22d3ee;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100%}
+body{padding:28px 20px 60px}
+
+h1{font-size:1.4rem;font-weight:800;margin-bottom:4px}
+.subtitle{color:var(--muted);font-size:0.82rem;margin-bottom:28px}
+.ver-row{display:flex;gap:8px;align-items:center;margin-bottom:28px;flex-wrap:wrap}
+.cl-ver{background:rgba(124,109,250,.2);color:#a78bfa;font-size:0.7rem;padding:2px 8px;border-radius:20px;font-weight:700}
+.cl-dt{color:var(--muted);font-size:0.72rem}
+
+/* ─── Layout ─── */
+.page{max-width:1100px;margin:0 auto}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}
+@media(max-width:720px){.two-col{grid-template-columns:1fr}}
+
+/* ─── Section headers ─── */
+.sec{margin-bottom:30px}
+.sec-hdr{font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:700;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+
+/* ─── Flow diagram ─── */
+.flow{display:flex;flex-direction:column;align-items:center;gap:0}
+.flow-node{width:100%;max-width:780px;border-radius:10px;padding:14px 18px;position:relative;border:1.5px solid transparent}
+.flow-node.game-init{background:rgba(79,142,247,.1);border-color:rgba(79,142,247,.4)}
+.flow-node.world-bible{background:rgba(167,139,250,.13);border-color:rgba(167,139,250,.5)}
+.flow-node.per-round{background:rgba(61,214,140,.09);border-color:rgba(61,214,140,.3)}
+.flow-node.per-agent{background:rgba(253,150,68,.09);border-color:rgba(253,150,68,.3)}
+.flow-node.reasoning{background:rgba(244,114,182,.09);border-color:rgba(244,114,182,.3)}
+.flow-node.narrative{background:rgba(167,139,250,.09);border-color:rgba(167,139,250,.35)}
+.flow-node.frontend{background:rgba(34,211,238,.09);border-color:rgba(34,211,238,.3)}
+
+.node-title{font-weight:700;font-size:0.92rem;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.node-sub{color:var(--muted);font-size:0.76rem;margin-bottom:8px}
+.node-badge{font-size:0.62rem;padding:2px 7px;border-radius:20px;font-weight:700}
+.badge-once{background:rgba(79,142,247,.2);color:#4f8ef7}
+.badge-round{background:rgba(61,214,140,.2);color:#3dd68c}
+.badge-agent{background:rgba(253,150,68,.2);color:#fd9644}
+.badge-new{background:rgba(167,139,250,.25);color:#a78bfa}
+
+.arrow{width:2px;height:22px;background:var(--border);position:relative;margin:0 auto}
+.arrow::after{content:'▼';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:10px}
+.arrow.wide{height:30px}
+
+.node-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px}
+.node-item{background:var(--s2);border-radius:7px;padding:8px 10px;border-left:3px solid var(--border)}
+.node-item.purple{border-left-color:var(--purple)}
+.node-item.blue{border-left-color:var(--blue)}
+.node-item.green{border-left-color:var(--green)}
+.node-item.orange{border-left-color:var(--orange)}
+.node-item.teal{border-left-color:var(--teal)}
+.ni-title{font-size:0.75rem;font-weight:700;margin-bottom:3px}
+.ni-sub{font-size:0.67rem;color:var(--muted);line-height:1.4}
+.ni-file{font-size:0.63rem;color:var(--blue);font-family:monospace;margin-top:4px}
+
+/* ─── Files table ─── */
+.ftable{width:100%;border-collapse:collapse;font-size:0.78rem}
+.ftable th{text-align:left;padding:7px 10px;background:var(--s2);color:var(--muted);font-size:0.68rem;text-transform:uppercase;letter-spacing:1px}
+.ftable td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.ftable tr:last-child td{border-bottom:none}
+.ftable tr:hover td{background:var(--s2)}
+.ffile{font-family:monospace;color:var(--blue);font-size:0.74rem}
+.fnew{background:rgba(167,139,250,.15);color:#a78bfa;font-size:0.6rem;padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:700}
+.fmod{background:rgba(61,214,140,.15);color:#3dd68c;font-size:0.6rem;padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:700}
+
+/* ─── World Bible 12-questions ─── */
+.questions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px}
+.qcard{background:var(--s2);border-radius:8px;padding:10px 12px;border-top:2px solid var(--purple)}
+.qnum{font-size:0.65rem;color:var(--purple);font-weight:800;margin-bottom:3px}
+.qtitle{font-size:0.77rem;font-weight:700;margin-bottom:3px}
+.qdesc{font-size:0.68rem;color:var(--muted);line-height:1.4}
+
+/* ─── Data flow ─── */
+.dfbox{background:var(--s2);border-radius:8px;padding:12px 14px;font-size:0.76rem;border-left:3px solid var(--border)}
+.dfbox.purple{border-left-color:var(--purple)}
+.dfbox.blue{border-left-color:var(--blue)}
+.dfbox.green{border-left-color:var(--green)}
+.dfbox.orange{border-left-color:var(--orange)}
+.df-title{font-weight:700;font-size:0.8rem;margin-bottom:6px}
+.df-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
+.df-from{color:var(--muted);font-size:0.68rem;min-width:90px;flex-shrink:0;font-family:monospace}
+.df-arrow{color:var(--border);flex-shrink:0}
+.df-to{color:var(--text);font-size:0.72rem;line-height:1.4}
+code{font-family:monospace;font-size:0.75em;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px;color:var(--teal)}
+
+/* ─── Changelog ─── */
+.changelog{display:flex;flex-direction:column;gap:8px}
+.cl-item{background:var(--s2);border-radius:8px;padding:10px 14px;border-left:3px solid var(--border);font-size:0.78rem}
+.cl-item.t5{border-left-color:var(--purple)}
+.cl-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.cl-text{color:var(--muted);font-size:0.74rem;line-height:1.5}
+
+/* ─── Legend ─── */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;font-size:0.73rem}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div style="margin-bottom:6px">
+  <a href="../island_launcher.html" style="color:var(--muted);font-size:0.75rem;text-decoration:none">← Launcher</a>
+  &nbsp;·&nbsp;
+  <a href="ARCHITECTURE.html" style="color:var(--muted);font-size:0.75rem;text-decoration:none">Architecture</a>
+  &nbsp;·&nbsp;
+  <a href="arch_game.html" style="color:var(--muted);font-size:0.75rem;text-decoration:none">Game Engine</a>
+  &nbsp;·&nbsp;
+  <a href="arch_pipeline.html" style="color:var(--muted);font-size:0.75rem;text-decoration:none">Pipeline</a>
+</div>
+
+<h1>📖 Storytell Pipeline</h1>
+<p class="subtitle">Як генерується атмосфера, розповідь і контекст для кожного агента · Island Game</p>
+
+<div class="ver-row">
+  <span class="cl-ver">v0.20</span>
+  <span class="cl-dt">2026-04-13</span>
+  <span style="color:var(--muted);font-size:0.72rem">·</span>
+  <span style="color:var(--muted);font-size:0.72rem">T5: WorldBible + SOUL-anchored narrative + єдиний тон</span>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#4f8ef7"></div>Один раз на гру</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#3dd68c"></div>Кожен раунд</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#fd9644"></div>Кожен агент</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#a78bfa"></div>T5 — нове</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#22d3ee"></div>Frontend</div>
+</div>
+
+<!-- ─────────────── FLOW DIAGRAM ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">🔄 Повний пайплайн — від seed до екрану</div>
+
+  <div class="flow">
+
+    <!-- GAME INIT -->
+    <div class="flow-node game-init">
+      <div class="node-title">
+        🎮 Game Init
+        <span class="node-badge badge-once">1 раз</span>
+      </div>
+      <div class="node-sub">game_engine.py → run_simulation()</div>
+      <div class="node-grid">
+        <div class="node-item blue">
+          <div class="ni-title">sim_id → seed</div>
+          <div class="ni-sub">hash(sim_id) % 2³¹</div>
+          <div class="ni-file">game_engine.py:318</div>
+        </div>
+        <div class="node-item blue">
+          <div class="ni-title">generate_story(seed)</div>
+          <div class="ni-sub">рік, місце, проблема, жанр, настрій</div>
+          <div class="ni-file">story_generator.py:64</div>
+        </div>
+        <div class="node-item purple">
+          <div class="ni-title">generate_world_bible() <span style="color:#a78bfa;font-size:0.6rem">NEW</span></div>
+          <div class="ni-sub">12 питань → єдиний тон, SOUL всіх агентів</div>
+          <div class="ni-file">world_bible.py:95</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- WORLD BIBLE -->
+    <div class="flow-node world-bible">
+      <div class="node-title">
+        📜 WorldBible
+        <span class="node-badge badge-once">1 раз на гру</span>
+        <span class="node-badge badge-new">T5 NEW</span>
+      </div>
+      <div class="node-sub">Єдиний "голос" і атмосфера — передається у ВСІ narrative-виклики</div>
+      <div class="node-grid">
+        <div class="node-item purple"><div class="ni-title">tone</div><div class="ni-sub">жанровий регістр гри</div></div>
+        <div class="node-item purple"><div class="ni-title">narrator_voice</div><div class="ni-sub">хто оповідає і як</div></div>
+        <div class="node-item purple"><div class="ni-title">forbidden</div><div class="ni-sub">заборонені кліше</div></div>
+        <div class="node-item purple"><div class="ni-title">sensory</div><div class="ni-sub">звуки, запахи, світло</div></div>
+        <div class="node-item purple"><div class="ni-title">pacing</div><div class="ni-sub">темп розповіді</div></div>
+        <div class="node-item purple"><div class="ni-title">metaphor</div><div class="ni-sub">центральна метафора</div></div>
+        <div class="node-item purple"><div class="ni-title">agent_roles</div><div class="ni-sub">роль кожного агента в цій грі</div></div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- PER ROUND -->
+    <div class="flow-node per-round">
+      <div class="node-title">
+        🔁 Раунд 1..N
+        <span class="node-badge badge-round">кожен раунд</span>
+      </div>
+      <div class="node-sub">game_engine.py → round loop</div>
+      <div class="node-grid">
+        <div class="node-item green">
+          <div class="ni-title">get_round_event()</div>
+          <div class="ni-sub">шаблон події: "ти береш X на човен"</div>
+          <div class="ni-file">round_events.py:39</div>
+        </div>
+        <div class="node-item green">
+          <div class="ni-title">prev_rounds_summary</div>
+          <div class="ni-sub">стислий контекст попередніх раундів</div>
+          <div class="ni-file">game_engine.py:371</div>
+        </div>
+        <div class="node-item green">
+          <div class="ni-title">get_participants_for_event()</div>
+          <div class="ni-sub">хто залучений у подію цього раунду</div>
+          <div class="ni-file">round_events.py:68</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- PER AGENT -->
+    <div class="flow-node per-agent">
+      <div class="node-title">
+        👤 Ситуація per-agent
+        <span class="node-badge badge-agent">кожен агент</span>
+        <span class="node-badge badge-new">+ WorldBible T5</span>
+      </div>
+      <div class="node-sub">generate_situation_llm() · паралельно для всіх агентів · ~500 символів</div>
+      <div class="node-grid">
+        <div class="node-item orange">
+          <div class="ni-title">Вхід</div>
+          <div class="ni-sub">agent_id, round_event, story_params, prev_summary, <strong>world_bible</strong></div>
+          <div class="ni-file">situation.py:18</div>
+        </div>
+        <div class="node-item orange">
+          <div class="ni-title">Системний промпт</div>
+          <div class="ni-sub">Базовий стиль + <strong>WorldBible context</strong> (тон, заборонено, сенсорика)</div>
+        </div>
+        <div class="node-item orange">
+          <div class="ni-title">Вихід</div>
+          <div class="ni-sub">situations_per_agent[agent_id] → 500+ символів атмосфери</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- REASONING -->
+    <div class="flow-node reasoning">
+      <div class="node-title">
+        🧠 Reasoning per-agent
+        <span class="node-badge badge-agent">кожен агент</span>
+      </div>
+      <div class="node-sub">generate_reasoning() · LLM вирішує: зрадити чи підтримати</div>
+      <div class="node-grid">
+        <div class="node-item" style="border-left-color:#f472b6">
+          <div class="ni-title">story_context</div>
+          <div class="ni-sub">story_params.to_context_str()</div>
+        </div>
+        <div class="node-item" style="border-left-color:#f472b6">
+          <div class="ni-title">situation_text</div>
+          <div class="ni-sub">500+ символів для цього агента</div>
+        </div>
+        <div class="node-item" style="border-left-color:#f472b6">
+          <div class="ni-title">round_event_text</div>
+          <div class="ni-sub">відформатована подія з іменами</div>
+        </div>
+        <div class="node-item" style="border-left-color:#f472b6">
+          <div class="ni-title">core_params (BAL-1)</div>
+          <div class="ni-sub">cooperation_bias, deception, risk → числа в промпті</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- NARRATIVE -->
+    <div class="flow-node narrative">
+      <div class="node-title">
+        🎬 Round Narrative
+        <span class="node-badge badge-round">кожен раунд</span>
+        <span class="node-badge badge-new">+ WorldBible + SOUL T5</span>
+      </div>
+      <div class="node-sub">generate_round_narrative() · широкий кінематографічний опис · 400-700 символів</div>
+      <div class="node-grid">
+        <div class="node-item purple">
+          <div class="ni-title">world_bible</div>
+          <div class="ni-sub">тон, голос, метафора → в системний промпт</div>
+        </div>
+        <div class="node-item purple">
+          <div class="ni-title">soul_mds</div>
+          <div class="ni-sub">Voice + Decision Instinct кожного агента</div>
+        </div>
+        <div class="node-item purple">
+          <div class="ni-title">agent_roles (WorldBible)</div>
+          <div class="ni-sub">драматична роль агента в цій грі</div>
+        </div>
+        <div class="node-item purple">
+          <div class="ni-title">Результат</div>
+          <div class="ni-sub">RoundResult.round_narrative → SSE → Frontend</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow wide"></div>
+
+    <!-- FRONTEND -->
+    <div class="flow-node frontend">
+      <div class="node-title">
+        🖥 Frontend — WE Tab
+        <span class="node-badge" style="background:rgba(34,211,238,.2);color:#22d3ee">UI</span>
+        <span class="node-badge badge-new">📖 Розповідь T5.4</span>
+      </div>
+      <div class="node-sub">island_launcher.html → renderWeRound() → SSE WE_EVENT</div>
+      <div class="node-grid">
+        <div class="node-item teal"><div class="ni-title">💬 Діалог</div><div class="ni-sub">comm_messages</div></div>
+        <div class="node-item teal"><div class="ni-title">🎯 Наміри</div><div class="ni-sub">cooperation_level progress bars</div></div>
+        <div class="node-item teal"><div class="ni-title">💚 Підтримка</div><div class="ni-sub">support_events + trust delta</div></div>
+        <div class="node-item" style="border-left-color:#a78bfa;background:rgba(167,139,250,.08)">
+          <div class="ni-title" style="color:#a78bfa">📖 Розповідь</div>
+          <div class="ni-sub">round_narrative / narrative field · фіолетовий italic текст</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /flow -->
+</div><!-- /sec -->
+
+
+<!-- ─────────────── WORLD BIBLE 12 ПИТАНЬ ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">📜 WorldBible — 12 питань (T5.1 NEW)</div>
+  <div class="questions">
+    <div class="qcard">
+      <div class="qnum">1</div>
+      <div class="qtitle">Тон і жанр</div>
+      <div class="qdesc">Загальний емоційний регістр цієї конкретної гри. Холодний thriller? Виснажений survival?</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">2</div>
+      <div class="qtitle">Голос оповідача</div>
+      <div class="qdesc">Хто розповідає? "Байдужий бог", "виснажений журналіст", "сама земля"?</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">3</div>
+      <div class="qtitle">Заборонені кліше</div>
+      <div class="qdesc">4-6 слів і виразів що псують атмосферу. Не вживати жодного разу.</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">4</div>
+      <div class="qtitle">Сенсорна палітра</div>
+      <div class="qdesc">Звуки, запахи, освітлення, текстура простору. 2-3 речення конкретики.</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">5</div>
+      <div class="qtitle">Темп і ритм</div>
+      <div class="qdesc">Рваний? Плавний? Наростаючий? Задушливий? Визначає довжину речень.</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">6</div>
+      <div class="qtitle">Центральна метафора</div>
+      <div class="qdesc">Що символізує гра? "Довіра як валюта", "зрада як корабель що тоне"?</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">7</div>
+      <div class="qtitle">Роль агента 1</div>
+      <div class="qdesc">Драматична функція в цій конкретній грі на основі SOUL.md + StoryParams</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">8</div>
+      <div class="qtitle">Роль агента 2</div>
+      <div class="qdesc">Аналогічно — для кожного агента у грі (7-12 залежно від кількості)</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">9</div>
+      <div class="qtitle">Роль агента 3</div>
+      <div class="qdesc">Наприклад: "Алєг — маніпулятор що грає роль рятівника"</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">10</div>
+      <div class="qtitle">Роль агента 4</div>
+      <div class="qdesc">Наприклад: "Вова — наївний союзник що ризикує занадто довіряти"</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">11</div>
+      <div class="qtitle">Роль агента 5</div>
+      <div class="qdesc">WorldBible зберігає agent_roles dict — agent_id → 1 речення</div>
+    </div>
+    <div class="qcard">
+      <div class="qnum">12</div>
+      <div class="qtitle">Роль агента 6+</div>
+      <div class="qdesc">До 8 агентів. Ці ролі передаються в round_narrative для точного опису</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─────────────── DATA FLOW TABLE ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">📡 Потоки даних — що і куди передається</div>
+  <div class="two-col">
+
+    <div class="dfbox purple">
+      <div class="df-title">📜 WorldBible → narrative functions</div>
+      <div class="df-row">
+        <div class="df-from">world_bible</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to"><code>generate_situation_llm()</code> — до системного промпту</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">world_bible</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to"><code>generate_round_narrative()</code> — тон + agent_roles</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">soul_mds</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to"><code>generate_round_narrative()</code> — Voice + Instinct per agent</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">agent_roles</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">Опис кожного агента у розповіді</div>
+      </div>
+    </div>
+
+    <div class="dfbox green">
+      <div class="df-title">🔁 Round loop → reasoning</div>
+      <div class="df-row">
+        <div class="df-from">story_context</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to"><code>generate_reasoning()</code> user prompt</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">situation_text</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">500+ символів контексту для агента</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">round_event_text</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">подія з підставленими іменами</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">core_params</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">числові ваги personality (BAL-1)</div>
+      </div>
+    </div>
+
+    <div class="dfbox blue">
+      <div class="df-title">📡 SSE → Frontend payload</div>
+      <div class="df-row">
+        <div class="df-from">situation</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">загальна ситуація (1-2 речення)</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">narrative</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to"><strong>📖 Розповідь</strong> блок у WE-tab (T5.4)</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">comm_messages</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">💬 Діалог блок</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">support_events</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">💚 Підтримка блок</div>
+      </div>
+    </div>
+
+    <div class="dfbox orange">
+      <div class="df-title">🧠 SOUL.md → narrative anchoring</div>
+      <div class="df-row">
+        <div class="df-from">SOUL.md §Voice</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">WorldBible — tone context (generate)</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">SOUL.md §Instinct</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">round_narrative soul_excerpts</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">SOUL.md (all)</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">reasoning system prompt (перші 900 chars)</div>
+      </div>
+      <div class="df-row">
+        <div class="df-from">_extract_soul_voice()</div>
+        <div class="df-arrow">→</div>
+        <div class="df-to">~300 символів Voice+Instinct секцій</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ─────────────── FILES TABLE ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">📁 Файли storytell/ — що і навіщо</div>
+  <table class="ftable">
+    <thead>
+      <tr>
+        <th>Файл</th>
+        <th>Функція</th>
+        <th>Виклик</th>
+        <th>LLM?</th>
+        <th>T5</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="ffile">story_generator.py</span></td>
+        <td><code>generate_story(seed)</code> → StoryParams</td>
+        <td>1 раз на гру</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">world_bible.py</span><span class="fnew">NEW</span></td>
+        <td><code>generate_world_bible()</code> → WorldBible (12 питань)</td>
+        <td>1 раз на гру</td>
+        <td>✅ 1 виклик</td>
+        <td>T5.1</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">round_events.py</span></td>
+        <td><code>get_round_event()</code> шаблон події; <code>get_participants_for_event()</code></td>
+        <td>1 раз / раунд</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">situation.py</span><span class="fmod">MOD</span></td>
+        <td><code>generate_situation_llm()</code> → 500+ символів per agent</td>
+        <td>N агентів / раунд</td>
+        <td>✅ паралельно</td>
+        <td>T5.3 + world_bible</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">round_narrative.py</span><span class="fmod">MOD</span></td>
+        <td><code>generate_round_narrative()</code> → 400-700 символів (кінематографічний)</td>
+        <td>1 раз / раунд</td>
+        <td>✅ 1 виклик</td>
+        <td>T5.2 + world_bible + soul_mds</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">consequences.py</span></td>
+        <td><code>generate_consequences()</code> → 1-2 речення після payoff</td>
+        <td>1 раз / раунд</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="ffile">story_params.py</span></td>
+        <td><code>StoryParams</code> + <code>RoundEvent</code> dataclasses</td>
+        <td>контейнери даних</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ─────────────── PERFORMANCE ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">⚡ LLM-навантаження per game (5 раундів, 4 агенти)</div>
+  <table class="ftable">
+    <thead>
+      <tr><th>Виклик</th><th>Кількість</th><th>Коли</th><th>Model</th><th>Tokens</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>generate_world_bible <span class="fnew">NEW</span></td>
+        <td><strong>1</strong></td>
+        <td>game start</td>
+        <td>gemini-2.0-flash</td>
+        <td>~800 out</td>
+      </tr>
+      <tr>
+        <td>generate_situation_llm</td>
+        <td><strong>20</strong> (4×5)</td>
+        <td>per agent per round</td>
+        <td>gemini-2.0-flash</td>
+        <td>~450 out each</td>
+      </tr>
+      <tr>
+        <td>generate_round_narrative</td>
+        <td><strong>5</strong></td>
+        <td>per round</td>
+        <td>gemini-2.0-flash</td>
+        <td>~700 out each</td>
+      </tr>
+      <tr>
+        <td>generate_reasoning</td>
+        <td><strong>20</strong></td>
+        <td>per agent per round</td>
+        <td>gpt-4o-mini</td>
+        <td>~400 out each</td>
+      </tr>
+      <tr style="background:rgba(255,255,255,.03)">
+        <td><strong>Всього storytell</strong></td>
+        <td><strong>26 викликів</strong></td>
+        <td>+1 на game start</td>
+        <td>—</td>
+        <td>~13k tokens out</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ─────────────── CHANGELOG ─────────────── -->
+<div class="sec">
+  <div class="sec-hdr">📝 Changelog — storytell система</div>
+  <div class="changelog">
+
+    <div class="cl-item t5">
+      <div class="cl-top">
+        <span class="cl-ver">v0.20</span>
+        <span class="cl-dt">2026-04-13</span>
+        <strong style="font-size:0.82rem">T5.4 — UI: блок "📖 Розповідь" у WE-tab</strong>
+      </div>
+      <div class="cl-text">
+        <code>island_launcher.html</code> · renderWeRound() тепер відображає <code>narrative/round_narrative</code> поле.
+        Фіолетовий italic текст 400-700 символів кінематографічного опису раунду.
+        CSS: <code>.narrative-text</code>
+      </div>
+    </div>
+
+    <div class="cl-item t5">
+      <div class="cl-top">
+        <span class="cl-ver">v0.20</span>
+        <span class="cl-dt">2026-04-13</span>
+        <strong style="font-size:0.82rem">T5.3 — situation.py + WorldBible</strong>
+      </div>
+      <div class="cl-text">
+        <code>generate_situation_llm()</code> приймає <code>world_bible</code> параметр.
+        Системний промпт збагачується тоном, забороненими кліше, сенсорикою з WorldBible.
+        Єдиний стиль ситуацій впродовж всієї гри.
+      </div>
+    </div>
+
+    <div class="cl-item t5">
+      <div class="cl-top">
+        <span class="cl-ver">v0.20</span>
+        <span class="cl-dt">2026-04-13</span>
+        <strong style="font-size:0.82rem">T5.2 — round_narrative.py + SOUL anchoring</strong>
+      </div>
+      <div class="cl-text">
+        <code>generate_round_narrative()</code> приймає <code>world_bible</code> + <code>soul_mds</code>.
+        Кожен агент описується через його Voice + Decision Instinct секції.
+        Системний промпт: БІБЛІЯ СВІТУ блок (~300 символів тону).
+        max_tokens 600 → 700.
+      </div>
+    </div>
+
+    <div class="cl-item t5">
+      <div class="cl-top">
+        <span class="cl-ver">v0.20</span>
+        <span class="cl-dt">2026-04-13</span>
+        <strong style="font-size:0.82rem">T5.1 — WorldBible · новий файл</strong>
+      </div>
+      <div class="cl-text">
+        <code>storytell/world_bible.py</code> — новий файл.
+        <code>WorldBible</code> dataclass (7 полів + agent_roles dict).
+        <code>generate_world_bible()</code> — 1 LLM-виклик на початку гри.
+        12 питань → JSON відповідь → WorldBible.
+        Fallback без LLM на основі genre/mood.
+        <code>_extract_soul_voice()</code> — витягує Voice+Instinct секції з SOUL.md.
+        Інтегровано в <code>game_engine.py</code> після generate_story().
+      </div>
+    </div>
+
+    <div class="cl-item">
+      <div class="cl-top">
+        <span class="cl-ver">v0.1</span>
+        <span class="cl-dt">2026-04-10</span>
+        <strong style="font-size:0.82rem">Базова storytell система</strong>
+      </div>
+      <div class="cl-text">
+        StoryParams, RoundEvent, generate_story(), round_events, situation_llm, round_narrative.
+        Повністю інтегровано в game_engine.py і reasoning.py для Island.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="color:var(--muted);font-size:0.72rem;text-align:center;margin-top:40px;border-top:1px solid var(--border);padding-top:20px">
+  4 Agents · Storytell Pipeline · arch_storytell.html · v0.20 · 2026-04-13
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

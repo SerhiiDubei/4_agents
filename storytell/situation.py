@@ -2,13 +2,17 @@
 situation.py — опис ситуації для раунду.
 
 Шаблонна генерація (generate_situation) + LLM-генерація per-agent (generate_situation_llm).
+T5: generate_situation_llm приймає world_bible для єдиного тону між раундами.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from storytell.story_params import RoundEvent, StoryParams
+
+if TYPE_CHECKING:
+    from storytell.world_bible import WorldBible
 
 
 def _dn(agent_id: str, names: dict) -> str:
@@ -25,19 +29,27 @@ def generate_situation_llm(
     prev_rounds_summary: str = "",
     agent_profiles: dict = None,
     model: str = "google/gemini-2.0-flash-001",
+    # T5: WorldBible для єдиного тону
+    world_bible: Optional["WorldBible"] = None,
 ) -> str:
     """
     Генерує ситуацію для конкретного агента через LLM. Мінімум 500 символів.
+    T5: якщо передано world_bible — системний промпт збагачується тоном/голосом/сенсорикою.
     """
     from pipeline.seed_generator import call_openrouter
 
     display_name = _dn(agent_id, agent_names or {})
     ev_desc = round_event.template.replace("{name}", "когось").replace("{name1}", "одного").replace("{name2}", "іншого").replace("{names}", "інших")
 
-    system = (
+    # T5: базовий системний промпт збагачується WorldBible
+    world_ctx = world_bible.to_system_context() if world_bible else ""
+    system_parts = [
         "Ти — сценарист. Пиши описово, від третьої особи. "
-        "Стиль: атмосферний, кінематографічний. Українською. Тільки опис, без діалогів."
-    )
+        "Стиль: атмосферний, кінематографічний. Українською. Тільки опис, без діалогів.",
+    ]
+    if world_ctx:
+        system_parts.append(f"\nБІБЛІЯ СВІТУ (дотримуйся цього стилю):\n{world_ctx}")
+    system = "\n".join(system_parts)
 
     context = story_params.to_context_str()
     last_act_hint = ""

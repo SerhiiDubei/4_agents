@@ -310,6 +310,7 @@ def run_simulation(
 
     # Storytell — one story for the whole game (or custom override)
     story_params = None
+    world_bible = None  # T5: WorldBible — єдиний тон для всієї гри
     try:
         from storytell import generate_story, get_round_event, get_participants_for_event, generate_situation, generate_consequences
         if story_params_override is not None:
@@ -327,6 +328,24 @@ def run_simulation(
             "mood": story_params.mood,
             "stakes": story_params.stakes,
         }
+        # T5: Генеруємо WorldBible ОДИН РАЗ — на початку гри
+        try:
+            from storytell import generate_world_bible
+            # Збираємо SOUL.md всіх агентів
+            _soul_mds: dict = {}
+            for _ag in agents:
+                _soul_path = AGENTS_DIR / _ag.agent_id / "SOUL.md"
+                if _soul_path.exists():
+                    _soul_mds[_ag.agent_id] = _soul_path.read_text(encoding="utf-8").strip()
+            world_bible = generate_world_bible(
+                story_params=story_params,
+                agent_names=result.agent_names,
+                soul_mds=_soul_mds,
+            )
+        except Exception as _wb_err:
+            import sys as _sys
+            if verbose:
+                print(f"  [world_bible] WARN: {_wb_err}", file=_sys.stderr, flush=True)
     except Exception:
         pass
 
@@ -398,6 +417,7 @@ def run_simulation(
                                 agent_names=result.agent_names,
                                 prev_rounds_summary=prev_rounds_summary,
                                 agent_profiles=agent_profiles,
+                                world_bible=world_bible,  # T5
                             )
                         except Exception as _e:
                             if verbose:
@@ -875,6 +895,12 @@ def run_simulation(
                     prev_narr = " ".join(
                         r.round_narrative for r in result.rounds[-2:] if getattr(r, "round_narrative", "")
                     )[:500]
+                    # T5: збираємо SOUL.md для SOUL-anchored narrative
+                    _narr_souls: dict = {}
+                    for _ag in agents:
+                        _sp = AGENTS_DIR / _ag.agent_id / "SOUL.md"
+                        if _sp.exists():
+                            _narr_souls[_ag.agent_id] = _sp.read_text(encoding="utf-8").strip()
                     round_narrative = generate_round_narrative(
                         round_num=round_num,
                         total_rounds=total_rounds,
@@ -885,6 +911,8 @@ def run_simulation(
                         round_event_template=round_event_dict.get("template", ""),
                         prev_rounds_narrative=prev_narr,
                         agent_profiles=agent_profiles,
+                        world_bible=world_bible,   # T5
+                        soul_mds=_narr_souls,      # T5
                     )
                 except Exception as _narr_err:
                     import sys as _sys

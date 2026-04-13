@@ -15,6 +15,7 @@ from storytell.round_events import get_round_event, get_participants_for_event
 from storytell.situation import generate_situation, generate_situation_llm
 from storytell.consequences import generate_consequences
 from storytell.round_narrative import generate_round_narrative
+from storytell.world_bible import WorldBible, generate_world_bible
 
 __all__ = [
     "StoryParams",
@@ -26,4 +27,6 @@ __all__ = [
     "generate_situation_llm",
     "generate_consequences",
     "generate_round_narrative",
+    "WorldBible",
+    "generate_world_bible",
 ]

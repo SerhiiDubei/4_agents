@@ -152,6 +152,7 @@ textarea::placeholder{color:var(--muted)}
 .we-text.narr{color:#c8b4f7;font-style:italic}
 .we-text.conseq{color:var(--yellow);font-size:0.78rem}
 .comm-msg{display:flex;gap:6px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.79rem;flex-wrap:wrap}
+.narrative-text{color:#d4b4f7;font-style:italic;font-size:0.82rem;line-height:1.65;padding:8px 4px;white-space:pre-wrap}
 .comm-msg:last-child{border-bottom:none}
 .comm-sender{color:#a3e635;font-weight:700;flex-shrink:0}
 .comm-chan{color:var(--muted);font-size:0.68rem;flex-shrink:0}
@@ -815,6 +816,22 @@ function renderWeRound(data){
     });
     sb2.appendChild(sh2); sb2.appendChild(sbb2);
     round.appendChild(sb2);
+  }
+
+  // ── ROUND NARRATIVE block (T5) ──
+  const _narr = data.round_narrative || data.narrative || '';
+  if(_narr.length > 20){
+    const nb = mk('div','we-block');
+    const nh = mk('div','we-block-hdr');
+    const nt = mk('span','btitle','📖 Розповідь'); nt.style.color='#c084fc';
+    const ntog = mk('span','btoggle','▼');
+    nh.appendChild(nt); nh.appendChild(ntog);
+    nh.addEventListener('click',()=>{ nb.classList.toggle('collapsed'); });
+    const nbb = mk('div','we-block-body');
+    const ntext = mk('p','narrative-text', _narr);
+    nbb.appendChild(ntext);
+    nb.appendChild(nh); nb.appendChild(nbb);
+    round.appendChild(nb);
   }
 
   panel.appendChild(round);
