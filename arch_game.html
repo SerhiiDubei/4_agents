@@ -366,8 +366,8 @@ header {
             <div class="sub-step">Levels: <span class="hi">0.0 · 0.33 · 0.66 · 1.0</span></div>
             <div class="sub-step">Weighted by mood, trust, fear, tension</div>
           </div>
-          <div class="bug-badge">🔴 BUG T1.1 — strategic_score = -abs(action-0.66)*sh*0.4 blocks steal</div>
-          <div class="bug-badge">🔴 BUG T1.3 — Roles not differentiating (cooperation_bias≈70 all agents)</div>
+          <div class="bug-badge" style="color:#4dbb80;background:rgba(77,187,128,.12);border-color:rgba(77,187,128,.4)">✅ FIXED T1.1 — strategic_score = (1-|action-0.66|)*(sh-0.5)*0.4 — reward-peak (2026-04-13)</div>
+          <div class="bug-badge" style="color:#4dbb80;background:rgba(77,187,128,.12);border-color:rgba(77,187,128,.4)">✅ FIXED T1.3 — ROLE_CORE_OVERLAYS застосовані до CoreParams з clamping [0,100] (2026-04-13)</div>
         </div>
       </div>
       <div class="flow-arrow island-col">↓</div>
@@ -513,9 +513,9 @@ header {
           <div class="sub-steps">
             <div class="sub-step">Actions: <span>COOPERATE</span> / <span class="warn">STEAL</span> / <span>PASS</span></div>
           </div>
-          <div class="bug-badge">🔴 BUG T1.2 — loop.py passes last_messages=[] (COMM decorative)</div>
-          <div class="bug-badge">🔴 BUG CRIT-3 — SOUL.md missing from agent context</div>
-          <div class="bug-badge">🔴 BUG CRIT-5 — Skills not triggering (depend on steal which is blocked)</div>
+          <div class="bug-badge" style="color:#4dbb80;background:rgba(77,187,128,.12);border-color:rgba(77,187,128,.4)">✅ FIXED T1.2 — last_messages=round_messages передається в decision (serve_time_wars.py:571)</div>
+          <div class="bug-badge">🔴 BUG CRIT-3 — SOUL.md missing from agent context (OPEN)</div>
+          <div class="bug-badge" style="color:#4dbb80;background:rgba(77,187,128,.12);border-color:rgba(77,187,128,.4)">✅ FIXED CRIT-5 — ROLE_CORE_OVERLAYS диференціюють ролі, auto-reveal heuristic активний</div>
         </div>
       </div>
       <div class="flow-arrow tw-col">↓</div>

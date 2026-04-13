@@ -258,10 +258,10 @@ header {
         <div class="arrow-label">reasoning text</div>
       </div>
 
-      <!-- Stage 4: decision_engine.py — BUG CRIT-1 -->
-      <div class="stage s-pipe s-bug" id="s3" onclick="selectStage(3)">
-        <div class="bug-label">CRIT-1</div>
-        <div class="bug-badge">!</div>
+      <!-- Stage 4: decision_engine.py — FIXED CRIT-1 -->
+      <div class="stage s-pipe" id="s3" onclick="selectStage(3)" style="border-color:rgba(77,187,128,.5);box-shadow:0 0 8px rgba(77,187,128,.12)">
+        <div class="bug-label" style="background:rgba(77,187,128,.15);border-color:rgba(77,187,128,.5);color:#4dbb80">✓ FIXED</div>
+        <div class="bug-badge" style="background:#4dbb80">✓</div>
         <div class="stage-tag" style="color:var(--c-pipeline)">DECISION ENGINE</div>
         <div class="stage-name">decision_engine.py</div>
         <div class="stage-desc">Scores actions via _action_scores() → softmax → sample</div>
@@ -371,28 +371,32 @@ header {
     <div class="detail-panel" id="dp-3">
       <div class="dp-title">decision_engine.py</div>
       <div class="dp-tag" style="color:var(--c-pipeline)">DECISION ENGINE</div>
-      <div class="dp-bug-box">
-        <div class="dp-bug-id">CRIT-1 / T1.1: strategic_score BLOCKS STEAL</div>
+      <div class="dp-bug-box" style="background:rgba(77,187,128,.08);border-color:rgba(77,187,128,.4);border-style:solid">
+        <div class="dp-bug-id" style="color:#4dbb80">✓ FIXED (2026-04-13) — T1.1: strategic_score диференціює за personality</div>
         <div class="dp-bug-desc">
-          _action_scores() contains strategic_score = -abs(action-0.66)*sh*0.4 which penalizes any deviation from 0.66. Combined with horizon penalty — steal (0.0) is effectively impossible. <strong>risk_appetite is not used for steal direction</strong> — high-risk roles get no steal boost. Roles don't differentiate: cooperation_bias≈70 for all agents.
+          <strong style="color:#4dbb80">БУЛО:</strong> strategic_score = -abs(action-0.66)*sh*0.4 → всі stuck на 0.66<br>
+          <strong style="color:#4dbb80">СТАЛО:</strong> if sh&gt;0.5: strategic_score = (1-|action-0.66|)*(sh-0.5)*0.4<br>
+          Smoke test: Марта (dec=90) → 63% full_defect ✓ · Новий (coop=70) → 44% full_coop ✓
         </div>
       </div>
       <div class="dp-section">
         <div class="dp-section-hdr">_action_scores() — Affected Logic</div>
         <div class="dp-code"><span class="kw">def</span> _action_scores(core, reasoning):
   scores = [<span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>, <span class="val">0.0</span>]
-  <span class="bug-line"># BUG T1.1: strategic_score kills steal direction</span>
-  <span class="bug-line">sh = core[<span class="val">"strategic_horizon"</span>] / <span class="val">100</span></span>
-  <span class="bug-line">strategic_score = -abs(action - <span class="val">0.66</span>) * sh * <span class="val">0.4</span></span>
-  <span class="bug-line"># risk_appetite NOT used → roles don't steal</span>
+  sh = core[<span class="val">"strategic_horizon"</span>] / <span class="val">100</span>
+  <span class="val"># ✓ FIXED: reward-peak замість penalty</span>
+  <span class="val">if sh > 0.5:</span>
+  <span class="val">    strategic_score = (1-abs(action-0.66))*(sh-0.5)*0.4</span>
+  <span class="val">else:</span>
+  <span class="val">    strategic_score = abs(action-0.5)*(0.5-sh)*0.25</span>
+  <span class="val"># risk_appetite steal bonus для cb&lt;0.40 ✓</span>
   return softmax(scores)</div>
       </div>
       <div class="dp-section">
-        <div class="dp-section-hdr">Fix Required</div>
+        <div class="dp-section-hdr" style="color:#4dbb80">✓ Виправлено 2026-04-13</div>
         <div style="font-size:10px; color:var(--dim); line-height:1.6;">
-          1. Reduce strategic_score weight OR gate it on role.<br>
-          2. Add risk_appetite as positive steal-direction factor.<br>
-          3. Verify role CORE overlays (snake: coop-25) actually propagate to _action_scores().
+          Агенти тепер диференціюють за personality. ROLE_CORE_OVERLAYS застосовані.<br>
+          61/61 тестів GREEN після виправлення.
         </div>
       </div>
       <div class="dp-section">

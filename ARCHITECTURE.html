@@ -524,18 +524,20 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   </div>
 
   <div id="d-de" class="detail">
-    <div class="dtitle">decision_engine.py &mdash; CRIT-1</div>
-    <div class="code"><span class="cc"># CRIT-1 bug location:</span>
-def _action_scores(core, state):
-    base = core.cooperation_bias / 100
+    <div class="dtitle">decision_engine.py &mdash; <span style="color:#4dbb80">&#10003; FIXED 2026-04-13</span></div>
+    <div class="code"><span class="cc"># БУЛО (bug): всі stuck на 0.66</span>
+strategic_score = -abs(action-0.66)*sh*0.4
 
-    <span class="cc"># strategic_horizon penalty:</span>
-    penalty = core.strategic_horizon * 0.33
-    <span class="cc"># &rarr; завжди повертає ~0.66</span>
-    <span class="cc"># незалежно від cooperation_bias</span>
+<span class="cc"># СТАЛО (fix): reward-peak за personality</span>
+<span class="cv">if</span> sh > 0.5:
+    strategic_score = (1-abs(action-0.66))*(sh-0.5)*0.4
+<span class="cv">else</span>:
+    strategic_score = abs(action-0.5)*(0.5-sh)*0.25
 
-    return softmax([base - penalty, ...])</div>
-    <div class="dnote dbug">&#9888; Всі агенти stuck на 0.66 (часткова кооперація). Алєг (dec=98) і Вова (coop=70) поводяться однаково. Fix: перерахувати penalty формулу.</div>
+<span class="cc"># Smoke test 2026-04-13:</span>
+<span class="cc"># Марта (dec=90): 63% full_defect ✓</span>
+<span class="cc"># Новий (coop=70): 44% full_coop  ✓</span></div>
+    <div class="dnote" style="color:#4dbb80">&#10003; Виправлено. Агенти диференціюють за personality. Smoke test підтвердив.</div>
   </div>
 
   <div id="d-ge" class="detail">
@@ -553,7 +555,7 @@ def _action_scores(core, state):
   </div>
 
   <div id="d-twl" class="detail">
-    <div class="dtitle">Time Wars loop.py &mdash; Тик-цикл</div>
+    <div class="dtitle">Time Wars loop.py &mdash; <span style="color:#4dbb80">&#10003; CRIT-2 FIXED</span></div>
     <div class="code">tick(session, tick_num):
   drain_time(all_players)
   eliminate_if_zero()
@@ -561,14 +563,15 @@ def _action_scores(core, state):
   if action_phase_due:
     for agent in active:
       ctx = build_context(session, agent)
-      <span class="cc"># CRIT-2: last_messages missing</span>
-      <span class="cc"># CRIT-3: no SOUL.md in ctx</span>
-      action = llm_decide(ctx)
+      <span class="cv"># ✓ FIXED: last_messages передаються</span>
+      <span class="cv"># serve_time_wars.py:571</span>
+      <span class="cv"># last_messages=round_messages</span>
+      action = llm_decide(ctx, last_messages)
       apply_action(action)
 
   run_code_phase()
-  <span class="cc"># CRIT-4: no round_narrative call</span></div>
-    <div class="dnote dbug">3 з 4 критичних багів у цьому файлі або пов'язані з ним.</div>
+  <span class="cc"># CRIT-4: round_narrative — ще не підключено</span></div>
+    <div class="dnote">CRIT-2 виправлено &#10003;. CRIT-4 (storytell) — ще відкритий.</div>
   </div>
 
   <div id="d-srv" class="detail">

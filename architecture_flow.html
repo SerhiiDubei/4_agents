@@ -155,7 +155,7 @@ svg.arrows marker#arr-b path { fill:var(--c-bug); }
       <div class="proc-item" onclick="showProcess('island-decision')" id="p-island-decision">
         <span class="proc-dot" style="background:var(--c-pipeline)"></span>
         Decision Phase
-        <span class="proc-bug">CRIT-1</span>
+        <span class="proc-bug" style="color:#4dbb80">✓ FIXED</span>
       </div>
       <div class="proc-item" onclick="showProcess('island-payoff')" id="p-island-payoff">
         <span class="proc-dot" style="background:var(--c-game)"></span>
@@ -172,12 +172,12 @@ svg.arrows marker#arr-b path { fill:var(--c-bug); }
       <div class="proc-item" onclick="showProcess('tw-tick')" id="p-tw-tick">
         <span class="proc-dot" style="background:var(--c-game)"></span>
         Tick Loop
-        <span class="proc-bug">3 bugs</span>
+        <span class="proc-bug">1 bug</span>
       </div>
       <div class="proc-item" onclick="showProcess('tw-action')" id="p-tw-action">
         <span class="proc-dot" style="background:var(--c-pipeline)"></span>
         Action Phase
-        <span class="proc-bug">CRIT-2,3</span>
+        <span class="proc-bug">CRIT-3</span>
       </div>
       <div class="proc-item" onclick="showProcess('tw-steal')" id="p-tw-steal">
         <span class="proc-dot" style="background:var(--c-game)"></span>
@@ -243,7 +243,7 @@ var NODES = {
   'states_md':    { label:'STATES.md',       sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
   'memory_json':  { label:'MEMORY.json',     sub:'agents/{id}/',      color:'var(--c-data)',     x:0,   y:0 },
   'roster':       { label:'roster.json',     sub:'agents/',           color:'var(--c-data)',     x:0,   y:0 },
-  'de':           { label:'decision_engine', sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0, bug:'CRIT-1' },
+  'de':           { label:'decision_engine', sub:'pipeline/ ✓FIXED',  color:'var(--c-pipeline)', x:0,   y:0 },
   'ac_pipeline':  { label:'agent_context',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0, bug:'CRIT-3' },
   'sm':           { label:'state_machine',   sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
   'mem':          { label:'memory.py',       sub:'pipeline/',         color:'var(--c-pipeline)', x:0,   y:0 },
@@ -256,9 +256,9 @@ var NODES = {
   'dialog_eng':   { label:'dialog_engine',   sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
   'payoff':       { label:'payoff_matrix',   sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
   'reveal':       { label:'reveal_skill',    sub:'simulation/',       color:'var(--c-game)',     x:0,   y:0 },
-  'tw_loop':      { label:'loop.py',         sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-2,3,4' },
+  'tw_loop':      { label:'loop.py',         sub:'game_modes/tw/ ✓',  color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-4' },
   'tw_state':     { label:'state.py',        sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
-  'tw_ac':        { label:'agent_context',   sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-2,3' },
+  'tw_ac':        { label:'agent_context',   sub:'game_modes/tw/ ✓', color:'var(--c-game)',     x:0,   y:0, bug:'CRIT-3' },
   'tw_skills':    { label:'skills.py',       sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
   'tw_shop':      { label:'shop/codes',      sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
   'tw_const':     { label:'constants.py',    sub:'game_modes/tw/',    color:'var(--c-game)',     x:0,   y:0 },
@@ -506,8 +506,8 @@ var PROCESSES = {
       '1. CoreParams.from_dict(CORE.json)',
       '2. ROLE_CORE_OVERLAYS застосовується',
       '3. _action_scores(): softmax розрахунок',
-      '   BUG T1.1: strategic_score = -abs(action-0.66)*sh*0.4 → steal impossible',
-      '   BUG T1.3: risk_appetite not used for steal direction → roles uniform',
+      '   ✓ FIXED T1.1: strategic_score = (1-|action-0.66|)*(sh-0.5)*0.4 — reward-peak',
+      '   ✓ FIXED T1.3: ROLE_CORE_OVERLAYS застосовані до CoreParams з clamping',
       '4. reasoning.py будує думку агента',
       '5. choose_action() → 0.0/0.33/0.66/1.0',
     ]
@@ -586,10 +586,10 @@ var PROCESSES = {
       '1. drain_time(): всі гравці втрачають BASE_DRAIN * escalation',
       '2. eliminate_if_zero(): час &#8804;0 &rarr; гравець вилітає',
       '3. action_phase_due? &rarr; run_action_phase()',
-      '   BUG CRIT-2: last_messages не в контексті',
-      '   BUG CRIT-3: SOUL.md не в контексті',
+      '   ✓ FIXED CRIT-2: last_messages=round_messages передається (serve_time_wars.py:571)',
+      '   BUG CRIT-3: SOUL.md не в контексті (OPEN)',
       '4. run_code_phase(): агенти грають код-карти',
-      '   BUG CRIT-4: round_narrative не викликається',
+      '   BUG CRIT-4: round_narrative не викликається (OPEN)',
     ]
   },
 
@@ -612,8 +612,8 @@ var PROCESSES = {
     steps: [
       'build_context(session, agent_id):',
       '  core = CORE.json + ROLE_CORE_OVERLAYS',
-      '  BUG CRIT-3: soul_md ВІДСУТНІЙ',
-      '  BUG CRIT-2: last_messages ВІДСУТНІ',
+      '  BUG CRIT-3: soul_md ВІДСУТНІЙ (OPEN)',
+      '  ✓ FIXED CRIT-2: last_messages передаються через serve_time_wars.py:571',
       '  context = format(core, time_remaining, trust)',
       'action = llm_decide(context)',
       '&rarr; COOPERATE(target) / STEAL(target) / PASS',
