@@ -771,6 +771,18 @@ def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
             "mood": getattr(story_params, "mood", ""),
         }
 
+    # Collect comm_messages from round_result.dialog
+    comm_messages = []
+    dialog = getattr(round_result, "dialog", None)
+    if dialog and getattr(dialog, "messages", None):
+        for m in dialog.messages:
+            comm_messages.append({
+                "sender_id": getattr(m, "sender_id", ""),
+                "sender_name": names.get(getattr(m, "sender_id", ""), ""),
+                "channel": getattr(m, "channel", "public"),
+                "text": getattr(m, "text", ""),
+            })
+
     payload = {
         "round": rn,
         "total": total_rounds,
@@ -779,6 +791,7 @@ def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
         "consequences": consequences,
         "narrative": narrative,
         "agents": agents_data,
+        "comm_messages": comm_messages,
     }
 
     # Emit as single line (no newlines in JSON values — json.dumps handles escaping)

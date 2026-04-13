@@ -151,6 +151,11 @@ textarea::placeholder{color:var(--muted)}
 .we-text{font-size:0.8rem;line-height:1.7;color:var(--text);background:var(--bg);border-radius:6px;padding:10px 12px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word}
 .we-text.narr{color:#c8b4f7;font-style:italic}
 .we-text.conseq{color:var(--yellow);font-size:0.78rem}
+.comm-msg{display:flex;gap:6px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.79rem;flex-wrap:wrap}
+.comm-msg:last-child{border-bottom:none}
+.comm-sender{color:#a3e635;font-weight:700;flex-shrink:0}
+.comm-chan{color:var(--muted);font-size:0.68rem;flex-shrink:0}
+.comm-text{color:var(--text);flex:1}
 
 /* Params pills */
 .we-params{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
@@ -679,6 +684,31 @@ function renderWeRound(data){
         abody.appendChild(mk('div','we-thought', agent.reasoning.slice(0,300)));
       }
 
+      // Intents (cooperation_levels per target — pre-decision internal state)
+      if(agent.intents && Object.keys(agent.intents).length){
+        abody.appendChild(mk('div','we-section-title','Наміри (cooperation_level)'));
+        const itbl = mk('table','dtable');
+        Object.entries(agent.intents).forEach(([tgtId, val])=>{
+          const tr = document.createElement('tr');
+          const td1 = document.createElement('td');
+          td1.textContent = '\u2192 '+(data.agents[tgtId]?.name||tgtId.slice(-8));
+          td1.style.color='var(--muted)';
+          const td2 = document.createElement('td');
+          const pct = Math.round(val*100);
+          td2.className = val >= 0.55 ? 'dc-coop' : val <= 0.35 ? 'dc-betray' : 'dc-mixed';
+          td2.textContent = pct+'%';
+          const td3 = document.createElement('td');
+          const bar = document.createElement('div');
+          bar.style.cssText='width:80px;height:5px;background:#1e2330;border-radius:3px;overflow:hidden';
+          const fill = document.createElement('div');
+          fill.style.cssText=`height:100%;width:${pct}%;background:${val>=0.55?'#3dd68c':val<=0.35?'#f25f5c':'#f7b731'};border-radius:3px`;
+          bar.appendChild(fill); td3.appendChild(bar);
+          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+          itbl.appendChild(tr);
+        });
+        abody.appendChild(itbl);
+      }
+
       // Decisions
       if(agent.decisions && Object.keys(agent.decisions).length){
         abody.appendChild(mk('div','we-section-title','Рішення'));
@@ -720,6 +750,30 @@ function renderWeRound(data){
     nbb.appendChild(mk('div','we-text narr', data.narrative));
     nb.appendChild(nh); nb.appendChild(nbb);
     round.appendChild(nb);
+  }
+
+  // ── COMM MESSAGES block ──
+  if(data.comm_messages && data.comm_messages.length){
+    const cb = mk('div','we-block');
+    const ch = mk('div','we-block-hdr');
+    const ct = mk('span','btitle','💬 Діалог ('+data.comm_messages.length+')'); ct.style.color='#9dd5f5';
+    const ctog = mk('span','btoggle','▼');
+    ch.appendChild(ct); ch.appendChild(ctog);
+    ch.addEventListener('click',()=>{ cb.classList.toggle('collapsed'); });
+    const cbb = mk('div','we-block-body');
+    data.comm_messages.forEach(m => {
+      const isDm = (m.channel||'').startsWith('dm_');
+      const msgDiv = mk('div','comm-msg');
+      const senderEl = mk('span','comm-sender', m.sender_name||m.sender_id||'?');
+      const chanEl = mk('span','comm-chan', isDm ? '[DM]' : '[pub]');
+      const textEl = mk('span','comm-text', m.text||'');
+      msgDiv.appendChild(senderEl);
+      msgDiv.appendChild(chanEl);
+      msgDiv.appendChild(textEl);
+      cbb.appendChild(msgDiv);
+    });
+    cb.appendChild(ch); cb.appendChild(cbb);
+    round.appendChild(cb);
   }
 
   panel.appendChild(round);

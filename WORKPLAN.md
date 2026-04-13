@@ -143,3 +143,10 @@ F1 → F2 → F3
 - Дія: Виправлено ROB-1 — `reasoning.py::_call_structured` мігровано з голого `call_openrouter` на `call_llm` (3 retries, 2s delay, label="reasoning"). Тепер агент не зависає при LLM помилці.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: T2.2 (Support механіка — чекає рішення від користувача). Потім ROB-2 (Dialog timeout) та F1 (Візуалізація скілів у frontend).
+
+## [2026-04-13] F1 TIER 4 — Frontend фічі завершено
+- **F1.1 DONE** — `serve_time_wars.py`: live UI тепер показує скіли агента (`skill-tag` бейджі під роллю) з `role_assignment` event (поле `skills`).
+- **F1.2 DONE** — `run_simulation_live.py` + `island_launcher.html`: comm_messages (діалог) включені в WE_EVENT payload та рендеряться в "Діалог" блоці Island WE-tab у реальному часі.
+- **F1.3 DONE** — `island_launcher.html`: `intents` (cooperation_level per target) тепер рендеряться в "Наміри" блоці в кожного агента з прогрес-баром та кольором (зелений=кооп, червоний=зрада, жовтий=нейтраль).
+- **log_to_html.py DONE** — `round_narrative` event тепер рендерується в HTML звіті TW (фіолетовий italic текст).
+- Залишається відкритим: T2.2 (Support механіка — потребує рішення), F2 (Human player), F3 (4-player).

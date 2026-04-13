@@ -1081,6 +1081,8 @@ async def game_page(session: str = ""):
     .player-card.active-event {{ border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.3); }}
     .p-name {{ font-weight: 700; color: #f1f5f9; font-size: .95rem; }}
     .p-role {{ font-size: .75rem; color: #f59e0b; margin-top: 3px; }}
+    .p-skills {{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }}
+    .skill-tag {{ font-size: .65rem; background: rgba(192,132,252,.15); color: #c084fc; border: 1px solid rgba(192,132,252,.35); border-radius: 4px; padding: 1px 5px; }}
     .p-time {{ font-size: 1.5rem; font-weight: 800; color: #38bdf8; margin-top: 8px; font-variant-numeric: tabular-nums; transition: color .3s; }}
     .p-time.zero {{ color: #475569; }}
     .p-time.high {{ color: #4ade80; }}
@@ -1210,9 +1212,13 @@ async def game_page(session: str = ""):
         }} else {{
           statusText = 'Активний';
         }}
+        const skillsHtml = (p.skills && p.skills.length)
+          ? `<div class="p-skills">${{p.skills.map(s => `<span class="skill-tag">${{s}}</span>`).join('')}}</div>`
+          : '';
         return `<div class="player-card ${{cls}}">
           <div class="p-name">${{p.name}}</div>
           <div class="p-role">${{p.role}}</div>
+          ${{skillsHtml}}
           <div class="p-time ${{timeClass}}">${{Math.max(0, p.timeSec)}}с</div>
           <div class="p-status">${{statusText}}</div>
           <div class="p-mana">Мана: ${{p.mana !== undefined ? Math.round(p.mana) : '—'}}</div>
@@ -1247,6 +1253,7 @@ async def game_page(session: str = ""):
           id: ev.agent_id,
           name: ev.agent_id_name || ev.agent_id,
           role: ev.role_name || ev.role_id || '—',
+          skills: ev.skills || [],
           timeSec: baseSec,
           status: 'active',
           mana: 20,

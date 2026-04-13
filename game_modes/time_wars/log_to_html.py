@@ -289,7 +289,7 @@ if (roundStarts.length > 0) {{
   document.getElementById("rounds-section").style.display = "none";
 }}
 
-const eventTypesToShow = ["cooperate", "steal", "code_buy", "code_use", "storm", "crisis", "elimination", "skill_trigger", "game_over", "comm_message", "mcs_mood"];
+const eventTypesToShow = ["cooperate", "steal", "code_buy", "code_use", "storm", "crisis", "elimination", "skill_trigger", "game_over", "comm_message", "mcs_mood", "round_narrative"];
 const otherEvents = events.filter(e => eventTypesToShow.includes(e.event_type) || (e.event_type === "steal" && e.target_effect));
 function rawFields(e) {{ const skip = ["event_type", "timestamp"]; return Object.entries(e).filter(([k]) => !skip.includes(k)).map(([k, v]) => `<dt>${{k}}</dt><dd>${{typeof v === "object" ? JSON.stringify(v) : v}}</dd>`).join(""); }}
 let lastTick = -1;
@@ -314,6 +314,10 @@ document.getElementById("events").innerHTML = otherEvents.map(e => {{
     const msgText = (e.text || "").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const chLabel = isDm ? "[DM]" : "[pub]";
     text = `💬 <b style="color:#a3e635">${{name(e.sender_id || "")}}</b> <span style="color:#4b5563;font-size:0.8em">${{chLabel}}</span> ${{msgText}}`;
+  }}
+  else if (e.event_type === "round_narrative") {{
+    const narr = (e.narrative || "").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    text = `📖 <em style="color:#c084fc;font-style:italic">${{narr}}</em>`;
   }}
   else if (e.event_type === "mcs_mood") {{
     const en = e.energy != null ? Math.round(e.energy * 100) : "?";
