@@ -150,3 +150,10 @@ F1 → F2 → F3
 - **F1.3 DONE** — `island_launcher.html`: `intents` (cooperation_level per target) тепер рендеряться в "Наміри" блоці в кожного агента з прогрес-баром та кольором (зелений=кооп, червоний=зрада, жовтий=нейтраль).
 - **log_to_html.py DONE** — `round_narrative` event тепер рендерується в HTML звіті TW (фіолетовий italic текст).
 - Залишається відкритим: T2.2 (Support механіка — потребує рішення), F2 (Human player), F3 (4-player).
+
+## [2026-04-13] T2.2 ISLAND — Support механіка (Variant A) реалізована
+- **decision_engine.py**: `CoreParams.from_dict()` тепер автодеривує `support_bias` з personality якщо не задано: `max(10, min(90, coop*0.65 - dec*0.35 + 35))` → Алєг=26.7, Миролюб=86.8
+- **game_engine.py**: після payoff phase — якщо `support ≥ 0.66` → trust effect: supporter→supported +0.05*val, supported→supporter +0.03*val. Логуються в `_support_events` → `RoundResult.support_events`
+- **run_simulation_live.py**: `support_events` збагачені іменами і включені в WE_EVENT payload
+- **island_launcher.html**: новий "💚 Підтримка" блок в WE-tab — показує хто кого підтримав, рівень та trust_delta
+- Залишається: F2 (Human player), F3 (4-player)

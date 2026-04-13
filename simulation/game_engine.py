@@ -120,6 +120,8 @@ class RoundResult:
     social_actions: Dict[str, List[dict]] = field(default_factory=dict)   # {agent_id: [{target,type,value,vis}]}
     budget_state: Dict[str, dict] = field(default_factory=dict)           # {agent_id: {pool,spent,carryover,received}}
     trust_delta: Dict[str, Dict[str, float]] = field(default_factory=dict) # {agent_id: {peer_id: delta}}
+    # 💚 Support mechanic — active support events this round
+    support_events: List[dict] = field(default_factory=list)  # [{supporter, supported, value, trust_delta}]
 
     def _round_action_val(self, val):
         """Round action value for JSON; supports legacy float or multi-dim dict."""
@@ -812,6 +814,34 @@ def run_simulation(
             for agent_id, payoff in payoffs.total.items():
                 cumulative_scores[agent_id] = round(cumulative_scores[agent_id] + payoff, 4)
 
+            # --- Support → Trust effect ---
+            # When an agent actively supports another (support ≥ 0.66), both gain trust:
+            #   supporter → supported: +0.05 (committed investment in peer)
+            #   supported → supporter: +0.03 (reciprocity signal)
+            _support_events: list = []
+            from simulation.interaction_dimensions import get_action_for_dim as _get_action
+            _SUPP_ACTIVE = 0.05
+            _SUPP_RECIP  = 0.03
+            for _si in agents:
+                for _sj in agents:
+                    if _si.agent_id == _sj.agent_id:
+                        continue
+                    _sup = _get_action(round_actions, _si.agent_id, _sj.agent_id, "support")
+                    if _sup >= 0.66:
+                        _td = _SUPP_ACTIVE * (_sup / 1.0)  # scale by intensity
+                        # supporter trusts supported more (showed care)
+                        _s_map = social_trust_map.setdefault(_si.agent_id, {})
+                        _s_map[_sj.agent_id] = round(min(1.0, _s_map.get(_sj.agent_id, 0.5) + _td), 4)
+                        # supported trusts supporter back (reciprocity)
+                        _r_map = social_trust_map.setdefault(_sj.agent_id, {})
+                        _r_map[_si.agent_id] = round(min(1.0, _r_map.get(_si.agent_id, 0.5) + _td * _SUPP_RECIP / _SUPP_ACTIVE), 4)
+                        _support_events.append({
+                            "supporter": _si.agent_id,
+                            "supported": _sj.agent_id,
+                            "value": round(_sup, 2),
+                            "trust_delta": round(_td, 3),
+                        })
+
             # --- Storytell: consequences after payoffs ---
             round_consequences = ""
             round_narrative = ""
@@ -1063,6 +1093,7 @@ def run_simulation(
                 social_actions=round_social_actions,
                 budget_state=_budget_state_snap,
                 trust_delta=_trust_delta_snap,
+                support_events=_support_events,
             )
             result.rounds.append(round_result)
 

@@ -60,6 +60,12 @@ class CoreParams:
     @classmethod
     def from_dict(cls, d: dict) -> "CoreParams":
         core_dict = dict(d) if d else {}
+        # Derive support_bias from personality if not explicitly set:
+        # cooperative + non-deceptive agents support more naturally
+        if "support_bias" not in core_dict:
+            coop = float(core_dict.get("cooperation_bias", 50))
+            dec  = float(core_dict.get("deception_tendency", 50))
+            core_dict["support_bias"] = max(10.0, min(90.0, coop * 0.65 - dec * 0.35 + 35.0))
         return cls(
             cooperation_bias=float(d.get("cooperation_bias", 50)),
             deception_tendency=float(d.get("deception_tendency", 50)),

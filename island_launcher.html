@@ -787,6 +787,36 @@ function renderWeRound(data){
     round.appendChild(cb);
   }
 
+  // ── SUPPORT EVENTS block ──
+  if(data.support_events && data.support_events.length){
+    const sb2 = mk('div','we-block');
+    const sh2 = mk('div','we-block-hdr');
+    const st2 = mk('span','btitle','💚 Підтримка ('+data.support_events.length+')'); st2.style.color='#4dbb80';
+    const stog2 = mk('span','btoggle','▼');
+    sh2.appendChild(st2); sh2.appendChild(stog2);
+    sh2.addEventListener('click',()=>{ sb2.classList.toggle('collapsed'); });
+    const sbb2 = mk('div','we-block-body');
+    data.support_events.forEach(ev => {
+      const row = mk('div','comm-msg');
+      const lvl = ev.value >= 0.99 ? 'повна підтримка' : 'активна підтримка';
+      const pct = Math.round(ev.value*100);
+      const names_part = (ev.supporter_name||ev.supporter) + ' → підтримує → ' + (ev.supported_name||ev.supported);
+      const detail_part = lvl + ' (' + pct + '%) · trust +' + (ev.trust_delta*100).toFixed(1) + '%';
+      row.appendChild(mk('span','comm-sender', ev.supporter_name||ev.supporter));
+      const arrow = mk('span',null,' → підтримує → '); arrow.style.color='#4dbb80'; arrow.style.fontWeight='700';
+      row.appendChild(arrow);
+      row.appendChild(mk('span','comm-sender', ev.supported_name||ev.supported));
+      const chan = mk('span','comm-chan', ' ' + lvl + ' (' + pct + '%)');
+      row.appendChild(chan);
+      const td = mk('span',null,' trust +' + (ev.trust_delta*100).toFixed(1) + '%');
+      td.style.color='#a3e635'; td.style.fontSize='0.72rem';
+      row.appendChild(td);
+      sbb2.appendChild(row);
+    });
+    sb2.appendChild(sh2); sb2.appendChild(sbb2);
+    round.appendChild(sb2);
+  }
+
   panel.appendChild(round);
 
   weRoundCount++;

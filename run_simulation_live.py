@@ -783,6 +783,20 @@ def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
                 "text": getattr(m, "text", ""),
             })
 
+    # Support events — enrich with names
+    raw_support = getattr(round_result, "support_events", []) or []
+    support_events = [
+        {
+            "supporter": e.get("supporter", ""),
+            "supporter_name": names.get(e.get("supporter", ""), e.get("supporter", "")[-8:]),
+            "supported": e.get("supported", ""),
+            "supported_name": names.get(e.get("supported", ""), e.get("supported", "")[-8:]),
+            "value": e.get("value", 0.0),
+            "trust_delta": e.get("trust_delta", 0.0),
+        }
+        for e in raw_support
+    ]
+
     payload = {
         "round": rn,
         "total": total_rounds,
@@ -792,6 +806,7 @@ def emit_we_event(round_result, agent_ids, names: dict, total_rounds: int,
         "narrative": narrative,
         "agents": agents_data,
         "comm_messages": comm_messages,
+        "support_events": support_events,
     }
 
     # Emit as single line (no newlines in JSON values — json.dumps handles escaping)
