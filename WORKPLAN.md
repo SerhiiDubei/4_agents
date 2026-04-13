@@ -137,3 +137,9 @@ F1 → F2 → F3
 - Дія: Виправлено T2.3 — `log_to_html.py` фінальна таблиця тепер показує Роль, Стілів, Кооп, Бонус із `player_stats` у game_over event. Оновлено ARCHITECTURE.html статус.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: T2.2 (Support механіка) — потребує рішення від користувача: Варіант A (COMM фаза +trust) або Варіант B (видалити). Після — T2.3 вже закрито, йти на SEC-1 (JWT валідація).
+
+## [2026-04-13 16:06 UTC] Щогодинна перевірка
+- Стан: Всі T1.x/T2.x задачі виконані. SEC-1/2/3 і ROB-3 вже були реалізовані (JWT, rate limit, session TTL, atomic write).
+- Дія: Виправлено ROB-1 — `reasoning.py::_call_structured` мігровано з голого `call_openrouter` на `call_llm` (3 retries, 2s delay, label="reasoning"). Тепер агент не зависає при LLM помилці.
+- Тести: 61/61 GREEN
+- Наступний пріоритет: T2.2 (Support механіка — чекає рішення від користувача). Потім ROB-2 (Dialog timeout) та F1 (Візуалізація скілів у frontend).

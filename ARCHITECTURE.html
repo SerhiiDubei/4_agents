@@ -22,6 +22,22 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
 .badge-active { background:rgba(77,187,128,.18); border:1px solid rgba(77,187,128,.45); color:#4dbb80; }
 .badge-ready  { background:rgba(91,155,213,.18); border:1px solid rgba(91,155,213,.45); color:#5b9bd5; }
 .badge-bug    { background:rgba(224,80,80,.15);  border:1px solid rgba(224,80,80,.45);  color:#e05050; }
+.badge-fixed  { background:rgba(77,187,128,.22); border:1px solid rgba(77,187,128,.6);  color:#4dbb80; animation:pulse-green 2s infinite; }
+.badge-new    { background:rgba(251,191,36,.18); border:1px solid rgba(251,191,36,.5);  color:#fbbf24; }
+@keyframes pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(77,187,128,.4)} 50%{box-shadow:0 0 0 4px rgba(77,187,128,0)} }
+
+/* ── FIXED MODULE HIGHLIGHT ── */
+.mod.fixed { border-color:rgba(77,187,128,.4) !important; background:rgba(77,187,128,.05) !important; }
+.mod.fixed::after { content:'✓'; position:absolute; top:5px; right:8px; font-size:11px; color:#4dbb80; font-weight:bold; }
+.mod.new-feat { border-color:rgba(251,191,36,.4) !important; background:rgba(251,191,36,.04) !important; }
+.mod.new-feat::after { content:'★'; position:absolute; top:5px; right:8px; font-size:11px; color:#fbbf24; font-weight:bold; }
+
+/* ── CHANGELOG STRIP ── */
+.changelog-strip { background:linear-gradient(90deg,rgba(77,187,128,.08),rgba(77,187,128,.03)); border:1px solid rgba(77,187,128,.2); border-radius:6px; padding:10px 14px; margin-bottom:14px; }
+.cl-date { font-size:9px; color:#4dbb80; font-weight:bold; letter-spacing:1px; margin-bottom:7px; }
+.cl-item { display:flex; gap:7px; align-items:flex-start; font-size:9px; color:var(--text); margin-bottom:4px; line-height:1.4; }
+.cl-dot { width:4px; height:4px; border-radius:50%; background:#4dbb80; flex-shrink:0; margin-top:4px; }
+.cl-tag { color:#4dbb80; font-weight:bold; flex-shrink:0; }
 
 header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:20px; }
 .logo { font-size:20px; font-weight:bold; color:var(--accent); letter-spacing:2px; }
@@ -111,7 +127,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 <header>
   <div>
     <div class="logo">4 AGENTS</div>
-    <div class="sub">Architecture Map &mdash; 2026-04-10</div>
+    <div class="sub">Architecture Map &mdash; 2026-04-13 <span style="color:#4dbb80;font-size:9px">● LIVE</span></div>
   </div>
   <div class="navtabs">
     <a href="architecture.html" class="ntab act">&#9776; Layers</a>
@@ -130,6 +146,21 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 <div class="main">
 <div class="arch">
 <div class="arch-label">system architecture &mdash; bottom to top &mdash; click modules for detail</div>
+
+<!-- ══ CHANGELOG ══ -->
+<div class="changelog-strip">
+  <div class="cl-date">&#9654; CHANGELOG — 2026-04-10 → 2026-04-13</div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[T1.1 ✓]</span> decision_engine.py — strategic_score переписано: тепер диференціює за personality (Марта=63% defect, Новий=44% coop)</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[T1.2 ✓]</span> last_messages передаються з serve_time_wars.py:571 в decision phase — COMM реально впливає на рішення</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[T1.3 ✓]</span> ROLE_CORE_OVERLAYS застосовуються до CoreParams з clamping [0,100] в обох функціях agent_context.py</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[КРИТ-2 ✓]</span> Всі action thresholds уніфіковані в simulation/constants.py (0.33/0.66) — єдине джерело правди</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[КРИТ-5/6 ✓]</span> was_target alias для was_exposed + auto-reveal heuristic (trust&lt;0.40 → агент сам шпигує)</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[ROB ✓]</span> memory.py: атомарний запис (tmp→rename) · llm_client.py: retry+backoff · serve_time_wars.py: 90s timeout</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[SEC ✓]</span> JWT expiry перевіряється · rate limiting на всіх LLM endpoints (30 req/хв)</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[T2.3 ✓]</span> Фінальна таблиця: показує Роль, Стілів, Кооп%, Бонус з player_stats</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[SF ✓]</span> Social Fabric live у SSE accordion — 9 секцій, кольори alliance/betray/deceive</div></div>
+  <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[FastAPI ✓]</span> Starlette 1.0.0 + FastAPI 0.135.3 — 61/61 тестів GREEN</div></div>
+</div>
 
 <!-- ══ LAYER 1: DATA ══ -->
 <div class="layer open" id="l-data">
@@ -169,8 +200,8 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   <div class="layer-body">
     <div style="font-size:9px;color:var(--dim);margin:8px 0 2px">Перетворює ідентичність агента на дію. Ініціалізація + логіка рішень.</div>
     <div class="mods">
-      <div class="mod bug" onclick="sel(this,'d-de')"><div class="mname" style="color:var(--c-pipeline)">decision_engine.py</div><div class="mdesc">Softmax вибір дії (0/0.33/0.66/1.0). CORE &rarr; action.</div><div class="mfile">pipeline/decision_engine.py</div></div>
-      <div class="mod bug" onclick="sel(this,'d-ac')"><div class="mname" style="color:var(--c-pipeline)">agent_context.py</div><div class="mdesc">Будує LLM-контекст. Накладає ROLE_CORE_OVERLAYS.</div><div class="mfile">pipeline/agent_context.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-de')"><div class="mname" style="color:var(--c-pipeline)">decision_engine.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">Softmax вибір дії (0/0.33/0.66/1.0). strategic_score диференціює за personality.</div><div class="mfile">pipeline/decision_engine.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-ac')"><div class="mname" style="color:var(--c-pipeline)">agent_context.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">ROLE_CORE_OVERLAYS застосовані до CoreParams з clamping [0,100].</div><div class="mfile">pipeline/agent_context.py</div></div>
       <div class="mod" onclick="sel(this,'d-sm')"><div class="mname" style="color:var(--c-pipeline)">state_machine.py</div><div class="mdesc">Динаміка емоцій: tension, fear, mood після кожного раунду</div><div class="mfile">pipeline/state_machine.py</div></div>
       <div class="mod" onclick="sel(this,'d-mem')"><div class="mname" style="color:var(--c-pipeline)">memory.py</div><div class="mdesc">log_round(), game_history, promises, trust_snapshot</div><div class="mfile">pipeline/memory.py</div></div>
       <div class="mod" onclick="sel(this,'d-reas')"><div class="mname" style="color:var(--c-pipeline)">reasoning.py</div><div class="mdesc">Pre-decision LLM: агент думає перед вибором дії</div><div class="mfile">pipeline/reasoning.py</div></div>
@@ -204,9 +235,9 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
     </div>
     <div style="font-size:9px;color:var(--c-game);margin:14px 0 5px;letter-spacing:1px">&#9658; TIME WARS (game_modes/time_wars/)</div>
     <div class="mods">
-      <div class="mod bug" onclick="sel(this,'d-twl')"><div class="mname" style="color:var(--c-game)">loop.py</div><div class="mdesc">Тик-цикл: drain &rarr; actions &rarr; steal/coop &rarr; codes &rarr; events</div><div class="mfile">game_modes/time_wars/loop.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-twl')"><div class="mname" style="color:var(--c-game)">loop.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">Тик-цикл: drain → actions → steal/coop → codes → events. last_messages передається в decision.</div><div class="mfile">game_modes/time_wars/loop.py</div></div>
       <div class="mod" onclick="sel(this,'d-tws')"><div class="mname" style="color:var(--c-game)">state.py</div><div class="mdesc">Session + Player: time_remaining, role, mana, inventory</div><div class="mfile">game_modes/time_wars/state.py</div></div>
-      <div class="mod bug" onclick="sel(this,'d-twac')"><div class="mname" style="color:var(--c-game)">agent_context.py</div><div class="mdesc">TW context builder + ROLE_CORE_OVERLAYS для LLM</div><div class="mfile">game_modes/time_wars/agent_context.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-twac')"><div class="mname" style="color:var(--c-game)">agent_context.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">TW context builder + ROLE_CORE_OVERLAYS застосовані до CoreParams обох функцій.</div><div class="mfile">game_modes/time_wars/agent_context.py</div></div>
       <div class="mod" onclick="sel(this,'d-twsk')"><div class="mname" style="color:var(--c-game)">skills.py</div><div class="mdesc">Скілли ролей: тригери BEFORE_STEAL / ON_SUCCESS / ON_FAIL</div><div class="mfile">game_modes/time_wars/skills.py</div></div>
       <div class="mod" onclick="sel(this,'d-twco')"><div class="mname" style="color:var(--c-game)">constants.py</div><div class="mdesc">Баланс: COOP=+30s, drain rates, mana, steal payoffs</div><div class="mfile">game_modes/time_wars/constants.py</div></div>
       <div class="mod" onclick="sel(this,'d-twsh')"><div class="mname" style="color:var(--c-game)">shop / codes</div><div class="mdesc">Код-карти клас C/B/A/S: ціна, ризик, ефект</div><div class="mfile">shop.py &middot; code_manifest.py &middot; codes.json</div></div>
@@ -362,8 +393,8 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   <div class="stats">
     <div class="stat"><div class="sval">17</div><div class="slbl">Агентів</div></div>
     <div class="stat"><div class="sval">2</div><div class="slbl">Game Modes</div></div>
-    <div class="stat"><div class="sval">5</div><div class="slbl">Критичні баги</div></div>
-    <div class="stat"><div class="sval">128+</div><div class="slbl">Ігор в логах</div></div>
+    <div class="stat"><div class="sval" style="color:#4dbb80">2</div><div class="slbl">Відкриті баги</div></div>
+    <div class="stat"><div class="sval" style="color:#4dbb80">61/61</div><div class="slbl">Тести GREEN</div></div>
   </div>
 
   <div class="section">
@@ -381,12 +412,51 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   </div>
 
   <div class="section">
-    <div class="stitle" style="color:var(--c-bug)">&#9888; Критичні баги</div>
-    <div class="bug-card"><div class="bid">CRIT-1</div><div class="btitle">Steal не відбувається — strategic_score блокує</div><div class="bfile">decision_engine.py — strategic_score = -abs(action-0.66)*sh*0.4</div></div>
-    <div class="bug-card"><div class="bid">CRIT-2</div><div class="btitle">COMM декорація — last_messages не передаються</div><div class="bfile">loop.py (Time Wars) передає last_messages=[]</div></div>
-    <div class="bug-card"><div class="bid">CRIT-3</div><div class="btitle">SOUL.md не в decision prompts</div><div class="bfile">agent_context.build_context() &mdash; ігнорує особистість</div></div>
-    <div class="bug-card"><div class="bid">CRIT-4</div><div class="btitle">storytell/ відключений від TW</div><div class="bfile">round_narrative.py не викликається з loop.py</div></div>
-    <div class="bug-card"><div class="bid">CRIT-5</div><div class="btitle">Ролі не диференціюють &mdash; cooperation_bias≈70 у всіх</div><div class="bfile">Skills не тригеряться (залежать від steal якого немає)</div></div>
+    <div class="stitle" style="color:var(--c-bug)">&#9888; Статус багів</div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">CRIT-1 ✓ FIXED</div>
+      <div class="btitle">Steal/defect тепер диференційований за personality</div>
+      <div class="bfile">strategic_score = (1-|action-0.66|)*(sh-0.5)*0.4 — reward-peak замість penalty</div>
+    </div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">CRIT-2 ✓ FIXED</div>
+      <div class="btitle">COMM → рішення: last_messages передаються</div>
+      <div class="bfile">serve_time_wars.py:571 — last_messages=round_messages ✓</div>
+    </div>
+    <div class="bug-card">
+      <div class="bid">CRIT-3 ⚠ OPEN</div>
+      <div class="btitle">SOUL.md не в decision prompts (Island)</div>
+      <div class="bfile">agent_context.build_context() — ігнорує особистість агента</div>
+    </div>
+    <div class="bug-card">
+      <div class="bid">CRIT-4 ⚠ OPEN</div>
+      <div class="btitle">storytell/ відключений від Time Wars</div>
+      <div class="bfile">round_narrative.py не викликається з loop.py</div>
+    </div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">CRIT-5 ✓ FIXED</div>
+      <div class="btitle">ROLE_CORE_OVERLAYS застосовуються до CoreParams з clamping</div>
+      <div class="bfile">agent_context.py lines 290-293 — snake/gambler/banker/peacekeeper диференційовані</div>
+    </div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">КРИТ-6 ✓ FIXED</div>
+      <div class="btitle">Auto-reveal heuristic — агенти самі використовують токени</div>
+      <div class="bfile">game_engine.py — trust&lt;0.40 → reveal проти найменш довіреного (раунди ⌊N/3⌋..N-1)</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle" style="color:#4dbb80">&#10003; ROB + SEC — виправлено</div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.3)">
+      <div class="bid" style="color:#4dbb80">ROB-1/2/3 ✓</div>
+      <div class="btitle">LLM retry+backoff · 90s timeout · атомарний запис MEMORY.json</div>
+      <div class="bfile">llm_client.py · serve_time_wars.py:491 · memory.py (tmp→rename)</div>
+    </div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.3)">
+      <div class="bid" style="color:#4dbb80">SEC-1/2 ✓</div>
+      <div class="btitle">JWT expiry перевіряється · rate limiting 30req/хв на LLM endpoints</div>
+      <div class="bfile">db/auth.py · server/main.py _auth_rate_limit()</div>
+    </div>
   </div>
 
   <div class="section">
@@ -1071,7 +1141,7 @@ phosphor-glow на текст
 
   <!-- ══ STATUS BLOCK ══ -->
   <div class="section" style="margin-top:18px;padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);line-height:1.8;">
-    <!-- Auto-updated: 2026-04-13 15:08 UTC -->
+    <!-- Auto-updated: 2026-04-13 16:06 UTC -->
     <div style="font-size:10px;font-weight:bold;color:var(--text);margin-bottom:6px;">Project Status — 2026-04-13</div>
     <div><span style="color:#4dbb80">&#10003;</span> Social Fabric — 7 actions, budget system, trust delta <span class="badge badge-active">ACTIVE</span></div>
     <div><span style="color:#5b9bd5">&#10003;</span> MCS (Multi-Consciousness System) — 4 personas <span class="badge badge-ready">CODE READY</span></div>
@@ -1080,7 +1150,8 @@ phosphor-glow на текст
     <div><span style="color:#4dbb80">&#10003;</span> export_game_log.py — HTML з Social Fabric + MCS блоками</div>
     <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
       <span style="color:#4dbb80">&#10003;</span> T1.1 Steal диференціює по ролях &nbsp;|&nbsp; <span style="color:#4dbb80">&#10003;</span> T1.2 COMM → decisions &nbsp;|&nbsp; <span style="color:#4dbb80">&#10003;</span> T1.3 ROLE_CORE_OVERLAYS active<br/>
-      <span style="color:#4dbb80">&#10003;</span> T2.3 Game End бонуси у фінальній таблиці (log_to_html.py) &nbsp;|&nbsp; <span style="color:#5b9bd5">&#9888;</span> T2.2 Support — pending user decision
+      <span style="color:#4dbb80">&#10003;</span> T2.3 Game End бонуси у фінальній таблиці (log_to_html.py) &nbsp;|&nbsp; <span style="color:#5b9bd5">&#9888;</span> T2.2 Support — pending user decision<br/>
+      <span style="color:#4dbb80">&#10003;</span> ROB-1 reasoning.py → call_llm (3 retries, 2s delay) — LLM помилки не ламають гру
     </div>
   </div>
 

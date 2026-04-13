@@ -246,16 +246,19 @@ def _format_trust(trust_scores: dict, names: dict = None) -> str:
 # ---------------------------------------------------------------------------
 
 def _call_structured(system: str, user: str, model: str, budget_pool: float = 1.0) -> ReasoningResult:
-    from pipeline.seed_generator import call_openrouter
-    # Try new actions[] schema first
-    raw = call_openrouter(
-        system_prompt=system,
-        user_prompt=user,
+    # Використовуємо unified клієнт з retry замість голого call_openrouter
+    from pipeline.llm_client import call_llm
+    raw = call_llm(
+        system=system,
+        user=user,
         model=model,
         temperature=0.75,
         max_tokens=400,
         timeout=45,
         json_schema=_ACTIONS_SCHEMA,
+        retries=3,
+        retry_delay=2.0,
+        label="reasoning",
     )
     try:
         parsed = json.loads(raw)
