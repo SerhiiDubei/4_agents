@@ -353,6 +353,7 @@ def generate_reasoning(
     round_event_text: str = "",
     event_participants: Optional[List[str]] = None,
     budget_pool: float = 1.0,   # current social budget (from SocialState)
+    core_params: Optional[dict] = None,  # CORE.json dict — for personality anchoring
 ) -> ReasoningResult:
     """
     Generate structured per-target reasoning for this round.
@@ -416,10 +417,29 @@ def generate_reasoning(
     # Build peer list for prompt (names only for readability)
     peers_display = ", ".join(_dn(pid, names) for pid in peer_ids) if peer_ids else "(нікого)"
 
+    # Personality anchoring — explicitly remind LLM of numeric CORE traits
+    # so LLM decisions align with cooperation_bias and deception_tendency
+    _personality_hint = ""
+    if core_params:
+        _cb  = int(core_params.get("cooperation_bias", 50))
+        _dec = int(core_params.get("deception_tendency", 50))
+        _risk = int(core_params.get("risk_appetite", 50))
+        _coop_label = "дуже схильний до кооперації" if _cb >= 70 else "нейтральний" if _cb >= 45 else "схильний до зради"
+        _dec_label  = "схильний до обману і маніпуляцій" if _dec >= 70 else "помірно хитрий" if _dec >= 45 else "чесний і прямий"
+        _personality_hint = (
+            f"\nТвій психотип (числа описують тебе — не ігноруй їх):\n"
+            f"  • Кооперація: {_cb}/100 → ти {_coop_label}\n"
+            f"  • Схильність до обману: {_dec}/100 → ти {_dec_label}\n"
+            f"  • Апетит до ризику: {_risk}/100\n"
+            f"Ці риси МАЮТЬ відображатись у твоїх рішеннях (0.0/0.33/0.66/1.0)."
+        )
+
     user_parts = [
         f"Раунд {round_number}/{total_rounds}. Залишилось раундів: {rounds_left}.",
         f"Твої співрозмовники: {peers_display}",
     ]
+    if _personality_hint:
+        user_parts.append(_personality_hint)
 
     if story_context:
         user_parts.append(f"\nКонтекст історії: {story_context}")

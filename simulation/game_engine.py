@@ -614,6 +614,7 @@ def run_simulation(
                         event_participants=ev_parts,
                         budget_pool=social_fabric.get(agent.agent_id).budget_pool
                             if social_fabric.get(agent.agent_id) else 1.0,
+                        core_params=agent.core,  # pass CORE.json for personality anchoring in prompt
                     )
                     if verbose:
                         print(f"    [rsn]  {_name} done ({_time.time()-_t0:.1f}s)", file=_sys.stderr, flush=True)
