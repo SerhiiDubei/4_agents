@@ -326,8 +326,14 @@ document.getElementById("events").innerHTML = otherEvents.map(e => {{
   html += `<div class="event ${{e.event_type}}"><div>${{text}}</div><div class="event-details"><dl>${{rawFields(e)}}</dl></div></div>`;
   return html;
 }}).join("");
+// Розширена фінальна таблиця з player_stats (роль, стілів, кооп, бонус)
+const playerStats = gameOver && gameOver.player_stats ? gameOver.player_stats : {{}};
 const entries = Object.entries(finalTimes).map(([aid, sec]) => [aid, sec, finalMana[aid]]).sort((a, b) => b[1] - a[1]);
-document.getElementById("final").innerHTML = `<table class="final-table"><thead><tr><th>Гравець</th><th>Час</th><th>Мана</th></tr></thead><tbody>${{entries.map(([aid, sec, mana]) => `<tr class="${{winnerId === aid ? "winner" : ""}} ${{sec === 0 ? "eliminated" : ""}}"><td>${{name(aid)}}</td><td class="time">${{sec}} сек</td><td class="mana">${{mana != null ? mana : "—"}}</td></tr>`).join("")}}</tbody></table>`;
+document.getElementById("final").innerHTML = `<table class="final-table"><thead><tr><th>Гравець</th><th>Роль</th><th>Час</th><th>Мана</th><th>Стілів</th><th>Кооп</th><th>Бонус</th></tr></thead><tbody>${{entries.map(([aid, sec, mana]) => {{
+  const ps = playerStats[aid] || {{}};
+  const bonus = ps.game_end_bonus_sec ? `<span style="color:#4ade80">+${{ps.game_end_bonus_sec}} сек</span>` : `<span style="color:#4b5563">—</span>`;
+  return `<tr class="${{winnerId === aid ? "winner" : ""}} ${{sec === 0 ? "eliminated" : ""}}"><td>${{name(aid)}}</td><td style="color:#c084fc">${{ps.role_id ? roleName(ps.role_id) : "—"}}</td><td class="time">${{sec}} сек</td><td class="mana">${{mana != null ? mana : "—"}}</td><td style="color:#f87171">${{ps.steal_count != null ? ps.steal_count : "—"}}</td><td style="color:#4ade80">${{ps.coop_count != null ? ps.coop_count : "—"}}</td><td>${{bonus}}</td></tr>`;
+}}).join("")}}</tbody></table>`;
 </script>
 </body>
 </html>
