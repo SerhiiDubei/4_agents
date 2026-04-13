@@ -36,8 +36,8 @@ header { padding:16px 32px; border-bottom:1px solid var(--border); display:flex;
 .proc-bug { font-size:9px; color:var(--c-bug); margin-left:auto; }
 
 /* ══ CENTER: Flow diagram ══ */
-.diagram { overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:32px; }
-.flow-canvas { position:relative; }
+.diagram { overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:32px; isolation:isolate; }
+.flow-canvas { position:relative; overflow:visible; }
 
 .node {
   position:absolute;
@@ -46,12 +46,16 @@ header { padding:16px 32px; border-bottom:1px solid var(--border); display:flex;
   padding:8px 12px;
   font-size:10px;
   cursor:pointer;
-  transition:all .2s;
+  transition:border-color .2s, box-shadow .2s, background .2s;
   background:var(--bg2);
   white-space:nowrap;
   user-select:none;
+  z-index:1;
+  max-width:180px;
+  white-space:normal;
+  word-break:break-word;
 }
-.node:hover { transform:scale(1.04); z-index:10; }
+.node:hover { z-index:5; box-shadow:0 0 0 2px var(--accent); }
 .node.highlight {
   border-color:var(--accent) !important;
   background:rgba(124,109,250,.12) !important;
@@ -449,7 +453,7 @@ var PROCESSES = {
     steps: [
       '1. dialog_engine генерує публічні + DM повідомлення',
       '2. talk_transition аналізує тон → STATES update',
-      '3. decision_engine вибирає дію (BUG T1.1: strategic_score blocks steal)',
+      '3. decision_engine вибирає дію ✓ FIXED T1.1: reward-peak formula',
       '4. payoff_matrix розраховує виплати',
       '5. Social Fabric: round_actions → apply_round() → trust_delta + budget_update ✓ ACTIVE',
       '6. state_machine оновлює емоції',
@@ -485,7 +489,7 @@ var PROCESSES = {
   },
 
   'island-decision': {
-    title: 'Island — Decision Phase (CRIT-1)',
+    title: 'Island — Decision Phase ✓ CRIT-1 FIXED',
     color: 'var(--c-pipeline)',
     nodes: [
       { id:'de',          x:280, y:20  },
@@ -565,7 +569,7 @@ var PROCESSES = {
   },
 
   'tw-tick': {
-    title: 'Time Wars — Tick Loop (3 bugs)',
+    title: 'Time Wars — Tick Loop ✓ CRIT-2,4 FIXED',
     color: 'var(--c-game)',
     nodes: [
       { id:'tw_loop',    x:280, y:20  },
