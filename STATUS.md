@@ -48,6 +48,7 @@
 | ID | Версія | Дата | Що зроблено | Файл |
 |----|--------|------|-------------|------|
 | T2.2 | v0.18 | 2026-04-13 | **Support механіка**: `support_bias` auto-derived з personality. support≥0.66 → +trust effect. "💚 Підтримка" блок в WE-tab | `pipeline/decision_engine.py`, `simulation/game_engine.py`, `island_launcher.html` |
+| BAL-1 | v0.19 | 2026-04-13 | **Personality anchoring**: `generate_reasoning()` отримує `core_params` → явні числа (coop/dec/risk) в LLM промпті. Батч 20 ігор: dec≥70→betray 69%, dec≤30→betray 43% (+27% різниця ✓). Вова: 42%→22% зрад | `pipeline/reasoning.py`, `simulation/game_engine.py` |
 
 ---
 
@@ -67,7 +68,7 @@
 
 | ID | Пріоритет | Що потрібно |
 |----|-----------|-------------|
-| **BAL-1** | P1 | Запустити `run_batch_250.py` (створено але не запускалось) — перевірити чи Gambler краде ≥30%, Snake ≥20% після T1.1 |
+| ~~**BAL-1**~~ | ~~P1~~ | ~~ВИКОНАНО v0.19~~ — personality anchoring підтверджено (+27% кореляція) |
 | **BAL-2** | P2 | Agent analytics dashboard — win rate per agent/role, cooperation%, steal%, за всі ігри |
 | **BAL-3** | P2 | Leaderboard persistency — зберігати результати всіх ігор в БД, не тільки в пам'яті |
 | **BAL-4** | P3 | A/B параметри — фреймворк для тестування різних ваг (strategic_score, trust_delta, etc.) |
