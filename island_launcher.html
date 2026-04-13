@@ -389,16 +389,27 @@ function updateChips(){
 }
 async function loadAgents(){
   const grid=g('agentsGrid');
+  // Must be served via HTTP/HTTPS — file:// protocol won't resolve relative API paths
+  if(window.location.protocol==='file:'){
+    const msg=mk('div',null,'⚠ Відкрий через сервер: python serve_time_wars.py → http://localhost:5174/island');
+    msg.style.cssText='color:var(--yellow);grid-column:1/-1;font-size:0.8rem;padding:10px';
+    grid.appendChild(msg); return;
+  }
   try{
-    const res=await fetch('/api/island/agents');
+    const url=window.location.origin+'/api/island/agents';
+    const res=await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+res.statusText);
     const agents=await res.json();
     empty(grid);
+    if(!agents.length){
+      const msg=mk('div',null,'Агентів не знайдено в папці agents/');
+      msg.style.cssText='color:var(--muted);grid-column:1/-1'; grid.appendChild(msg); return;
+    }
     agents.forEach(a=>grid.appendChild(makeCard(a)));
     updateChips();
   } catch(err){
-    const msg=mk('div',null,'Помилка: '+err.message);
-    msg.style.color='var(--red)'; msg.style.gridColumn='1/-1';
-    grid.appendChild(msg);
+    const msg=mk('div',null,'Помилка завантаження агентів: '+err.message);
+    msg.style.cssText='color:var(--red);grid-column:1/-1'; grid.appendChild(msg);
   }
 }
 g('roundsSlider').addEventListener('input',function(){ g('roundsVal').textContent=this.value; });
