@@ -47,6 +47,29 @@ _sessions_progress: dict[str, dict] = {}  # session_id → {round, tick, active}
 _sessions_live_events: dict[str, list[dict]] = {}  # stream events in real-time; append each round
 _sessions_last_flush: dict[str, int] = {}  # session_id -> last flushed event_log index
 
+# SEC-3: Session TTL — очищення старих сесій щоб не накопичувались в пам'яті
+import time as _time_mod
+_sessions_created_at: dict[str, float] = {}   # session_id → unix timestamp
+_TW_SESSION_TTL = 4 * 3600                    # 4 годин
+
+def _tw_cleanup_sessions() -> None:
+    """Видаляє сесії старіші за _TW_SESSION_TTL секунд."""
+    now = _time_mod.time()
+    expired = [
+        sid for sid, ts in list(_sessions_created_at.items())
+        if now - ts > _TW_SESSION_TTL and _sessions_status.get(sid) != "running"
+    ]
+    for sid in expired:
+        _sessions_store.pop(sid, None)
+        _sessions_status.pop(sid, None)
+        _sessions_html.pop(sid, None)
+        _sessions_progress.pop(sid, None)
+        _sessions_live_events.pop(sid, None)
+        _sessions_last_flush.pop(sid, None)
+        _sessions_created_at.pop(sid, None)
+    if expired:
+        print(f"[TW] cleaned up {len(expired)} expired sessions", flush=True, file=sys.stderr)
+
 # Logging: always print to stderr so user sees TW activity (incl. LLM calls)
 def _tw_log(msg: str) -> None:
     print(f"[TW] {msg}", flush=True, file=sys.stderr)
@@ -226,6 +249,8 @@ def _run_game_in_thread(session_id: str) -> None:
     _tw_log(f"Thread started for session {session_id}")
     _sessions_status[session_id] = "running"
     _sessions_store[session_id] = []
+    _sessions_created_at[session_id] = _time_mod.time()
+    _tw_cleanup_sessions()  # SEC-3: очищаємо старі сесії при кожному запуску
     try:
         sys.path.insert(0, str(ROOT))
         from game_modes.time_wars.state import create_session, save_trust_to_memory
@@ -586,6 +611,56 @@ def _run_game_in_thread(session_id: str) -> None:
                     elif act["action"] == "steal" and act["target_id"]:
                         apply_steal(session, p.agent_id, act["target_id"], t, rng=rng)
                 _tw_log(f"  ACTION done in {time.perf_counter() - t_action:.2f}s | round total: {time.perf_counter() - t_round_start:.2f}s")
+
+                # ── CRIT-4 FIXED: round_narrative (non-blocking, storytell/) ──
+                try:
+                    from storytell.round_narrative import generate_round_narrative
+                    from storytell.story_generator import generate_story_params
+
+                    # Збираємо дії цього раунду для нарративу
+                    _round_actions: dict = {}
+                    for _ev in session.event_log:
+                        if _ev.get("tick") == t and _ev.get("event_type") in ("cooperate", "steal", "pass"):
+                            _actor = _ev.get("actor_id", "")
+                            _target = _ev.get("target_id", _actor)
+                            if _actor:
+                                if _actor not in _round_actions:
+                                    _round_actions[_actor] = {}
+                                # Кооперація → 0.66, крадіжка → 0.0, pass → 0.5
+                                _ev_type = _ev.get("event_type")
+                                _val = 0.66 if _ev_type == "cooperate" else (0.0 if _ev_type == "steal" else 0.5)
+                                _round_actions[_actor][_target] = _val
+
+                    if _round_actions:
+                        def _gen_narrative(_sid=session_id, _rn=round_num, _acts=_round_actions,
+                                           _names=dict(agent_display), _sess=session):
+                            try:
+                                _sp = generate_story_params(seed=_rn * 7 + 42)
+                                _narr = generate_round_narrative(
+                                    round_num=_rn,
+                                    total_rounds=max(20, duration // ticks_per_action),
+                                    actions=_acts,
+                                    payoffs={p.agent_id: p.time_remaining_sec for p in _sess.players},
+                                    story_params=_sp,
+                                    agent_names=_names,
+                                )
+                                if _narr:
+                                    _sess.event_log.append({
+                                        "event_type": "round_narrative",
+                                        "tick": t,
+                                        "round_num": _rn,
+                                        "narrative": _narr,
+                                    })
+                                    _tw_log(f"  narrative r{_rn}: {_narr[:60]}…")
+                            except Exception as _ne:
+                                _tw_log(f"  [narrative] r{_rn}: {_ne}")
+
+                        import threading as _threading
+                        _nt = _threading.Thread(target=_gen_narrative, daemon=True)
+                        _nt.start()
+                except Exception as _narr_import_err:
+                    _tw_log(f"  [narrative import] {_narr_import_err}")
+
                 _flush_events_to_live(session_id, session)
 
             # Late-game storm

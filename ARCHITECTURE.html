@@ -160,6 +160,9 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[T2.3 ✓]</span> Фінальна таблиця: показує Роль, Стілів, Кооп%, Бонус з player_stats</div></div>
   <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[SF ✓]</span> Social Fabric live у SSE accordion — 9 секцій, кольори alliance/betray/deceive</div></div>
   <div class="cl-item"><div class="cl-dot"></div><div><span class="cl-tag">[FastAPI ✓]</span> Starlette 1.0.0 + FastAPI 0.135.3 — 61/61 тестів GREEN</div></div>
+  <div class="cl-item" style="border-top:1px solid rgba(77,187,128,.2);padding-top:7px;margin-top:3px"><div class="cl-dot" style="background:#fbbf24"></div><div><span class="cl-tag" style="color:#fbbf24">[CRIT-3 ✓]</span> SOUL.md вже ін'єктується в обидва: TW build_context (line 97-100) і Island game_engine soul_md</div></div>
+  <div class="cl-item"><div class="cl-dot" style="background:#fbbf24"></div><div><span class="cl-tag" style="color:#fbbf24">[CRIT-4 ✓]</span> round_narrative підключено до TW — non-blocking thread після кожного action phase</div></div>
+  <div class="cl-item"><div class="cl-dot" style="background:#fbbf24"></div><div><span class="cl-tag" style="color:#fbbf24">[SEC-3 ✓]</span> TW Session TTL 4h — _tw_cleanup_sessions() видаляє старі сесії з пам'яті</div></div>
 </div>
 
 <!-- ══ LAYER 1: DATA ══ -->
@@ -246,12 +249,12 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 </div>
 
 <!-- ══ LAYER 3.5: STORYTELL ══ -->
-<div class="conn"><div class="cline"></div><span style="color:var(--c-bug)">&#9888; storytell/ exists but NOT wired to Time Wars</span><div class="cline"></div></div>
-<div class="layer" id="l-story" style="opacity:.7">
+<div class="conn"><div class="cline"></div><span style="color:#4dbb80">&#10003; storytell/ підключено до Time Wars (CRIT-4 FIXED)</span><div class="cline"></div></div>
+<div class="layer" id="l-story">
   <div class="layer-hdr" onclick="toggle('l-story')">
     <div class="lnum" style="background:#2a2a1e;color:var(--c-story)">3&#189;</div>
-    <div class="lname" style="color:var(--c-story)">STORYTELL LAYER</div>
-    <div class="ltag" style="color:var(--c-bug)">&#9888; decoupled &mdash; CRIT-4</div>
+    <div class="lname" style="color:var(--c-story)">STORYTELL LAYER <span class="badge badge-fixed">&#10003; WIRED</span></div>
+    <div class="ltag" style="color:#4dbb80">&#10003; non-blocking thread &mdash; CRIT-4 FIXED</div>
     <a href="arch_story.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
     <div class="larrow">&#9658;</div>
   </div>
@@ -393,7 +396,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
   <div class="stats">
     <div class="stat"><div class="sval">17</div><div class="slbl">Агентів</div></div>
     <div class="stat"><div class="sval">2</div><div class="slbl">Game Modes</div></div>
-    <div class="stat"><div class="sval" style="color:#4dbb80">2</div><div class="slbl">Відкриті баги</div></div>
+    <div class="stat"><div class="sval" style="color:#4dbb80">0</div><div class="slbl">Відкриті баги</div></div>
     <div class="stat"><div class="sval" style="color:#4dbb80">61/61</div><div class="slbl">Тести GREEN</div></div>
   </div>
 
@@ -423,15 +426,15 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
       <div class="btitle">COMM → рішення: last_messages передаються</div>
       <div class="bfile">serve_time_wars.py:571 — last_messages=round_messages ✓</div>
     </div>
-    <div class="bug-card">
-      <div class="bid">CRIT-3 ⚠ OPEN</div>
-      <div class="btitle">SOUL.md не в decision prompts (Island)</div>
-      <div class="bfile">agent_context.build_context() — ігнорує особистість агента</div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">CRIT-3 ✓ FIXED (вже був)</div>
+      <div class="btitle">SOUL.md ін'єктується в обидва контексти</div>
+      <div class="bfile">TW agent_context.py:96-100 + Island game_engine soul_md field</div>
     </div>
-    <div class="bug-card">
-      <div class="bid">CRIT-4 ⚠ OPEN</div>
-      <div class="btitle">storytell/ відключений від Time Wars</div>
-      <div class="bfile">round_narrative.py не викликається з loop.py</div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
+      <div class="bid" style="color:#4dbb80">CRIT-4 ✓ FIXED 2026-04-13</div>
+      <div class="btitle">round_narrative підключено до TW — non-blocking thread</div>
+      <div class="bfile">serve_time_wars.py — thread після кожного action phase → event_type: round_narrative</div>
     </div>
     <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.4)">
       <div class="bid" style="color:#4dbb80">CRIT-5 ✓ FIXED</div>
@@ -456,6 +459,11 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
       <div class="bid" style="color:#4dbb80">SEC-1/2 ✓</div>
       <div class="btitle">JWT expiry перевіряється · rate limiting 30req/хв на LLM endpoints</div>
       <div class="bfile">db/auth.py · server/main.py _auth_rate_limit()</div>
+    </div>
+    <div class="bug-card" style="background:rgba(77,187,128,.07);border-color:rgba(77,187,128,.3)">
+      <div class="bid" style="color:#4dbb80">SEC-3 ✓ NEW 2026-04-13</div>
+      <div class="btitle">TW Session TTL 4h — старі сесії автоматично видаляються з пам'яті</div>
+      <div class="bfile">serve_time_wars.py — _tw_cleanup_sessions() при кожному новому запуску гри</div>
     </div>
   </div>
 
