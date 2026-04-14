@@ -97,11 +97,13 @@ def _run_sim_in_thread(args: list, env: dict, cwd: str, q: queue.Queue,
                 continue
 
             # F2: intercept HUMAN_TURN lines — pause stdout forwarding until answered
-            if clean.startswith("HUMAN_TURN:"):
+            # Use 'in' not startswith — preceding output may be on same line (e.g. "reasoning...HUMAN_TURN:")
+            if "HUMAN_TURN:" in clean:
                 q.put(clean)                          # send to SSE so browser shows UI
                 # Also store payload for polling endpoint (fallback when SSE drops)
                 try:
-                    sim_state["human_turn_payload"] = json.loads(clean[len("HUMAN_TURN:"):])
+                    ht_start = clean.index("HUMAN_TURN:") + len("HUMAN_TURN:")
+                    sim_state["human_turn_payload"] = json.loads(clean[ht_start:])
                 except Exception:
                     sim_state["human_turn_payload"] = None
                 sim_state["human_choice_pending"] = True
