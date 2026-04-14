@@ -989,6 +989,25 @@ function buildSummary(){
 
 // ── F2: Human player state ────────────────────────────────────────────────────
 let currentSimId = '';
+let _pollTimer = null;
+
+// Polling fallback — catches HUMAN_TURN even if SSE dropped (Railway idle timeout)
+function _startPolling(simId){
+  _stopPolling();
+  _pollTimer = setInterval(async ()=>{
+    if(!simId) return _stopPolling();
+    try{
+      const r = await fetch('/api/island/status/'+simId);
+      if(!r.ok) return;
+      const d = await r.json();
+      if(!d.alive){ _stopPolling(); return; }
+      if(d.waiting && d.payload && !g('humanTurnOverlay').classList.contains('active')){
+        showHumanTurn(d.payload);
+      }
+    } catch(e){}
+  }, 2000);
+}
+function _stopPolling(){ if(_pollTimer){ clearInterval(_pollTimer); _pollTimer=null; } }
 
 async function sendHumanAction(action){
   if(!currentSimId) return;
@@ -1077,6 +1096,7 @@ async function launchSim(){
         // F2: simulation ID (first event from server)
         if(line.startsWith('SIM_ID:')){
           currentSimId = line.slice(7).trim();
+          _startPolling(currentSimId);
           continue;
         }
 
@@ -1112,6 +1132,7 @@ async function launchSim(){
   g('statusText').textContent='Готово. '+lineCount+' рядків';
   // F2: close human turn overlay if somehow still open
   g('humanTurnOverlay').classList.remove('active');
+  _stopPolling();
   currentSimId = '';
 }
 

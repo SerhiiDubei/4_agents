@@ -99,6 +99,12 @@ def _run_sim_in_thread(args: list, env: dict, cwd: str, q: queue.Queue,
             # F2: intercept HUMAN_TURN lines — pause stdout forwarding until answered
             if clean.startswith("HUMAN_TURN:"):
                 q.put(clean)                          # send to SSE so browser shows UI
+                # Also store payload for polling endpoint (fallback when SSE drops)
+                try:
+                    sim_state["human_turn_payload"] = json.loads(clean[len("HUMAN_TURN:"):])
+                except Exception:
+                    sim_state["human_turn_payload"] = None
+                sim_state["human_choice_pending"] = True
                 ev: threading.Event = sim_state["human_event"]
                 ev.clear()
                 ev.wait(timeout=120)                  # wait up to 2 min for human choice
@@ -228,9 +234,29 @@ async def island_human_action(req: HumanActionRequest):
         return JSONResponse({"ok": False, "error": "sim not found or already finished"}, status_code=404)
 
     state["human_choice"] = action
+    state["human_choice_pending"] = False
     state["human_event"].set()    # unblock _run_sim_in_thread
 
     return JSONResponse({"ok": True, "sim_id": req.sim_id, "action": action})
+
+
+# ─── F2: Polling endpoint — browser polls this when SSE drops ─────────────────
+
+@router.get("/api/island/status/{sim_id}")
+async def island_status(sim_id: str):
+    """
+    Polling fallback: browser polls every 2s to detect HUMAN_TURN even if SSE dropped.
+    Returns {"waiting": true, "payload": {...}} when human input is needed.
+    """
+    with _procs_lock:
+        state = _active_procs.get(sim_id)
+
+    if not state:
+        return JSONResponse({"alive": False, "waiting": False})
+
+    waiting = state.get("human_choice_pending", False)
+    payload = state.get("human_turn_payload") if waiting else None
+    return JSONResponse({"alive": True, "waiting": waiting, "payload": payload})
 
 
 # ─── HTML pages ───────────────────────────────────────────────────────────────

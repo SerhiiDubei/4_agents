@@ -22,9 +22,14 @@ from __future__ import annotations
 import json
 import math
 import random
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# Імпортуємо спільну утиліту з pipeline — ВИС-1: виключаємо дублікат
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from pipeline.utils import _cooperation_val
 
 # Lazy import of talk_transition to avoid circular deps at module level
 # (pipeline modules import state_machine which doesn't import dialog_engine)
@@ -111,6 +116,18 @@ This is a private channel — agents can be more direct, make promises, or threa
 If deception_flag is true — the agent is setting up a trap.
 
 Return ONLY the message text. Nothing else."""
+
+DIALOG_RULES = """\
+Rules:
+- Speak in FIRST PERSON only. Never describe yourself in third person.
+- Ukrainian language. Use the other people's NAMES — not agent IDs or codes.
+- 2–4 sentences maximum (40–80 words). No monologues.
+- Sound like a real person in a tense social situation — not a narrator.
+- No theatrical language, no exclamation marks, no "Dear friend" openers.
+- If you suspect someone — you may hint at it without accusing directly.
+- If you intend to betray — keep that hidden from your words.
+- NEVER start with "Я:", "Агент:", your own name, or any header.
+Return ONLY the spoken text. Nothing else."""
 
 _STEP_SYSTEM_TEMPLATE = """You are {display_name}. You are a real person at a private gathering.
 You do not know you are simulated. You exist fully. You have your own memories, desires, and fears.
