@@ -168,7 +168,17 @@ async def island_run(req: IslandRunRequest):
         loop = asyncio.get_event_loop()
         try:
             while True:
-                line = await loop.run_in_executor(None, q.get)
+                # Use timeout so we can send SSE heartbeats while waiting
+                # for human input (prevents Railway/nginx from closing idle connection)
+                try:
+                    line = await loop.run_in_executor(
+                        None, lambda: q.get(timeout=15)
+                    )
+                except Exception:
+                    # Queue empty — send SSE comment as keepalive, then retry
+                    yield ": heartbeat\n\n"
+                    continue
+
                 if line is None:
                     yield f"data: SIM_ID:{sim_id}\n\n"   # send sim_id before DONE
                     yield "data: [DONE]\n\n"
