@@ -117,6 +117,12 @@ If deception_flag is true — the agent is setting up a trap.
 
 Return ONLY the message text. Nothing else."""
 
+def _outcome_to_signal(outcome: str) -> str:
+    """Map talk_transition outcome string to a dialog signal key."""
+    # outcome is already one of: trust_gain / neutral / misunderstanding / conflict
+    return outcome
+
+
 DIALOG_RULES = """\
 Rules:
 - Speak in FIRST PERSON only. Never describe yourself in third person.
