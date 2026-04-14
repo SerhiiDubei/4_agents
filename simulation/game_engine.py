@@ -156,6 +156,9 @@ class RoundResult:
             d["participants_per_agent"] = self.participants_per_agent
         if self.round_narrative:
             d["round_narrative"] = self.round_narrative
+        # ВИС-11: стан агентів після раунду — корисно для аналітики та дебагу
+        if self.state_snapshots:
+            d["state_snapshots"] = self.state_snapshots
         # 🔷 Social Fabric fields — only included when fabric was active
         if self.social_actions:
             d["🔷_social_actions"] = self.social_actions
@@ -249,6 +252,9 @@ def run_simulation(
     on_progress=None,  # optional callback(event: str) for live logging
     verbose: bool = False,  # if True, print per-call timing to stderr
     story_params_override=None,  # optional StoryParams for custom setup (e.g. Mars)
+    # F2: Human player support
+    human_agent_id: Optional[str] = None,   # agent_id controlled by human
+    human_input_fn=None,                     # callable(agent_id, round_num, total_rounds, peer_names, trust) → dict
 ) -> GameResult:
     """
     Run the full Island simulation.
@@ -349,6 +355,28 @@ def run_simulation(
     except Exception:
         pass
 
+    # ВИС-14: кешуємо BIO.md, SOUL.md, roster.json один раз перед ігровим циклом
+    _bio_cache: Dict[str, str] = {}
+    _soul_cache: Dict[str, str] = {}
+    for _ag in agents:
+        _bp = AGENTS_DIR / _ag.agent_id / "BIO.md"
+        if _bp.exists():
+            _bio_cache[_ag.agent_id] = _bp.read_text(encoding="utf-8").strip()
+        _sp = AGENTS_DIR / _ag.agent_id / "SOUL.md"
+        if _sp.exists():
+            _soul_cache[_ag.agent_id] = _sp.read_text(encoding="utf-8").strip()
+    _roster_profiles: dict = {}
+    _roster_path = AGENTS_DIR / "roster.json"
+    if _roster_path.exists():
+        _roster_data = json.loads(_roster_path.read_text(encoding="utf-8"))
+        for _a in _roster_data.get("agents", []):
+            _aid = _a.get("id")
+            if _aid and _a.get("profile"):
+                _roster_profiles[_aid] = dict(_a["profile"])
+        for _aid in list(_roster_profiles.keys()):
+            if _aid in _bio_cache:
+                _roster_profiles[_aid]["bio"] = _bio_cache[_aid]
+
     try:
         for round_num in range(1, total_rounds + 1):
             # --- DM rotation ---
@@ -390,19 +418,12 @@ def run_simulation(
                     prev_rounds_summary = _build_story_context_from_rounds(
                         result.rounds, result.agent_names, max_chars=700
                     )
-                    roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
-                    agent_profiles = {}
-                    if roster_path.exists():
-                        roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
-                        for a in roster_data.get("agents", []):
-                            aid = a.get("id")
-                            if aid in agent_ids and a.get("profile"):
-                                agent_profiles[aid] = dict(a["profile"])
-                    # Enrich bio from agents/{id}/BIO.md if present
-                    for aid in list(agent_profiles.keys()):
-                        bio_path = AGENTS_DIR / aid / "BIO.md"
-                        if bio_path.exists():
-                            agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+                    # ВИС-14: використовуємо кешовані профілі (roster + BIO)
+                    agent_profiles = {
+                        aid: dict(prof)
+                        for aid, prof in _roster_profiles.items()
+                        if aid in agent_ids
+                    }
                     import asyncio as _asyncio
                     import sys as _sys
 
@@ -504,8 +525,7 @@ def run_simulation(
                     last_round = agent.memory.last_round() if agent.memory else None
                     mem_sum = agent.memory.summary() if agent.memory else {}
                     from pipeline.memory import memory_summary_to_narrative
-                    bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
-                    bio_text = (bio_path.read_text(encoding="utf-8").strip()[:550]) if bio_path.exists() else ""
+                    bio_text = _bio_cache.get(agent.agent_id, "")[:550]  # ВИС-14
                     cfg = {
                         "agent_id": agent.agent_id,
                         "soul_md": agent.soul_md,
@@ -574,6 +594,31 @@ def run_simulation(
                 _name = result.agent_names.get(agent.agent_id, agent.agent_id)
                 if verbose:
                     print(f"    [rsn]  {_name}...", file=_sys.stderr, flush=True)
+
+                # F2: Human player — bypass LLM, call human_input_fn
+                if human_agent_id and agent.agent_id == human_agent_id and human_input_fn:
+                    _peer_ids = [a.agent_id for a in agents if a.agent_id != agent.agent_id]
+                    _peer_names = [result.agent_names.get(pid, pid) for pid in _peer_ids]
+                    _trust = {}
+                    if agent.states and hasattr(agent.states, "trust"):
+                        _trust = {result.agent_names.get(k, k): v
+                                  for k, v in agent.states.trust.items()}
+                    _raw = human_input_fn(
+                        agent_id=agent.agent_id,
+                        round_num=round_num,
+                        total_rounds=total_rounds,
+                        peer_names=_peer_names,
+                        trust_scores=_trust,
+                    )
+                    _r = ReasoningResult(
+                        thought=_raw.get("thought", "[Human]"),
+                        intents=_raw.get("intents", {}),
+                        llm_intent=_raw.get("llm_intent"),
+                    )
+                    if verbose:
+                        print(f"    [rsn]  {_name} [HUMAN] done", file=_sys.stderr, flush=True)
+                    return agent.agent_id, _r
+
                 try:
                     last_round = agent.memory.last_round() if agent.memory else None
                     peer_ids = [a.agent_id for a in agents if a.agent_id != agent.agent_id]
@@ -600,8 +645,7 @@ def run_simulation(
                     mem_summary = agent.memory.summary() if agent.memory else {}
                     from pipeline.memory import memory_summary_to_narrative
                     memory_narrative = memory_summary_to_narrative(mem_summary, agent.agent_id, result.agent_names)
-                    _bio_path = AGENTS_DIR / agent.agent_id / "BIO.md"
-                    bio_text = (_bio_path.read_text(encoding="utf-8").strip()[:500]) if _bio_path.exists() else ""
+                    bio_text = _bio_cache.get(agent.agent_id, "")[:500]  # ВИС-14
 
                     story_ctx = story_params.to_context_str() if story_params else ""
                     sit_text = (situations_per_agent.get(agent.agent_id, "") or "")[:400]
@@ -880,27 +924,16 @@ def run_simulation(
                 # --- Storytell: широкий опис раунду (що відбулося для кожного і всіх) ---
                 try:
                     from storytell import generate_round_narrative
-                    roster_path = Path(__file__).parent.parent / "agents" / "roster.json"
-                    agent_profiles = {}
-                    if roster_path.exists():
-                        roster_data = json.loads(roster_path.read_text(encoding="utf-8"))
-                        for a in roster_data.get("agents", []):
-                            aid = a.get("id")
-                            if aid in agent_ids and a.get("profile"):
-                                agent_profiles[aid] = dict(a["profile"])
-                    for aid in list(agent_profiles.keys()):
-                        bio_path = AGENTS_DIR / aid / "BIO.md"
-                        if bio_path.exists():
-                            agent_profiles[aid]["bio"] = bio_path.read_text(encoding="utf-8").strip()
+                    # ВИС-14: використовуємо кешовані профілі та SOUL.md
+                    agent_profiles = {
+                        aid: dict(prof)
+                        for aid, prof in _roster_profiles.items()
+                        if aid in agent_ids
+                    }
                     prev_narr = " ".join(
                         r.round_narrative for r in result.rounds[-2:] if getattr(r, "round_narrative", "")
                     )[:500]
-                    # T5: збираємо SOUL.md для SOUL-anchored narrative
-                    _narr_souls: dict = {}
-                    for _ag in agents:
-                        _sp = AGENTS_DIR / _ag.agent_id / "SOUL.md"
-                        if _sp.exists():
-                            _narr_souls[_ag.agent_id] = _sp.read_text(encoding="utf-8").strip()
+                    _narr_souls: dict = _soul_cache  # ВИС-14: вже закешовано
                     round_narrative = generate_round_narrative(
                         round_num=round_num,
                         total_rounds=total_rounds,

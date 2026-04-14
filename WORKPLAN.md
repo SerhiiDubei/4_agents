@@ -157,3 +157,11 @@ F1 → F2 → F3
 - **run_simulation_live.py**: `support_events` збагачені іменами і включені в WE_EVENT payload
 - **island_launcher.html**: новий "💚 Підтримка" блок в WE-tab — показує хто кого підтримав, рівень та trust_delta
 - Залишається: F2 (Human player), F3 (4-player)
+
+## [2026-04-14 08:14 UTC] Щогодинна перевірка
+- Стан: Всі T1-T2-SEC-ROB-F1-T5 задачі виконані. Тести 61/61 GREEN.
+- Дія: Реалізовано 2 items з PRODUCT_ROADMAP:
+  - **ВИС-11** — `RoundResult.to_dict()` тепер включає `state_snapshots` (стан агентів після раунду). Корисно для аналітики та дебагу.
+  - **ВИС-14** — Кешування файлів: `_bio_cache`, `_soul_cache`, `_roster_profiles` будуються 1 раз перед ігровим циклом (game_engine.py). Усунено ~130+ зайвих disk reads для 5-раундової гри з 13 агентами. Всі 4 per-round читання BIO.md/roster.json замінені на cache lookups.
+- Тести: 61/61 GREEN
+- Наступний пріоритет: ВИС-5 (question_contexts в decision pipeline) або ВИС-8 (dead code cleanup в dialog_engine). Після — КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність).
