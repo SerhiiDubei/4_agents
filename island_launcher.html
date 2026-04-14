@@ -1005,7 +1005,7 @@ async function sendHumanAction(action){
 function showHumanTurn(data){
   g('htRoundLabel').textContent = 'Раунд '+data.round+' / '+data.total;
   const trustEl = g('htTrustList');
-  trustEl.innerHTML = '';
+  empty(trustEl);
   if(data.trust && typeof data.trust==='object'){
     Object.entries(data.trust).forEach(([name,val])=>{
       const pct = Math.round((val||0)*100);

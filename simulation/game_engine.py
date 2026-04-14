@@ -337,6 +337,8 @@ def run_simulation(
         # T5: Генеруємо WorldBible ОДИН РАЗ — на початку гри
         try:
             from storytell import generate_world_bible
+            import sys as _sys
+            print("  📜 Генеруємо атмосферу гри...", flush=True)
             # Збираємо SOUL.md всіх агентів
             _soul_mds: dict = {}
             for _ag in agents:
@@ -348,10 +350,11 @@ def run_simulation(
                 agent_names=result.agent_names,
                 soul_mds=_soul_mds,
             )
+            if world_bible and world_bible.tone:
+                print(f"  ✓ Атмосфера готова: {world_bible.tone[:80]}", flush=True)
         except Exception as _wb_err:
             import sys as _sys
-            if verbose:
-                print(f"  [world_bible] WARN: {_wb_err}", file=_sys.stderr, flush=True)
+            print(f"  ⚠ WorldBible: {_wb_err}", flush=True)
     except Exception:
         pass
 
