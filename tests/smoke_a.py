@@ -194,88 +194,51 @@ def block_apply_outcome():
 # ---------------------------------------------------------------------------
 
 def block_integration():
+    # ВИС-8: generate_round_dialog_stepped видалено як dead code.
+    # Перевіряємо generate_round_dialog_flat — активний генератор.
     from pipeline.state_machine import AgentState
-    from pipeline.memory import AgentMemory
-    from simulation.dialog_engine import generate_round_dialog_stepped
+    from simulation.dialog_engine import generate_round_dialog_flat, RoundDialog
 
     agent_configs = [
         {
             "agent_id": "agent_a",
             "soul_md": "Тестова душа.",
-            "states_md": AgentState(agent_id="agent_a", mood="hostile", anger=0.6, trust={"agent_b": 0.5, "agent_c": 0.5, "agent_d": 0.5}).to_md(),
+            "states_md": AgentState(agent_id="agent_a", mood="hostile", anger=0.6, trust={"agent_b": 0.5}).to_md(),
             "memory_summary": {},
             "deception_tendency": 30,
             "cooperation_bias": 70,
-            "total_rounds": 10,
+            "total_rounds": 5,
             "visible_history": {},
             "dm_target": None,
+            "last_round_summary": {},
+            "round_number": 1,
         },
         {
             "agent_id": "agent_b",
             "soul_md": "Тестова душа.",
-            "states_md": AgentState(agent_id="agent_b", mood="confident", anger=0.1, trust={"agent_a": 0.5, "agent_c": 0.5, "agent_d": 0.5}).to_md(),
+            "states_md": AgentState(agent_id="agent_b", mood="confident", anger=0.1, trust={"agent_a": 0.5}).to_md(),
             "memory_summary": {},
-            "deception_tendency": 80,   # deceptive
+            "deception_tendency": 80,
             "cooperation_bias": 30,
-            "total_rounds": 10,
+            "total_rounds": 5,
             "visible_history": {},
             "dm_target": None,
-        },
-        {
-            "agent_id": "agent_c",
-            "soul_md": "Тестова душа.",
-            "states_md": AgentState(agent_id="agent_c", mood="neutral", anger=0.2, trust={"agent_a": 0.5, "agent_b": 0.5, "agent_d": 0.5}).to_md(),
-            "memory_summary": {},
-            "deception_tendency": 50,
-            "cooperation_bias": 50,
-            "total_rounds": 10,
-            "visible_history": {},
-            "dm_target": None,
-        },
-        {
-            "agent_id": "agent_d",
-            "soul_md": "Тестова душа.",
-            "states_md": AgentState(agent_id="agent_d", mood="calm", anger=0.0, trust={"agent_a": 0.5, "agent_b": 0.5, "agent_c": 0.5}).to_md(),
-            "memory_summary": {},
-            "deception_tendency": 20,
-            "cooperation_bias": 80,
-            "total_rounds": 10,
-            "visible_history": {},
-            "dm_target": None,
+            "last_round_summary": {},
+            "round_number": 1,
         },
     ]
 
-    # Aggressive text → should produce conflict outcomes
-    random.seed(42)
-    with patch("simulation.dialog_engine._call", return_value="зрадник, заплатиш за це"):
-        dialog = generate_round_dialog_stepped(
-            round_number=1, agent_configs=agent_configs, steps_per_round=8
+    with patch("simulation.dialog_engine._call", return_value="тест повідомлення"):
+        dialog = generate_round_dialog_flat(
+            round_number=1, agent_configs=agent_configs
         )
 
-    print(f"  messages (aggressive mock): {len(dialog.messages)}")
-    print(f"  talk_signals: {dialog.talk_signals}")
-    check("RoundDialog has talk_signals dict", isinstance(dialog.talk_signals, dict))
-    check("talk_signals populated (at least 1 entry)", len(dialog.talk_signals) > 0)
-    check("talk_signals values are valid signal strings", all(
-        v in {"cooperative", "neutral", "threatening"}
-        for v in dialog.talk_signals.values()
-    ))
-
-    # Aggressive text → mostly threatening signals
-    threatening_count = sum(1 for v in dialog.talk_signals.values() if v == "threatening")
-    print(f"  threatening signals: {threatening_count}/{len(dialog.talk_signals)}")
-    check("aggressive text produces threatening signals", threatening_count > 0)
-
-    # Friendly text → cooperative/neutral signals
-    random.seed(42)
-    with patch("simulation.dialog_engine._call", return_value="довіряю тобі, разом впораємось"):
-        dialog2 = generate_round_dialog_stepped(
-            round_number=2, agent_configs=agent_configs, steps_per_round=8
-        )
-    print(f"\n  messages (friendly mock): {len(dialog2.messages)}")
-    print(f"  talk_signals: {dialog2.talk_signals}")
-    non_threatening = sum(1 for v in dialog2.talk_signals.values() if v != "threatening")
-    check("friendly text mostly non-threatening signals", non_threatening > 0)
+    print(f"  тип результату: {type(dialog).__name__}")
+    print(f"  кількість повідомлень: {len(dialog.messages)}")
+    check("generate_round_dialog_flat повертає RoundDialog", isinstance(dialog, RoundDialog))
+    check("є принаймні одне повідомлення", len(dialog.messages) > 0)
+    check("всі повідомлення мають agent_id", all(m.agent_id for m in dialog.messages))
+    check("всі повідомлення мають text", all(m.text for m in dialog.messages))
 
 
 # ---------------------------------------------------------------------------

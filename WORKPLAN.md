@@ -165,3 +165,14 @@ F1 → F2 → F3
   - **ВИС-14** — Кешування файлів: `_bio_cache`, `_soul_cache`, `_roster_profiles` будуються 1 раз перед ігровим циклом (game_engine.py). Усунено ~130+ зайвих disk reads для 5-раундової гри з 13 агентами. Всі 4 per-round читання BIO.md/roster.json замінені на cache lookups.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: ВИС-5 (question_contexts в decision pipeline) або ВИС-8 (dead code cleanup в dialog_engine). Після — КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність).
+
+## [2026-04-14 12:07 UTC] Щогодинна перевірка
+- Стан: Всі попередні задачі виконані. Тести 61/61 GREEN.
+- Дія: Реалізовано ВИС-8 — видалено dead code з dialog_engine.py:
+  - `generate_round_dialog` (legacy, line 250) — ніде не викликалась
+  - `generate_round_dialog_stepped` (line 544) + весь step-based блок (~340 рядків)
+  - Разом видалено 487 рядків (1176 → 689, -42% файлу)
+  - Оновлено `tests/smoke_a.py::block_integration` — тепер тестує `generate_round_dialog_flat`
+  - Оновлено docstring dialog_engine.py
+- Тести: 61/61 GREEN
+- Наступний пріоритет: ВИС-5 (інтегрувати question_contexts.json в decision_engine) або ВИС-6 (підключити meta_params до SOUL генерації)
