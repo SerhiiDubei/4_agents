@@ -1449,6 +1449,7 @@ def main():
         Blocks on stdin.readline() until server writes the human's choice.
         Returns a ReasoningResult-compatible dict.
         """
+        import json as _json  # explicit local import avoids Python closure scoping bug
         payload = {
             "agent_id": agent_id,
             "round": round_num,
@@ -1456,7 +1457,7 @@ def main():
             "peers": peer_names,
             "trust": trust_scores,
         }
-        print(f"HUMAN_TURN:{json.dumps(payload, ensure_ascii=False)}", flush=True)
+        print(f"HUMAN_TURN:{_json.dumps(payload, ensure_ascii=False)}", flush=True)
         try:
             raw = sys.stdin.readline().strip().lower()
         except Exception:
