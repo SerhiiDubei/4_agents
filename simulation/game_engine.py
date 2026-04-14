@@ -604,8 +604,11 @@ def run_simulation(
                     _peer_names = [result.agent_names.get(pid, pid) for pid in _peer_ids]
                     _trust = {}
                     if agent.states and hasattr(agent.states, "trust"):
-                        _trust = {result.agent_names.get(k, k): v
-                                  for k, v in agent.states.trust.items()}
+                        # filter: only show trust for agents actually playing
+                        _playing = set(agent_ids)
+                        _trust = {result.agent_names.get(k, k): round(v, 2)
+                                  for k, v in agent.states.trust.items()
+                                  if k in _playing and k != agent.agent_id}
                     _raw = human_input_fn(
                         agent_id=agent.agent_id,
                         round_num=round_num,
