@@ -153,6 +153,22 @@ textarea::placeholder{color:var(--muted)}
 .we-text.conseq{color:var(--yellow);font-size:0.78rem}
 .comm-msg{display:flex;gap:6px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.79rem;flex-wrap:wrap}
 .narrative-text{color:#d4b4f7;font-style:italic;font-size:0.82rem;line-height:1.65;padding:8px 4px;white-space:pre-wrap}
+/* F2: Human turn overlay */
+.human-turn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center}
+.human-turn-overlay.active{display:flex}
+.human-turn-card{background:#1a1f2e;border:2px solid #4f8ef7;border-radius:14px;padding:26px 32px;max-width:440px;width:90%;text-align:center;box-shadow:0 0 40px rgba(79,142,247,.3)}
+.human-turn-card h2{font-size:1.1rem;margin-bottom:4px;color:#4f8ef7}
+.human-turn-card .ht-round{color:var(--muted);font-size:0.78rem;margin-bottom:18px}
+.ht-trust{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:20px}
+.ht-trust-item{background:var(--s2);border-radius:20px;padding:3px 10px;font-size:0.72rem;color:var(--muted)}
+.ht-trust-item span{color:var(--text);font-weight:600;margin-left:4px}
+.ht-btns{display:flex;gap:10px;justify-content:center}
+.ht-btn{flex:1;padding:12px 8px;border:none;border-radius:9px;font-size:0.88rem;font-weight:700;cursor:pointer;transition:opacity .15s}
+.ht-btn:hover{opacity:.85}
+.ht-btn.coop{background:#3dd68c;color:#0d0f14}
+.ht-btn.neut{background:#6b7280;color:#fff}
+.ht-btn.betr{background:#f25f5c;color:#fff}
+.ht-hint{color:var(--muted);font-size:0.7rem;margin-top:14px;line-height:1.5}
 .comm-msg:last-child{border-bottom:none}
 .comm-sender{color:#a3e635;font-weight:700;flex-shrink:0}
 .comm-chan{color:var(--muted);font-size:0.68rem;flex-shrink:0}
@@ -265,6 +281,10 @@ textarea::placeholder{color:var(--muted)}
       </div>
       <div class="slabel">Ситуація / Сеттинг</div>
       <textarea id="worldPrompt" placeholder="Постапокаліпсис, обмежені ресурси..."></textarea>
+      <div class="slabel" style="margin-top:12px">Людський гравець (F2)</div>
+      <select id="humanAgentSel" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:0.8rem;margin-bottom:10px">
+        <option value="">— тільки AI агенти —</option>
+      </select>
       <div class="chips" id="selChips"></div>
       <button class="btn" id="btnLaunch" onclick="launchSim()">&#128640; Запустити симуляцію</button>
     </div>
@@ -407,6 +427,13 @@ async function loadAgents(){
       msg.style.cssText='color:var(--muted);grid-column:1/-1'; grid.appendChild(msg); return;
     }
     agents.forEach(a=>grid.appendChild(makeCard(a)));
+    // F2: populate human agent dropdown
+    const sel=g('humanAgentSel');
+    agents.forEach(a=>{
+      const opt=document.createElement('option');
+      opt.value=a.id; opt.textContent=a.name||a.id;
+      sel.appendChild(opt);
+    });
     updateChips();
   } catch(err){
     const msg=mk('div',null,'Помилка завантаження агентів: '+err.message);
@@ -948,6 +975,38 @@ function buildSummary(){
   });
 }
 
+// ── F2: Human player state ────────────────────────────────────────────────────
+let currentSimId = '';
+
+async function sendHumanAction(action){
+  if(!currentSimId) return;
+  g('humanTurnOverlay').classList.remove('active');
+  try{
+    await fetch('/api/island/human_action',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sim_id:currentSimId, action}),
+    });
+  } catch(e){ appendLog('[human_action error] '+e.message); }
+}
+
+function showHumanTurn(data){
+  g('htRoundLabel').textContent = 'Раунд '+data.round+' / '+data.total;
+  const trustEl = g('htTrustList');
+  trustEl.innerHTML = '';
+  if(data.trust && typeof data.trust==='object'){
+    Object.entries(data.trust).forEach(([name,val])=>{
+      const pct = Math.round((val||0)*100);
+      const clr = pct>=60?'#3dd68c':pct>=40?'#f7b731':'#f25f5c';
+      const item = mk('div','ht-trust-item', name);
+      const sp = mk('span',null, pct+'%'); sp.style.color=clr;
+      item.appendChild(sp);
+      trustEl.appendChild(item);
+    });
+  }
+  g('humanTurnOverlay').classList.add('active');
+}
+
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
 async function launchSim(){
   if(running) return;
@@ -979,11 +1038,14 @@ async function launchSim(){
     const sp=mk('div','ll narr'); sp.textContent='Сеттинг: '+worldPrompt; logP.appendChild(sp);
   }
 
+  const humanAgent = g('humanAgentSel').value || '';
+  currentSimId = '';
+
   try{
     const res=await fetch('/api/island/run',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({agents:agentIds,rounds,world_prompt:worldPrompt}),
+      body:JSON.stringify({agents:agentIds,rounds,world_prompt:worldPrompt,human_agent:humanAgent}),
     });
     const reader=res.body.getReader();
     const dec=new TextDecoder();
@@ -999,6 +1061,18 @@ async function launchSim(){
         if(!raw.startsWith('data: ')) continue;
         const line=raw.slice(6).trim();
         if(!line) continue;
+
+        // F2: simulation ID (first event from server)
+        if(line.startsWith('SIM_ID:')){
+          currentSimId = line.slice(7).trim();
+          continue;
+        }
+
+        // F2: human player turn — show overlay
+        if(line.startsWith('HUMAN_TURN:')){
+          try{ showHumanTurn(JSON.parse(line.slice(11))); } catch(e){}
+          continue;
+        }
 
         // World Engine structured event
         if(line.startsWith('WE_EVENT:')){
@@ -1024,11 +1098,29 @@ async function launchSim(){
   btn.textContent='\u{1F680} Запустити симуляцію';
   dot.classList.remove('on');
   g('statusText').textContent='Готово. '+lineCount+' рядків';
+  // F2: close human turn overlay if somehow still open
+  g('humanTurnOverlay').classList.remove('active');
+  currentSimId = '';
 }
 
 loadAgents();
 
 
 </script>
+
+<!-- F2: Human turn overlay -->
+<div class="human-turn-overlay" id="humanTurnOverlay">
+  <div class="human-turn-card">
+    <h2>⚔️ Ваш хід!</h2>
+    <div class="ht-round" id="htRoundLabel">Раунд ? / ?</div>
+    <div class="ht-trust" id="htTrustList"></div>
+    <div class="ht-btns">
+      <button class="ht-btn coop" onclick="sendHumanAction('cooperate')">🤝 Кооперація</button>
+      <button class="ht-btn neut" onclick="sendHumanAction('neutral')">🤷 Нейтрально</button>
+      <button class="ht-btn betr" onclick="sendHumanAction('betray')">🗡️ Зрада</button>
+    </div>
+    <div class="ht-hint">Ваш вибір впливає на рівень довіри з усіма агентами одночасно.<br>Гра не продовжиться поки ви не вирішите.</div>
+  </div>
+</div>
 </body>
 </html>

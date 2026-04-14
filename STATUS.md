@@ -49,6 +49,7 @@
 |----|--------|------|-------------|------|
 | T2.2 | v0.18 | 2026-04-13 | **Support механіка**: `support_bias` auto-derived з personality. support≥0.66 → +trust effect. "💚 Підтримка" блок в WE-tab | `pipeline/decision_engine.py`, `simulation/game_engine.py`, `island_launcher.html` |
 | BAL-1 | v0.19 | 2026-04-13 | **Personality anchoring**: `generate_reasoning()` отримує `core_params` → явні числа (coop/dec/risk) в LLM промпті. Батч 20 ігор: dec≥70→betray 69%, dec≤30→betray 43% (+27% різниця ✓). Вова: 42%→22% зрад | `pipeline/reasoning.py`, `simulation/game_engine.py` |
+| F2 | v0.21 | 2026-04-14 | **Human player в Island**: `--human-agent` CLI param, HUMAN_TURN stdout protocol, stdin pipe (bidirectional IPC), `/api/island/human_action` endpoint, human turn overlay з кнопками Кооперація/Нейтрально/Зрада, sim_id tracking | `server/island_routes.py`, `run_simulation_live.py`, `simulation/game_engine.py`, `island_launcher.html` |
 | T5 | v0.20 | 2026-04-13 | **Storyteller prompt pass**: WorldBible (12 питань, 1 LLM-виклик/гру) → єдиний тон, голос, метафора, agent_roles. SOUL-anchored narrative: round_narrative отримує Voice+Instinct з SOUL.md. Ситуації з WorldBible тоном. UI: блок "📖 Розповідь" у WE-tab. Нова сторінка `docs/arch_storytell.html` | `storytell/world_bible.py` (new), `round_narrative.py`, `situation.py`, `game_engine.py`, `island_launcher.html` |
 
 ---
@@ -59,7 +60,7 @@
 
 | ID | Пріоритет | Що потрібно | Складність |
 |----|-----------|-------------|------------|
-| **F2** | P0 | Human player в Island — UI вибору дії (кооп/зрада/пас) в реальному часі, блокує хід до натискання | Середня |
+| ~~**F2**~~ | ~~P0~~ | ~~ВИКОНАНО v0.21~~ — human player overlay, HUMAN_TURN protocol, stdin IPC |
 | **F3** | P1 | 4-player архітектура — баланс механік для рівно 4 агентів (зараз 13), нова payoff матриця | Висока |
 | **T4** | P1 | Frontend React UI — рефлект-екрани, анімації, стейт-переходи (з BACKLOG.md S2) | Середня |
 | **T5** | P0 | Storyteller prompt pass — seed + 12 питань + SOUL → єдиний тон, атмосфера, лор (з BACKLOG.md S2) | Середня |

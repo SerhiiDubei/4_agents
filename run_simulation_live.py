@@ -1123,6 +1123,18 @@ def main():
         action="store_true",
         help="List available agents from roster and exit",
     )
+    parser.add_argument(
+        "--human-agent",
+        type=str,
+        default="",
+        help="F2: agent_id controlled by human player. Prints HUMAN_TURN:{json} to stdout and reads decision from stdin.",
+    )
+    parser.add_argument(
+        "--sim-id",
+        type=str,
+        default="",
+        help="Simulation ID passed by server (for log naming and tracking).",
+    )
     args = parser.parse_args()
 
     # Ensure OpenRouter key is in env for all LLM calls (dialog, reasoning, reflection per agent)
@@ -1426,15 +1438,49 @@ def main():
     def _on_progress_with_sp(event: str, round_result=None):
         live_progress(event, round_result)
 
+    # F2: Human input function — prints HUMAN_TURN to stdout, reads choice from stdin
+    _human_agent_id = args.human_agent.strip() if args.human_agent else ""
+
+    def _human_input_fn(agent_id: str, round_num: int, total_rounds: int,
+                        peer_names: list, trust_scores: dict) -> dict:
+        """
+        Called by game_engine when it's the human agent's turn.
+        Emits HUMAN_TURN:{json} to stdout so island_routes.py can forward to browser.
+        Blocks on stdin.readline() until server writes the human's choice.
+        Returns a ReasoningResult-compatible dict.
+        """
+        payload = {
+            "agent_id": agent_id,
+            "round": round_num,
+            "total": total_rounds,
+            "peers": peer_names,
+            "trust": trust_scores,
+        }
+        print(f"HUMAN_TURN:{json.dumps(payload, ensure_ascii=False)}", flush=True)
+        try:
+            raw = sys.stdin.readline().strip().lower()
+        except Exception:
+            raw = "cooperate"
+        # Map choice → cooperation_level float (per all peers)
+        coop_val = {"cooperate": 0.8, "neutral": 0.5, "betray": 0.1}.get(raw, 0.5)
+        intents = {pid: coop_val for pid in [p.get("id", p) if isinstance(p, dict) else p for p in peer_names]}
+        return {
+            "thought": f"[Human] вибрав: {raw}",
+            "intents": intents,
+            "llm_intent": coop_val,
+        }
+
     result = run_simulation(
         agents,
         total_rounds=args.rounds,
         model="google/gemini-2.0-flash-001",
         use_dialog=True,
-        simulation_id="live_run",
+        simulation_id=args.sim_id or "live_run",
         on_progress=_on_progress_with_sp,
         verbose=args.verbose,
         story_params_override=story_override,
+        human_agent_id=_human_agent_id or None,
+        human_input_fn=_human_input_fn if _human_agent_id else None,
     )
 
     # Backfill story_params from result (available after simulation completes)
