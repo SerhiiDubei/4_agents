@@ -165,3 +165,17 @@ F1 → F2 → F3
   - **ВИС-14** — Кешування файлів: `_bio_cache`, `_soul_cache`, `_roster_profiles` будуються 1 раз перед ігровим циклом (game_engine.py). Усунено ~130+ зайвих disk reads для 5-раундової гри з 13 агентами. Всі 4 per-round читання BIO.md/roster.json замінені на cache lookups.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: ВИС-5 (question_contexts в decision pipeline) або ВИС-8 (dead code cleanup в dialog_engine). Після — КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність).
+
+## [2026-04-15 11:45 UTC] Щогодинна перевірка
+- Стан: Всі T1-T5 / SEC / ROB / F1 / ВИС-11 / ВИС-14 задачі виконані. Тести 61/61 GREEN на старті.
+- Дія: **ВИС-8 DONE** — Прибрано мертвий код з `simulation/dialog_engine.py`:
+  - Видалено `_DIALOG_SYSTEM`, `_DM_SYSTEM` (константи промптів лише для legacy функцій)
+  - Видалено `_build_context()` (helper лише для legacy)
+  - Видалено `generate_public_message()` (legacy, нічим не викликалась)
+  - Видалено `generate_round_dialog()` (legacy one-message-per-agent, нічим не викликалась)
+  - Файл: 1176 → 1053 рядків (-123 рядки мертвого коду)
+  - Stepped dialog (`generate_round_dialog_stepped`, `select_speaker`) залишено — вони покриті smoke тестами (smoke_a/smoke_c)
+  - Помітка: `# EXPERIMENTAL` додана до stepped блоку
+  - Також виявлено: ВИС-5 (question_contexts) вже виконано раніше — файл `schemas/question_contexts.json` вже підключений до `pipeline/question_engine.py`
+- Тести: 61/61 GREEN (після cleanup)
+- Наступний пріоритет: КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність) або ВИС-4 (soul_template.json оновити до 8 розділів) або ВИС-7 (заповнити profile в roster.json для 14 агентів)

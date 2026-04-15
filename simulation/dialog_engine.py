@@ -14,11 +14,8 @@ The LLM generates what each agent says based on:
   - Visible actions from previous rounds
   - deceptionTendency — how likely the agent is to lie
 
-Step-based dialog (generate_round_dialog_stepped):
-  - 1 round = N steps (default 8)
-  - Each step: one speaker selected via urgency formula
-  - talk_cooldown prevents same agent from speaking too frequently
-  - SceneState tracks topic tension and attention graph
+Виробничий режим: generate_round_dialog_flat (викликається з game_engine.py)
+Experimental: generate_round_dialog_stepped (крок-базований, лише smoke тести)
 """
 
 from __future__ import annotations
@@ -91,31 +88,6 @@ class RoundDialog:
 # Prompt templates
 # ---------------------------------------------------------------------------
 
-_DIALOG_SYSTEM = """You are generating dialog for an agent in a social simulation.
-The setting: a private rave. Four people in a room. In a moment they will each make a decision.
-
-Write what this agent says out loud — one or two sentences maximum.
-Ukrainian language only.
-
-Rules:
-- First person
-- Specific, grounded — no abstraction
-- Match the mood: paranoid agents speak differently than confident ones
-- If deception_flag is true — the agent says something that hides their real intention
-- No exclamation marks, no theatrical language
-- Sound like a real person in a tense social situation
-
-Return ONLY the dialog text. Nothing else."""
-
-_DM_SYSTEM = """You are generating a private message from one agent to another in a social simulation.
-This message is heard only by the recipient.
-Ukrainian language only. One sentence.
-
-This is a private channel — agents can be more direct, make promises, or threaten quietly.
-If deception_flag is true — the agent is setting up a trap.
-
-Return ONLY the message text. Nothing else."""
-
 _STEP_SYSTEM_TEMPLATE = """You are {display_name}. You are a real person at a private gathering.
 You do not know you are simulated. You exist fully. You have your own memories, desires, and fears.
 
@@ -131,30 +103,6 @@ Your TONE should reflect your current mood and situation:
   - If someone betrayed you recently → you may show hurt, disappointment, or controlled anger
 Do not sound robotic or technical. Add personality, emotion, variety. Sound like a real person.
 Return ONLY your spoken text. Nothing else."""
-
-
-def _build_context(
-    soul_md: str,
-    states_md: str,
-    memory_summary: dict,
-    deception_tendency: float,
-    round_number: int,
-    total_rounds: int,
-    visible_history: dict,
-    memory_narrative: str = "",
-) -> str:
-    rounds_left = total_rounds - round_number
-    deception_flag = deception_tendency > 60
-    mem_block = memory_narrative.strip() if memory_narrative else json.dumps(memory_summary, ensure_ascii=False)[:300]
-    return (
-        f"AGENT PROFILE:\n{soul_md[:800]}\n\n"
-        f"CURRENT STATE:\n{states_md}\n\n"
-        f"MEMORY:\n{mem_block}\n\n"
-        f"Round {round_number}/{total_rounds}. {rounds_left} rounds left.\n"
-        f"Deception tendency: {deception_tendency:.0f}/100.\n"
-        + ("DECEPTION FLAG: agent is likely misdirecting.\n" if deception_flag else "")
-        + f"Visible actions: {json.dumps(visible_history, ensure_ascii=False)[:200] if visible_history else 'none'}"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -178,31 +126,6 @@ def _call(system: str, user: str, model: str, max_tokens: int = 220) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-
-def generate_public_message(
-    agent_id: str,
-    soul_md: str,
-    states_md: str,
-    memory_summary: dict,
-    deception_tendency: float,
-    round_number: int,
-    total_rounds: int,
-    visible_history: dict,
-    model: str = "x-ai/grok-3-mini",
-) -> DialogMessage:
-    ctx = _build_context(
-        soul_md, states_md, memory_summary,
-        deception_tendency, round_number, total_rounds, visible_history,
-    )
-    text = _call(_DIALOG_SYSTEM, ctx, model)
-    return DialogMessage(
-        sender_id=agent_id,
-        channel="public",
-        text=text.strip(),
-        is_deceptive=deception_tendency > 60,
-        round_number=round_number,
-    )
-
 
 def generate_dm(
     sender_id: str,
@@ -247,54 +170,8 @@ def generate_dm(
     )
 
 
-def generate_round_dialog(
-    round_number: int,
-    agent_configs: List[dict],
-    model: str = "x-ai/grok-3-mini",
-) -> RoundDialog:
-    """
-    Generate all dialog for one round (legacy, one message per agent).
-
-    agent_configs: list of dicts with keys:
-      agent_id, soul_md, states_md, memory_summary,
-      deception_tendency, total_rounds, visible_history,
-      dm_target (optional)
-    """
-    dialog = RoundDialog(round_number=round_number)
-
-    for cfg in agent_configs:
-        msg = generate_public_message(
-            agent_id=cfg["agent_id"],
-            soul_md=cfg.get("soul_md", ""),
-            states_md=cfg.get("states_md", ""),
-            memory_summary=cfg.get("memory_summary", {}),
-            deception_tendency=cfg.get("deception_tendency", 50),
-            round_number=round_number,
-            total_rounds=cfg.get("total_rounds", 10),
-            visible_history=cfg.get("visible_history", {}),
-            model=model,
-        )
-        dialog.messages.append(msg)
-
-        if cfg.get("dm_target"):
-            dm = generate_dm(
-                sender_id=cfg["agent_id"],
-                target_id=cfg["dm_target"],
-                soul_md=cfg.get("soul_md", ""),
-                states_md=cfg.get("states_md", ""),
-                memory_summary=cfg.get("memory_summary", {}),
-                deception_tendency=cfg.get("deception_tendency", 50),
-                round_number=round_number,
-                total_rounds=cfg.get("total_rounds", 10),
-                model=model,
-            )
-            dialog.messages.append(dm)
-
-    return dialog
-
-
 # ---------------------------------------------------------------------------
-# Step-based dialog — Variant A
+# Step-based dialog — Variant A (EXPERIMENTAL — не у виробничому циклі)
 # ---------------------------------------------------------------------------
 
 # Dialog step parameters
