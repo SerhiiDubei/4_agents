@@ -16,14 +16,8 @@ from game_modes.time_wars import skills
 # When False: agents only use codes (CODE phase); ACTION phase = pass only
 ACTION_COOPERATE_STEAL_ENABLED = True
 
-# Role-based CORE overlays — applied on top of agent's base CORE.json params
-# This makes each role archetype behave differently without modifying stored data
-ROLE_CORE_OVERLAYS: Dict[str, Dict[str, float]] = {
-    "role_snake":      {"cooperation_bias": -25, "deception_tendency": +30, "risk_appetite": +15},
-    "role_gambler":    {"cooperation_bias": -30, "deception_tendency": +35, "risk_appetite": +30},
-    "role_banker":     {"cooperation_bias": +20, "deception_tendency": -10},
-    "role_peacekeeper": {"cooperation_bias": +25, "deception_tendency": -25, "risk_appetite": -10},
-}
+# Role-based CORE overlays — імпортуємо з єдиного джерела правди (simulation/constants.py)
+from simulation.constants import ROLE_CORE_OVERLAYS  # noqa: E402
 
 from game_modes.time_wars.constants import (
     COOP_REWARD_EACH,

@@ -15,5 +15,6 @@
   "meta": {
     "agent_id": "agent_synth_i"
   },
-  "trait_log": []
+  "trait_log": [],
+  "role": "role_banker"
 }

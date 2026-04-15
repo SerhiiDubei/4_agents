@@ -21,5 +21,6 @@
     "intensity": 4
   },
   "trait_log": [],
-  "name": "Новий персонаж"
+  "name": "Новий персонаж",
+  "role": "role_peacekeeper"
 }

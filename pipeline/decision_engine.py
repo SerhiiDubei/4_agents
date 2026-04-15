@@ -28,6 +28,7 @@ from simulation.interaction_dimensions import (
     get_dimension,
     get_dimension_ids,
 )
+from simulation.constants import ROLE_CORE_OVERLAYS
 
 
 # ---------------------------------------------------------------------------
@@ -66,11 +67,19 @@ class CoreParams:
             coop = float(core_dict.get("cooperation_bias", 50))
             dec  = float(core_dict.get("deception_tendency", 50))
             core_dict["support_bias"] = max(10.0, min(90.0, coop * 0.65 - dec * 0.35 + 35.0))
+
+        # Застосовуємо role overlay якщо агенту призначена роль (КРИТ-3)
+        role_id = core_dict.get("role", "")
+        mods = ROLE_CORE_OVERLAYS.get(role_id, {})
+        def _apply(key: str, default: float = 50.0) -> float:
+            base = float(core_dict.get(key, default))
+            return max(0.0, min(100.0, base + mods.get(key, 0)))
+
         return cls(
-            cooperation_bias=float(d.get("cooperation_bias", 50)),
-            deception_tendency=float(d.get("deception_tendency", 50)),
-            strategic_horizon=float(d.get("strategic_horizon", 50)),
-            risk_appetite=float(d.get("risk_appetite", 50)),
+            cooperation_bias=_apply("cooperation_bias"),
+            deception_tendency=_apply("deception_tendency"),
+            strategic_horizon=_apply("strategic_horizon"),
+            risk_appetite=_apply("risk_appetite"),
             _core_dict=core_dict,
         )
 

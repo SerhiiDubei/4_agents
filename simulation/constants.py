@@ -47,3 +47,16 @@ DEFAULT_ACTION_VALUE = 0.5
 
 REVEAL_TRUST_GAIN_PER_COOP = 0.08
 REVEAL_TRUST_LOSS_PER_BETRAYAL = 0.15
+
+# ---------------------------------------------------------------------------
+# Role-based CORE parameter overlays (КРИТ-3)
+# Застосовуються до базових CORE значень агента залежно від ролі.
+# Це єдине джерело правди — використовується і в Island, і в Time Wars.
+# ---------------------------------------------------------------------------
+
+ROLE_CORE_OVERLAYS: dict[str, dict[str, float]] = {
+    "role_snake":       {"cooperation_bias": -25, "deception_tendency": +30, "risk_appetite": +15},
+    "role_gambler":     {"cooperation_bias": -30, "deception_tendency": +35, "risk_appetite": +30},
+    "role_banker":      {"cooperation_bias": +20, "deception_tendency": -10},
+    "role_peacekeeper": {"cooperation_bias": +25, "deception_tendency": -25, "risk_appetite": -10},
+}

@@ -179,3 +179,14 @@ F1 → F2 → F3
   - Також виявлено: ВИС-5 (question_contexts) вже виконано раніше — файл `schemas/question_contexts.json` вже підключений до `pipeline/question_engine.py`
 - Тести: 61/61 GREEN (після cleanup)
 - Наступний пріоритет: КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність) або ВИС-4 (soul_template.json оновити до 8 розділів) або ВИС-7 (заповнити profile в roster.json для 14 агентів)
+
+## [2026-04-15 12:10 UTC] Щогодинна перевірка
+- Стан: Всі попередні задачі виконані. ВИС-4 і ВИС-7 вже були закриті раніше (soul_template.json вже має 8 секцій, всі 17 агентів мають profiles в roster.json).
+- Дія: **КРИТ-3 DONE** — Призначення ролей всім 17 агентам + централізація ROLE_CORE_OVERLAYS:
+  - Всі 17 агентів отримали поле `role` в CORE.json: snake×3 (Алєг,Марта,Чорна Кішка), gambler×4 (Хесус,Тайлер,Артурчик,Дімончик), banker×4 (Вова,Павло,Катерина,Сергій), peacekeeper×6 (Вождь,Роман,Ліля,Микита,Наталка,Новий)
+  - ROLE_CORE_OVERLAYS перенесено з `game_modes/time_wars/agent_context.py` в `simulation/constants.py` (єдине джерело правди)
+  - `pipeline/decision_engine.py::CoreParams.from_dict()` тепер автоматично застосовує role overlay при завантаженні CORE — Island Mode тепер теж диференціює агентів за роллю
+  - `game_modes/time_wars/agent_context.py` тепер імпортує з `simulation/constants.py` замість власного визначення
+  - Ефект: Алєг (snake): coop 40→15, dec 98→100, risk 70→85; Вова (banker): coop 70→90, dec 10→0
+- Тести: 61/61 GREEN
+- Наступний пріоритет: КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність). М1 CONNECT milestone майже завершений.
