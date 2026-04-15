@@ -343,13 +343,13 @@ def pick_best_code(
     session: Session,
 ) -> Optional[int]:
     """
-    Choose the best code index from player inventory based on utility:
-    - self/gamble type → when own time < 50% of base (need time)
-    - steal type       → when enemy is richest and we're competitive
-    - give type        → when we have surplus time AND trust > 0.65 to someone
-    - minus_all        → when we have time advantage over most players
-    - plus_all_except_one → when we want to boost allies except leader
-    Returns inventory index or None if no code is worth using now.
+    Обрати найкращий код з інвентаря на основі утиліти + особистості (СЕР-12):
+    - self/gamble type    → коли власний час < 50% бази (потрібен час)
+    - steal type          → зважено на deception_tendency (Snake/Gambler б'ють частіше)
+    - give type           → зважено на cooperation_bias (Banker/Peacekeeper дають частіше)
+    - minus_all           → зважено на deception_tendency (агресивний код)
+    - plus_all_except_one → зважено на cooperation_bias (підтримка союзників)
+    Повертає індекс в інвентарі або None якщо жоден код не варто використовувати.
     """
     if not player.inventory:
         return None
@@ -358,48 +358,65 @@ def pick_best_code(
     others = [o for o in session.active_players() if o.agent_id != player.agent_id]
     my_ratio = player.time_remaining_sec / base_sec
 
+    # Особистісні ваги (0.0–1.0) для диференціації поведінки по ролі (СЕР-12)
+    deception = player.deception_tendency() if hasattr(player, "deception_tendency") else 0.5
+    cooperation = player.cooperation_bias() if hasattr(player, "cooperation_bias") else 0.5
+    risk = player.risk_appetite() if hasattr(player, "risk_appetite") else 0.5
+
     scored: list[tuple[float, int]] = []
     for idx, code in enumerate(player.inventory):
         code_type = code.get("type", "self")
         score = 0.0
 
         if code_type in ("self",):
-            # Use self-boost when low on time
+            # Self-boost залежить лише від терміновості — виживання не диференційоване
             urgency = max(0.0, 1.0 - my_ratio * 2)  # 0 at 50%+, 1 at 0%
             score = urgency * float(code.get("base_ev", 1))
 
         elif code_type == "gamble":
-            # Use gamble when we have some risk appetite and are in danger
+            # Gamble: ризиковий агент використовує раніше і частіше
             urgency = max(0.0, 0.75 - my_ratio)
-            risk = player.risk_appetite() if hasattr(player, "risk_appetite") else 0.5
             score = urgency * risk * float(code.get("base_ev", 1))
 
         elif code_type == "steal":
-            # Use steal when there's a rich target and we need time
+            # Steal: Snake/Gambler (high deception) крадуть агресивніше;
+            # Banker/Peacekeeper (low deception) уникають навіть при утилітарній перевазі
             if others:
                 richest = max(others, key=lambda o: o.time_remaining_sec)
                 target_ratio = richest.time_remaining_sec / base_sec
                 need = max(0.0, 0.6 - my_ratio)
-                score = need * target_ratio * float(code.get("base_ev", 1.5))
+                utility = need * target_ratio * float(code.get("base_ev", 1.5))
+                # Ваговий множник: deception 0.0→0.3x, 0.5→1.0x, 1.0→1.7x
+                personality_mult = 0.3 + deception * 1.4
+                score = utility * personality_mult
 
         elif code_type == "give":
-            # Use give when we have surplus and high trust to someone
-            if others and my_ratio > 0.5:
-                best_trust = max(session.get_trust(player.agent_id, o.agent_id) for o in others)
-                surplus = max(0.0, my_ratio - 0.5)
-                score = surplus * best_trust * float(code.get("base_ev", 2))
+            # Give: кооперативний агент ділиться щедріше і при меншому surplus
+            if others:
+                surplus_threshold = 0.5 - cooperation * 0.2  # Banker готовий ділитись від 30%
+                if my_ratio > surplus_threshold:
+                    best_trust = max(session.get_trust(player.agent_id, o.agent_id) for o in others)
+                    surplus = max(0.0, my_ratio - surplus_threshold)
+                    utility = surplus * best_trust * float(code.get("base_ev", 2))
+                    # Ваговий множник: cooperation 0.0→0.3x, 0.5→1.0x, 1.0→1.7x
+                    personality_mult = 0.3 + cooperation * 1.4
+                    score = utility * personality_mult
 
         elif code_type == "minus_all":
-            # Use time_bomb when we're ahead of most players
+            # Minus_all (time_bomb): агресивний агент використовує охочіше
             if others:
                 avg_ratio = sum(o.time_remaining_sec for o in others) / (len(others) * base_sec)
                 advantage = max(0.0, my_ratio - avg_ratio)
-                score = advantage * float(code.get("base_ev", 3)) * 0.5
+                utility = advantage * float(code.get("base_ev", 3)) * 0.5
+                personality_mult = 0.3 + deception * 1.4
+                score = utility * personality_mult
 
         elif code_type == "plus_all_except_one":
-            # Use solidarity when we want to boost allies
+            # Solidarity: кооперативний агент частіше бустить союзників
             if others and my_ratio > 0.4:
-                score = my_ratio * float(code.get("base_ev", 3)) * 0.4
+                utility = my_ratio * float(code.get("base_ev", 3)) * 0.4
+                personality_mult = 0.3 + cooperation * 1.4
+                score = utility * personality_mult
 
         scored.append((score, idx))
 

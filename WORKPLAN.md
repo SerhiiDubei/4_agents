@@ -201,3 +201,15 @@ F1 → F2 → F3
   - Видалено невикористані `import httpx`, `import os` з обох файлів
 - Тести: 61/61 GREEN
 - Наступний пріоритет: ВИС-6 (meta_params.json підключити до SOUL генерації) або КРИТ-6 (reveal_requests ініціалізація в Island) або М2 TIME WARS FIX items.
+
+## [2026-04-15 16:07 UTC] Щогодинна перевірка
+- Стан: M0 та M1 повністю завершені. Всі КРИТ-1..7 і ВИС-1..14 виконані (підтверджено ревізією коду). ВИС-6 фактично вже реалізована — meta_params.json живе в schemas/ і підключена до seed_generator.py + soul_compiler.py. М2 TIME WARS FIX — почато.
+- Дія: **СЕР-12 DONE** — CODE фаза тепер personality-driven:
+  - `pick_best_code()` в `loop.py` розширено особистісними вагами
+  - `steal` та `minus_all` типи коду масштабуються на `deception_tendency` (множник 0.3x..1.7x) — Snake/Gambler б'ють агресивніше
+  - `give` та `plus_all_except_one` масштабуються на `cooperation_bias` — Banker/Peacekeeper діляться охочіше, при нижчому surplus порозі
+  - `gamble` вже використовував `risk_appetite` — залишено без змін
+  - `self` тип не диференційований — виживання не залежить від ролі
+  - ARCHITECTURE.html оновлено: loop.py опис включає СЕР-12
+- Тести: 61/61 GREEN
+- Наступний пріоритет: СЕР-20 (підключити `_skill_applies` умови в skills.py) або СЕР-21 (ON_GAME_END bonus — перевірити порядок визначення переможця) або M3 STORYTELLING items (СЕР-5/6/7/8).
