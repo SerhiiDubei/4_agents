@@ -1839,6 +1839,146 @@ async def games_summary() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Analytics endpoint — агрегована статистика поведінки агентів по всіх іграх
+# ---------------------------------------------------------------------------
+
+@app.get("/api/analytics/island")
+async def analytics_island() -> dict[str, Any]:
+    """Обчислює поведінкову аналітику агентів: зради, кооперації, win rate, ефективність."""
+    roster_names: dict[str, str] = {}
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            for a in roster.get("agents", []):
+                if a.get("id") and a.get("name"):
+                    roster_names[a["id"]] = a["name"]
+        except Exception:
+            pass
+
+    # Агрегатори: agent_id → лічильники
+    stats: dict[str, dict[str, int | float]] = {}
+
+    def _get_stats(name: str) -> dict[str, int | float]:
+        if name not in stats:
+            stats[name] = {
+                "games_played": 0,
+                "games_won": 0,
+                "betrayals_committed": 0,   # exploit_i або exploit_j — ця людина зрадила
+                "betrayals_received": 0,    # ця людина була зрадженою
+                "mutual_coops": 0,          # обидва кооперували
+                "mutual_defects": 0,        # обидва зрадили
+            }
+        return stats[name]
+
+    if not LOGS_DIR.exists():
+        return {"agents": [], "totals": {"games": 0, "betrayals": 0, "mutual_coops": 0}}
+
+    paths = [f for f in LOGS_DIR.glob("game_*.json") if _match_island_game(f)]
+
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        agent_ids: list[str] = data.get("agents", [])
+        agent_names: dict[str, str] = data.get("agent_names") or {}
+        # Використовуємо відображені імена з roster або з гри
+        def display(aid: str) -> str:
+            return roster_names.get(aid) or agent_names.get(aid) or aid
+
+        winner_id = data.get("winner") or ""
+        winner_name = display(winner_id) if winner_id else ""
+
+        # Облікуємо участь у грі
+        for aid in agent_ids:
+            s = _get_stats(display(aid))
+            s["games_played"] += 1
+            if display(aid) == winner_name:
+                s["games_won"] += 1
+
+        # Обробляємо pair_outcomes в кожному раунді
+        for rnd in data.get("rounds", []):
+            payoffs = rnd.get("payoffs") or {}
+            pair_outcomes = payoffs.get("pair_outcomes") or []
+            for po in pair_outcomes:
+                outcome = po.get("outcome", "")
+                pair_str = po.get("pair", "")
+                # Формат: "AgentA→AgentB"
+                if "→" in pair_str:
+                    parts = pair_str.split("→", 1)
+                elif "\u0432\u2020\u2019" in pair_str:
+                    parts = pair_str.split("\u0432\u2020\u2019", 1)
+                else:
+                    continue
+                if len(parts) != 2:
+                    continue
+                name_i, name_j = parts[0].strip(), parts[1].strip()
+                # Конвертуємо agent_id → display name якщо потрібно
+                name_i = roster_names.get(name_i) or agent_names.get(name_i) or name_i
+                name_j = roster_names.get(name_j) or agent_names.get(name_j) or name_j
+
+                si, sj = _get_stats(name_i), _get_stats(name_j)
+                if outcome == "mutual_coop":
+                    si["mutual_coops"] += 1
+                    sj["mutual_coops"] += 1
+                elif outcome == "mutual_defect":
+                    si["mutual_defects"] += 1
+                    sj["mutual_defects"] += 1
+                elif outcome == "exploit_i":  # i зрадив j
+                    si["betrayals_committed"] += 1
+                    sj["betrayals_received"] += 1
+                elif outcome == "exploit_j":  # j зрадив i
+                    sj["betrayals_committed"] += 1
+                    si["betrayals_received"] += 1
+
+    # Обчислюємо похідні метрики
+    agent_list = []
+    total_betrayals = 0
+    total_mutual_coops = 0
+    for name, s in stats.items():
+        gp = s["games_played"]
+        total_interactions = s["betrayals_committed"] + s["mutual_coops"] + s["mutual_defects"] + s["betrayals_received"]
+        # Відсоток кооперативних дій від усіх парних взаємодій (з боку цього агента)
+        actions_as_actor = s["betrayals_committed"] + s["mutual_coops"] + s["mutual_defects"]
+        coop_rate = round(
+            (s["mutual_coops"]) / actions_as_actor * 100, 1
+        ) if actions_as_actor > 0 else 0.0
+        betrayal_rate = round(
+            s["betrayals_committed"] / actions_as_actor * 100, 1
+        ) if actions_as_actor > 0 else 0.0
+        win_rate = round(s["games_won"] / gp * 100, 1) if gp > 0 else 0.0
+        agent_list.append({
+            "name": name,
+            "games_played": gp,
+            "games_won": int(s["games_won"]),
+            "win_rate": win_rate,
+            "betrayals_committed": int(s["betrayals_committed"]),
+            "betrayals_received": int(s["betrayals_received"]),
+            "mutual_coops": int(s["mutual_coops"]),
+            "mutual_defects": int(s["mutual_defects"]),
+            "coop_rate": coop_rate,
+            "betrayal_rate": betrayal_rate,
+        })
+        total_betrayals += int(s["betrayals_committed"])
+        total_mutual_coops += int(s["mutual_coops"])
+
+    # Сортуємо: спочатку ті хто грав більше
+    agent_list.sort(key=lambda x: (-x["games_played"], -x["win_rate"]))
+    total_games = len(paths)
+
+    return {
+        "agents": agent_list,
+        "totals": {
+            "games": total_games,
+            "betrayals": total_betrayals,
+            "mutual_coops": total_mutual_coops // 2,  # кожна пара рахується двічі
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 

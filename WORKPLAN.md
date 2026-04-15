@@ -284,3 +284,13 @@ F1 → F2 → F3
   - ARCHITECTURE.html оновлено: нова картка AgentProfilesView у FRONTEND LAYER, статус-бейдж оновлено.
 - Тести: 107/107 GREEN (TypeScript помилки — тільки pre-existing unused vars, не в новому коді)
 - Наступний пріоритет: M4 — Dashboard з аналітикою ігор (win rates, betrayal rates, cooperation trends) або Real-time Island UI (SSE-based live visualization)
+
+## [2026-04-16 00:09 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3/ВИС-12/ВИС-13/Agent Profiles повністю завершені. 107/107 тестів GREEN.
+- Дія: **M4 Analytics Dashboard DONE** — поведінкова аналітика агентів по 151+ іграх:
+  - `server/main.py` — новий endpoint `/api/analytics/island`: парсить усі Island JSON логи, агрегує `pair_outcomes` (mutual_coop/exploit_i/exploit_j/mutual_defect) по кожному агенту. Обчислює: win_rate, betrayal_rate, coop_rate, games_played, games_won, betrayals_committed/received, mutual_coops/defects.
+  - `frontend/src/src/components/AnalyticsDashboardView.tsx` — новий компонент: загальні метрики (ігор/зрад/кооперацій), progress bars для win/coop/betrayal rate, числові деталі, сортування по 5 колонках (win_rate/betrayal_rate/coop_rate/games_played/betrayals_committed).
+  - `pages/InitOpenPhase.tsx` — додано phase `analytics` + кнопка `[ АНАЛІТИКА ]` (помаранчева) у головному меню, URL param `?view=analytics`.
+  - `ARCHITECTURE.html` оновлено: нова картка AnalyticsDashboardView у FRONTEND LAYER, статус-бейдж і timestamp оновлені.
+- Тести: 107/107 GREEN
+- Наступний пріоритет: Real-time Island UI (SSE live React компонент замість island_launcher.html) або M5 Infrastructure (async LLM calls, Alembic, structured logging)

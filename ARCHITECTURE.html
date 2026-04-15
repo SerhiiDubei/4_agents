@@ -309,7 +309,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 <div class="layer open" id="l-fe">
   <div class="layer-hdr" onclick="toggle('l-fe')">
     <div class="lnum" style="background:#1a3a2a;color:var(--c-frontend)">5</div>
-    <div class="lname" style="color:var(--c-frontend)">FRONTEND LAYER <span class="badge badge-fixed">&#10003; ВИС-12 DONE</span> <span class="badge badge-fixed">&#10003; ВИС-13 DONE</span> <span class="badge badge-fixed">&#10003; Agent Profiles DONE</span></div>
+    <div class="lname" style="color:var(--c-frontend)">FRONTEND LAYER <span class="badge badge-fixed">&#10003; ВИС-12 DONE</span> <span class="badge badge-fixed">&#10003; ВИС-13 DONE</span> <span class="badge badge-fixed">&#10003; Agent Profiles DONE</span> <span class="badge badge-fixed">&#10003; Analytics Dashboard DONE</span></div>
     <div class="ltag">react &middot; typescript &middot; vite</div>
     <a href="arch_frontend.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
     <div class="larrow">&#9658;</div>
@@ -320,6 +320,7 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
       <div class="mod" onclick="sel(this,'d-fe-auth')"><div class="mname" style="color:#fbbf24">AuthModal &#10003; ВИС-12</div><div class="mdesc">Login/Register UI — JWT токен, localStorage, /auth/login + /auth/register</div><div class="mfile">components/AuthModal.tsx &middot; hooks/useAuth.ts</div></div>
       <div class="mod new-feat" onclick="sel(this,'d-fe-human')"><div class="mname" style="color:#fbbf24">HumanPlayer &#10003; ВИС-13</div><div class="mdesc">Кнопка "Грати як людина" на головній, 60s countdown timer у action panel, бейдж "ТИ" на картці</div><div class="mfile">serve_time_wars.py — main_menu() + game_page()</div></div>
       <div class="mod new-feat" onclick="sel(this,'d-fe-profiles')"><div class="mname" style="color:#a855f7">AgentProfilesView &#10003; M4</div><div class="mdesc">Сітка 17 агентів: ім'я, роль, CORE-бари (4 params), bio-витяг. Фільтр за роллю. Detail panel. /api/roster/profiles</div><div class="mfile">components/AgentProfilesView.tsx &middot; server/main.py /api/roster/profiles</div></div>
+      <div class="mod new-feat" onclick="sel(this,'d-fe-analytics')"><div class="mname" style="color:#fb923c">AnalyticsDashboardView &#10003; M4</div><div class="mdesc">Поведінкова аналітика: win rate, betrayal rate, coop rate на 151+ грі. Сортування по 5 метриках. /api/analytics/island</div><div class="mfile">components/AnalyticsDashboardView.tsx &middot; server/main.py /api/analytics/island</div></div>
       <div class="mod" onclick="sel(this,'d-fe-res')"><div class="mname" style="color:var(--c-frontend)">GamesResultsView</div><div class="mdesc">Таблиця: агент &times; гра &times; скор (128+ ігор)</div><div class="mfile">components/GamesResultsView.tsx</div></div>
       <div class="mod" onclick="sel(this,'d-fe-lb')"><div class="mname" style="color:var(--c-frontend)">LeaderboardView</div><div class="mdesc">Загальний лідерборд по всіх іграх</div><div class="mfile">components/LeaderboardView.tsx</div></div>
       <div class="mod" onclick="sel(this,'d-fe-tw')"><div class="mname" style="color:var(--c-frontend)">TimeWarsResultsView</div><div class="mdesc">TW фінальні результати + replay подій</div><div class="mfile">components/TimeWarsResultsView.tsx</div></div>
@@ -1171,8 +1172,8 @@ phosphor-glow на текст
 
   <!-- ══ STATUS BLOCK ══ -->
   <div class="section" style="margin-top:18px;padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);line-height:1.8;">
-    <!-- Auto-updated: 2026-04-15 22:08 UTC -->
-    <div style="font-size:10px;font-weight:bold;color:var(--text);margin-bottom:6px;">Project Status — 2026-04-15 &nbsp;<span style="color:#4dbb80">&#10003; 107/107 tests GREEN</span> &nbsp;<span style="color:#fbbf24">&#9733; M4 ВИС-12+13+Agent Profiles DONE</span></div>
+    <!-- Auto-updated: 2026-04-16 00:09 UTC -->
+    <div style="font-size:10px;font-weight:bold;color:var(--text);margin-bottom:6px;">Project Status — 2026-04-16 &nbsp;<span style="color:#4dbb80">&#10003; 107/107 tests GREEN</span> &nbsp;<span style="color:#fb923c">&#9733; M4 Analytics Dashboard DONE</span></div>
     <div><span style="color:#4dbb80">&#10003;</span> Social Fabric — 7 actions, budget system, trust delta <span class="badge badge-active">ACTIVE</span></div>
     <div><span style="color:#5b9bd5">&#10003;</span> MCS (Multi-Consciousness System) — 4 personas <span class="badge badge-ready">CODE READY</span></div>
     <div><span style="color:#4dbb80">&#10003;</span> Live SSE accordion UI — 9 секцій (island_launcher.html)</div>
@@ -1187,7 +1188,8 @@ phosphor-glow на текст
       <span style="color:#4dbb80">&#10003;</span> M3 TESTS DONE — test_storytell.py: 46 unit тестів. Всього 107 тестів.<br/>
       <span style="color:#4dbb80">&#10003;</span> <strong style="color:#4dbb80">M4 FRONTEND — ВИС-12 DONE</strong> — AuthModal.tsx + useAuth.ts: login/register UI, JWT localStorage<br/>
       <span style="color:#4dbb80">&#10003;</span> <strong style="color:#4dbb80">M4 FRONTEND — ВИС-13 DONE</strong> — Human player TW: кнопка "Грати як людина" на головній, 60s countdown, бейдж "ТИ".<br/>
-      <span style="color:#a855f7">&#10003;</span> <strong style="color:#a855f7">M4 FRONTEND — Agent Profiles DONE</strong> — AgentProfilesView.tsx: сітка 17 агентів з CORE-барами, фільтр за роллю, detail panel. /api/roster/profiles endpoint з role overlay. Наступне: Dashboard аналітики / Real-time Island UI.
+      <span style="color:#a855f7">&#10003;</span> <strong style="color:#a855f7">M4 FRONTEND — Agent Profiles DONE</strong> — AgentProfilesView.tsx: сітка 17 агентів з CORE-барами, фільтр за роллю, detail panel. /api/roster/profiles endpoint з role overlay.<br/>
+      <span style="color:#fb923c">&#10003;</span> <strong style="color:#fb923c">M4 FRONTEND — Analytics Dashboard DONE</strong> — AnalyticsDashboardView.tsx: win rate, betrayal rate, coop rate по 151+ іграх. Сортування по 5 метриках. /api/analytics/island агрегує pair_outcomes з усіх Island JSON логів. Наступне: Real-time Island UI або M5 Infrastructure.
     </div>
   </div>
 

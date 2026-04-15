@@ -9,9 +9,10 @@ import { TimeWarsResultsView } from '../components/TimeWarsResultsView';
 import { CRTOverlay } from '../components/CRTOverlay';
 import { AuthModal } from '../components/AuthModal';
 import { AgentProfilesView } from '../components/AgentProfilesView';
+import { AnalyticsDashboardView } from '../components/AnalyticsDashboardView';
 import { useAuth } from '../hooks/useAuth';
 
-type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars' | 'agent-profiles';
+type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars' | 'agent-profiles' | 'analytics';
 
 function getInitialPhase(): Phase {
   if (typeof window === 'undefined') return 'intro';
@@ -20,6 +21,7 @@ function getInitialPhase(): Phase {
   if (view === 'leaderboard') return 'leaderboard';
   if (view === 'time-wars') return 'time-wars';
   if (view === 'agent-profiles') return 'agent-profiles';
+  if (view === 'analytics') return 'analytics';
   return 'intro';
 }
 
@@ -283,6 +285,19 @@ export const InitOpenPhase: React.FC = () => {
                 >
                   [ АГЕНТИ ]
                 </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.45 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(251,146,60,0.5)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setPhase('analytics')}
+                  className="px-10 py-5 font-pixel text-lg text-orange-400 border-2 border-orange-400/70 bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-orange-400/10"
+                >
+                  [ АНАЛІТИКА ]
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -406,6 +421,18 @@ export const InitOpenPhase: React.FC = () => {
             className="absolute inset-0"
           >
             <AgentProfilesView onBack={() => setPhase('intro')} />
+          </motion.div>
+        )}
+
+        {phase === 'analytics' && (
+          <motion.div
+            key="analytics"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          >
+            <AnalyticsDashboardView onBack={() => setPhase('intro')} />
           </motion.div>
         )}
       </AnimatePresence>
