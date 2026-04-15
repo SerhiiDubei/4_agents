@@ -190,3 +190,14 @@ F1 → F2 → F3
   - Ефект: Алєг (snake): coop 40→15, dec 98→100, risk 70→85; Вова (banker): coop 70→90, dec 10→0
 - Тести: 61/61 GREEN
 - Наступний пріоритет: КРИТ-8 (COMM→ACTION ordering в Time Wars — висока складність). М1 CONNECT milestone майже завершений.
+
+## [2026-04-15 13:09 UTC] Щогодинна перевірка
+- Стан: Всі попередні задачі виконані. КРИТ-8 перевірено — COMM→ACTION порядок вже коректний в поточному коді (COMM line 452, ACTION line 571, last_messages передається). Фактично КРИТ-8 був вже виправлений в попередньому циклі.
+- Дія: **ВИС-2 DONE** — Консолідація дублікатів call_openrouter:
+  - `pipeline/seed_generator.py::call_openrouter` розширено параметром `response_format: Optional[dict]` для підтримки json_object mode
+  - `pipeline/question_engine.py`: видалено локальну копію call_openrouter (~47 рядків), додано `from pipeline.seed_generator import call_openrouter`
+  - `pipeline/soul_compiler.py`: видалено локальну копію call_openrouter (~43 рядки) + дублюючий function-local import, додано module-level import з seed_generator
+  - Ефект: question_engine і soul_compiler тепер мають безкоштовно 3-retry backoff. Тестові моки `pipeline.seed_generator.call_openrouter` тепер покривають ВСІ LLM-виклики pipeline.
+  - Видалено невикористані `import httpx`, `import os` з обох файлів
+- Тести: 61/61 GREEN
+- Наступний пріоритет: ВИС-6 (meta_params.json підключити до SOUL генерації) або КРИТ-6 (reveal_requests ініціалізація в Island) або М2 TIME WARS FIX items.

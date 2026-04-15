@@ -10,12 +10,11 @@ Each section is generated individually to guarantee quality and respect per-sect
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional
 
-import httpx
+from pipeline.seed_generator import call_openrouter  # ВИС-2: єдина реалізація
 
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 
@@ -51,55 +50,6 @@ def load_soul_template() -> list[SoulSection]:
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     return [SoulSection(**item) for item in raw]
-
-
-# ---------------------------------------------------------------------------
-# LLM helper
-# ---------------------------------------------------------------------------
-
-def call_openrouter(
-    system_prompt: str,
-    user_prompt: str,
-    model: str = "openai/gpt-4o-mini",
-    temperature: float = 0.75,
-    max_tokens: int = 400,
-) -> str:
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    except Exception:
-        pass
-    raw_key = os.environ.get("OPENROUTER_API_KEY") or ""
-    api_key = raw_key.replace("\ufeff", "").strip().strip("\r\n\t ")
-    if not api_key:
-        raise EnvironmentError("OPENROUTER_API_KEY is not set")
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "IslandAgentInit",
-    }
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-
-    response = httpx.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=60,
-    )
-    response.raise_for_status()
-    data = response.json()
-    return data["choices"][0]["message"]["content"].strip()
 
 
 # ---------------------------------------------------------------------------
@@ -292,8 +242,6 @@ def compile_from_brief(
 
     Returns {"soul_md": str, "core": dict}
     """
-    from pipeline.seed_generator import call_openrouter
-
     brief_text = "\n".join(f"- {entry}" for entry in brief if entry.strip())
 
     meta_text = (

@@ -164,13 +164,17 @@ def call_openrouter(
     timeout: int = 120,
     json_schema: Optional[dict] = None,
     api_key: Optional[str] = None,
+    response_format: Optional[dict] = None,
 ) -> str:
     """
     Call OpenRouter API and return the text content.
 
-    json_schema: optional JSON Schema dict for structured output.
+    json_schema: optional JSON Schema dict for structured output (strict schema mode).
       When provided, response_format is set to json_schema mode and the
       raw JSON string is returned (caller must parse it).
+    response_format: optional raw response_format dict (e.g. {"type": "json_object"}).
+      Used when caller needs simple JSON mode without a full schema.
+      Ignored if json_schema is set.
     """
     if api_key:
         api_key = api_key.replace("\ufeff", "").strip().strip("\r\n\t ")
@@ -211,6 +215,8 @@ def call_openrouter(
                 "schema": json_schema,
             },
         }
+    elif response_format is not None:
+        payload["response_format"] = response_format
 
     max_attempts = 3
     backoff_seconds = [2, 4, 8]
