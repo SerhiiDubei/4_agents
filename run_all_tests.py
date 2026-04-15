@@ -140,6 +140,16 @@ def suite_pipeline() -> dict:
     return r
 
 
+def suite_storytell() -> dict:
+    r = _run(
+        [PY, "-m", "pytest", "tests/test_storytell.py", "-v", "--tb=short"],
+        "Storytell unit tests (pytest)",
+    )
+    passed, failed = _parse_pytest(r["stdout"])
+    r.update({"passed": passed, "failed": failed, "total": passed + failed})
+    return r
+
+
 def suite_stress() -> dict:
     r = _run([PY, "tests/stress_rounds.py"], "Island stress rounds")
     passed, failed = _parse_custom_runner(r["stdout"])
@@ -273,6 +283,10 @@ def main() -> int:
         # Pipeline (offline only — OPENROUTER not required)
         print("  [3/?] Pipeline / Island offline tests...")
         suites.append(suite_pipeline())
+
+        # Storytell unit tests (offline, pytest)
+        print("  [4/?] Storytell unit tests...")
+        suites.append(suite_storytell())
 
     if run_full:
         # Island stress + smoke (slower, optional)

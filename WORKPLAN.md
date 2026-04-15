@@ -236,3 +236,20 @@ F1 → F2 → F3
   - `ARCHITECTURE.html` оновлено: M3 статус, всі 7 модулів з мітками.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: M4 HUMAN PLAYER або F2 (Human player UX) або додаткові тести для storytell модуля (round_events escalation unit test).
+
+## [2026-04-15 19:07 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3 повністю завершені. Виявлено: M3 мала вимогу "Тести для storytell модуля" — вона не була виконана (61 тест, ціль M3 = 80+).
+- Дія: **M3 TESTS DONE** — створено `tests/test_storytell.py`: 46 unit тестів без LLM-залежностей:
+  - `TestCharacterArcLabel` (7 тестів) — перевірка міток дуги: зрадник/прагматик/союзник/жертва
+  - `TestCharacterArcTrend` (5 тестів) — тренди: цинічний/відкривається/нейтральний
+  - `TestCharacterArcTracker` (7 тестів) — підрахунок зрад/кооп, key_moments, self-interaction
+  - `TestRoundEvents` (5 тестів) — ескалація ранні/середні/фінальні раунди, довжина description
+  - `TestGetParticipants` (4 тести) — виключення focus_agent, ліміт учасників
+  - `TestGenerateConsequences` (5 тестів) — базові наслідки, betrayal carryover
+  - `TestBuildBetrayalCarryover` (5 тестів) — агрегація зрад, дедублікація, custom threshold
+  - `TestStoryParams` (4 тести) — to_style_str(), to_context_str()
+  - `TestRoundEventFormat` (4 тести) — підстановка {name}/{name1}/{name2}
+  - Додано `suite_storytell()` в `run_all_tests.py` → 4-й suite в стандартному запуску
+  - `ARCHITECTURE.html` оновлено: статус 107 тестів, M3 TESTS badge
+- Тести: **107/107 GREEN** (+46 storytell, з 61 до 107)
+- Наступний пріоритет: M4 FRONTEND & UX — ВИС-12 (Auth UI) або ВИС-13 (Human player TIME WARS interface)
