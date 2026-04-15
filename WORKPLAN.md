@@ -274,3 +274,13 @@ F1 → F2 → F3
   - ARCHITECTURE.html оновлено: ВИС-13 DONE badge + новий модуль HumanPlayer у FRONTEND LAYER.
 - Тести: 107/107 GREEN
 - Наступний пріоритет: M4 — Dashboard з аналітикою ігор або Agent profiles на фронтенді
+
+## [2026-04-15 23:09 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3/ВИС-12/ВИС-13 повністю завершені. 107/107 тестів GREEN на старті.
+- Дія: **M4 Agent Profiles DONE** — профілі агентів реалізовані у React frontend:
+  - `frontend/src/src/components/AgentProfilesView.tsx` — новий компонент: сітка 17 агентів з CORE-барами (cooperation/deception/strategic/risk), фільтр за роллю (all/змія/гравець/банкір/миротворець), detail-панель при кліку (розгортається поверх). ROLE_CORE_OVERLAYS автоматично застосовуються до відображення.
+  - `server/main.py` — новий endpoint `/api/roster/profiles`: читає roster.json + CORE.json кожного агента + BIO.md витяг, повертає масив з {id, name, role, roleLabel, roleColor, core, profession, bio, connections}. Role overlays застосовуються server-side.
+  - `pages/InitOpenPhase.tsx` — додано phase `agent-profiles` + кнопка `[ АГЕНТИ ]` (фіолетова) у головному меню.
+  - ARCHITECTURE.html оновлено: нова картка AgentProfilesView у FRONTEND LAYER, статус-бейдж оновлено.
+- Тести: 107/107 GREEN (TypeScript помилки — тільки pre-existing unused vars, не в новому коді)
+- Наступний пріоритет: M4 — Dashboard з аналітикою ігор (win rates, betrayal rates, cooperation trends) або Real-time Island UI (SSE-based live visualization)

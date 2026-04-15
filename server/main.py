@@ -1572,6 +1572,107 @@ async def api_list_agents() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Roster profiles — для Agent Profiles UI (M4)
+# ---------------------------------------------------------------------------
+
+_ROLE_LABELS: dict[str, str] = {
+    "role_snake":       "Змія",
+    "role_gambler":     "Гравець",
+    "role_banker":      "Банкір",
+    "role_peacekeeper": "Миротворець",
+}
+
+_ROLE_COLORS: dict[str, str] = {
+    "role_snake":       "red",
+    "role_gambler":     "pink",
+    "role_banker":      "cyan",
+    "role_peacekeeper": "gold",
+}
+
+# Копія ROLE_CORE_OVERLAYS щоб не залежати від simulation import у server
+_ROLE_OVERLAYS: dict[str, dict[str, int]] = {
+    "role_snake":       {"cooperation_bias": -25, "deception_tendency": 30, "risk_appetite": 15},
+    "role_gambler":     {"cooperation_bias": -30, "deception_tendency": 35, "risk_appetite": 30},
+    "role_banker":      {"cooperation_bias": 20, "deception_tendency": -10},
+    "role_peacekeeper": {"cooperation_bias": 25, "deception_tendency": -25, "risk_appetite": -10},
+}
+
+
+@app.get("/api/roster/profiles")
+async def roster_profiles() -> dict[str, Any]:
+    """Повертає всіх агентів з roster.json з CORE-параметрами та bio-витягом.
+    Використовується в Agent Profiles UI (M4 ВИС-15)."""
+    roster_path = _PROJECT_ROOT / "agents" / "roster.json"
+    if not roster_path.exists():
+        return {"profiles": []}
+
+    try:
+        roster = json.loads(roster_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"profiles": []}
+
+    profiles: list[dict[str, Any]] = []
+    for entry in roster.get("agents", []):
+        agent_id = entry.get("id") or entry.get("source", "").split("/")[-1]
+        if not agent_id:
+            continue
+
+        agent_dir = _PROJECT_ROOT / "agents" / agent_id
+
+        # Завантажуємо CORE.json
+        core: dict[str, Any] = {}
+        core_path = agent_dir / "CORE.json"
+        if core_path.exists():
+            try:
+                core = json.loads(core_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        role = core.get("role") or entry.get("role") or "role_peacekeeper"
+        overlay = _ROLE_OVERLAYS.get(role, {})
+
+        # Застосовуємо role overlay до CORE параметрів (clamp 0-100)
+        def apply(param: str) -> int:
+            base = int(core.get(param, 50))
+            delta = overlay.get(param, 0)
+            return max(0, min(100, base + delta))
+
+        # Bio-витяг з BIO.md (перший абзац, до 350 символів)
+        bio_excerpt = ""
+        bio_path = agent_dir / "BIO.md"
+        if bio_path.exists():
+            try:
+                bio_text = bio_path.read_text(encoding="utf-8").strip()
+                # Шукаємо перший абзац з текстом (пропускаємо заголовки ##)
+                for line in bio_text.split("\n"):
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith("#"):
+                        bio_excerpt = stripped[:350]
+                        break
+            except Exception:
+                pass
+
+        profiles.append({
+            "id": agent_id,
+            "name": core.get("name") or entry.get("name") or agent_id,
+            "role": role,
+            "roleLabel": _ROLE_LABELS.get(role, role),
+            "roleColor": _ROLE_COLORS.get(role, "cyan"),
+            "core": {
+                "cooperation_bias":   apply("cooperation_bias"),
+                "deception_tendency": apply("deception_tendency"),
+                "strategic_horizon":  apply("strategic_horizon"),
+                "risk_appetite":      apply("risk_appetite"),
+            },
+            "profession": entry.get("profile", {}).get("profession") or "",
+            "bio":        entry.get("profile", {}).get("bio") or bio_excerpt,
+            "connections": entry.get("profile", {}).get("connections") or "",
+        })
+
+    return {"profiles": profiles, "count": len(profiles)}
+
+
+# ---------------------------------------------------------------------------
 # Games summary (for UI results table)
 # ---------------------------------------------------------------------------
 

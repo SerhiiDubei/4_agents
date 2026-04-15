@@ -8,9 +8,10 @@ import { LeaderboardView } from '../components/LeaderboardView';
 import { TimeWarsResultsView } from '../components/TimeWarsResultsView';
 import { CRTOverlay } from '../components/CRTOverlay';
 import { AuthModal } from '../components/AuthModal';
+import { AgentProfilesView } from '../components/AgentProfilesView';
 import { useAuth } from '../hooks/useAuth';
 
-type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars';
+type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars' | 'agent-profiles';
 
 function getInitialPhase(): Phase {
   if (typeof window === 'undefined') return 'intro';
@@ -18,6 +19,7 @@ function getInitialPhase(): Phase {
   if (view === 'games-results') return 'games-results';
   if (view === 'leaderboard') return 'leaderboard';
   if (view === 'time-wars') return 'time-wars';
+  if (view === 'agent-profiles') return 'agent-profiles';
   return 'intro';
 }
 
@@ -268,6 +270,19 @@ export const InitOpenPhase: React.FC = () => {
                 >
                   [ TIME WARS: РЕЗУЛЬТАТИ ]
                 </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.4 }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: '0 0 25px rgba(168,85,247,0.5)',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setPhase('agent-profiles')}
+                  className="px-10 py-5 font-pixel text-lg text-purple-400 border-2 border-purple-400/70 bg-game-black/50 backdrop-blur-sm uppercase tracking-widest transition-all duration-300 hover:bg-purple-400/10"
+                >
+                  [ АГЕНТИ ]
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -379,6 +394,18 @@ export const InitOpenPhase: React.FC = () => {
             className="absolute inset-0"
           >
             <TimeWarsResultsView onBack={() => setPhase('intro')} />
+          </motion.div>
+        )}
+
+        {phase === 'agent-profiles' && (
+          <motion.div
+            key="agent-profiles"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          >
+            <AgentProfilesView onBack={() => setPhase('intro')} />
           </motion.div>
         )}
       </AnimatePresence>
