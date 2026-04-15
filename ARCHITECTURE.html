@@ -260,20 +260,25 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
 </div>
 
 <!-- ══ LAYER 3.5: STORYTELL ══ -->
-<div class="conn"><div class="cline"></div><span style="color:#4dbb80">&#10003; storytell/ підключено до Time Wars (CRIT-4 FIXED)</span><div class="cline"></div></div>
+<!-- Auto-updated: 2026-04-15 18:11 UTC -->
+<div class="conn"><div class="cline"></div><span style="color:#4dbb80">&#10003; M3 STORYTELLING — СЕР-5/6/7/8/9 DONE</span><div class="cline"></div></div>
 <div class="layer" id="l-story">
   <div class="layer-hdr" onclick="toggle('l-story')">
     <div class="lnum" style="background:#2a2a1e;color:var(--c-story)">3&#189;</div>
-    <div class="lname" style="color:var(--c-story)">STORYTELL LAYER <span class="badge badge-fixed">&#10003; WIRED</span></div>
-    <div class="ltag" style="color:#4dbb80">&#10003; non-blocking thread &mdash; CRIT-4 FIXED</div>
+    <div class="lname" style="color:var(--c-story)">STORYTELL LAYER <span class="badge badge-fixed">&#10003; M3 DONE</span></div>
+    <div class="ltag" style="color:#4dbb80">&#10003; genre/mood/arcs/escalation/TW — ALL WIRED</div>
     <a href="arch_story.html" class="lbtn" onclick="event.stopPropagation()">&#9654; View</a>
     <div class="larrow">&#9658;</div>
   </div>
   <div class="layer-body">
     <div class="mods">
       <div class="mod" onclick="sel(this,'d-sg')"><div class="mname" style="color:var(--c-story)">story_generator.py</div><div class="mdesc">Детерміноване налаштування сцени: рік, місце, жанр, mood</div><div class="mfile">storytell/story_generator.py</div></div>
-      <div class="mod bug" onclick="sel(this,'d-rn')"><div class="mname" style="color:var(--c-story)">round_narrative.py</div><div class="mdesc">LLM нарратив раунду &mdash; готово але не викликається!</div><div class="mfile">storytell/round_narrative.py</div></div>
-      <div class="mod" onclick="sel(this,'d-cons')"><div class="mname" style="color:var(--c-story)">consequences.py</div><div class="mdesc">Наслідки подій для сюжету</div><div class="mfile">storytell/consequences.py</div></div>
+      <div class="mod" onclick="sel(this,'d-sp')"><div class="mname" style="color:var(--c-story)">story_params.py &#10003; СЕР-5</div><div class="mdesc">to_style_str() — genre/mood/stakes → system prompt LLM</div><div class="mfile">storytell/story_params.py</div></div>
+      <div class="mod" onclick="sel(this,'d-re')"><div class="mname" style="color:var(--c-story)">round_events.py &#10003; СЕР-7</div><div class="mdesc">Dynamic escalation: ранні→середні→кульмінація (3 фази)</div><div class="mfile">storytell/round_events.py</div></div>
+      <div class="mod" onclick="sel(this,'d-ca')"><div class="mname" style="color:var(--c-story)">character_arc.py &#10003; СЕР-6</div><div class="mdesc">CharacterArcTracker — дуги зрадник/союзник/жертва між раундами</div><div class="mfile">storytell/character_arc.py</div></div>
+      <div class="mod" onclick="sel(this,'d-rn')"><div class="mname" style="color:var(--c-story)">round_narrative.py &#10003; СЕР-6</div><div class="mdesc">LLM нарратив + arc_tracker — персонажі розвиваються</div><div class="mfile">storytell/round_narrative.py</div></div>
+      <div class="mod" onclick="sel(this,'d-cons')"><div class="mname" style="color:var(--c-story)">consequences.py &#10003; СЕР-8</div><div class="mdesc">Carryover зрад — минуле впливає на поточний наратив</div><div class="mfile">storytell/consequences.py</div></div>
+      <div class="mod" onclick="sel(this,'d-tw')"><div class="mname" style="color:var(--c-story)">Time Wars &#10003; СЕР-9</div><div class="mdesc">serve_time_wars.py — generate_story() fixed, arc_tracker wired</div><div class="mfile">serve_time_wars.py:636</div></div>
     </div>
   </div>
 </div>

@@ -355,6 +355,14 @@ def run_simulation(
     except Exception:
         pass
 
+    # СЕР-6/8: ініціалізуємо трекери дуг і зрад один раз перед ігровим циклом
+    try:
+        from storytell.character_arc import CharacterArcTracker as _ArcTrackerCls
+        _arc_tracker = _ArcTrackerCls()
+    except Exception:
+        _arc_tracker = None  # type: ignore[assignment]
+    _all_round_actions_history: list = []  # для СЕР-8 betrayal carryover
+
     # ВИС-14: кешуємо BIO.md, SOUL.md, roster.json один раз перед ігровим циклом
     _bio_cache: Dict[str, str] = {}
     _soul_cache: Dict[str, str] = {}
@@ -907,15 +915,24 @@ def run_simulation(
                             "trust_delta": round(_td, 3),
                         })
 
+            # СЕР-6: оновлюємо arc_tracker після кожного раунду
+            if _arc_tracker is not None:
+                _arc_tracker.update(round_num=round_num, round_actions=round_actions)
+            # СЕР-8: зберігаємо actions цього раунду для betrayal carryover
+            _all_round_actions_history.append(dict(round_actions))
+
             # --- Storytell: consequences after payoffs ---
             round_consequences = ""
             round_narrative = ""
             if story_params:
                 try:
-                    from storytell import generate_consequences
+                    from storytell.consequences import generate_consequences, build_betrayal_carryover
                     payoffs_summary = payoffs.total if hasattr(payoffs, "total") else {}
+                    # СЕР-8: передаємо зради з попередніх раундів
+                    _carryover = build_betrayal_carryover(_all_round_actions_history[:-1]) if len(_all_round_actions_history) > 1 else {}
                     round_consequences = generate_consequences(
-                        round_num, round_actions, payoffs_summary, story_params, result.agent_names
+                        round_num, round_actions, payoffs_summary, story_params,
+                        result.agent_names, betrayal_carryover=_carryover
                     )
                 except Exception as _cons_err:
                     import sys as _sys
@@ -946,6 +963,7 @@ def run_simulation(
                         agent_profiles=agent_profiles,
                         world_bible=world_bible,   # T5
                         soul_mds=_narr_souls,      # T5
+                        arc_tracker=_arc_tracker,  # СЕР-6
                     )
                 except Exception as _narr_err:
                     import sys as _sys

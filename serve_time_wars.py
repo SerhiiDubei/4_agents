@@ -633,10 +633,12 @@ def _run_game_in_thread(session_id: str) -> None:
                         apply_steal(session, p.agent_id, act["target_id"], t, rng=rng)
                 _tw_log(f"  ACTION done in {time.perf_counter() - t_action:.2f}s | round total: {time.perf_counter() - t_round_start:.2f}s")
 
-                # ── CRIT-4 FIXED: round_narrative (non-blocking, storytell/) ──
+                # ── СЕР-9: round_narrative для Time Wars (non-blocking) ──
+                # Виправлено: generate_story_params → generate_story (правильна назва)
                 try:
                     from storytell.round_narrative import generate_round_narrative
-                    from storytell.story_generator import generate_story_params
+                    from storytell.story_generator import generate_story
+                    from storytell.character_arc import CharacterArcTracker as _ArcTracker
 
                     # Збираємо дії цього раунду для нарративу
                     _round_actions: dict = {}
@@ -653,17 +655,41 @@ def _run_game_in_thread(session_id: str) -> None:
                                 _round_actions[_actor][_target] = _val
 
                     if _round_actions:
+                        # Будуємо arc_tracker з усіх попередніх раундів (СЕР-6)
+                        _arc = _ArcTracker()
+                        _prev_ticks = sorted(set(
+                            e.get("tick", 0) for e in session.event_log
+                            if e.get("event_type") in ("cooperate", "steal")
+                            and e.get("tick", t) < t
+                        ))
+                        for _pt in _prev_ticks:
+                            _pt_acts: dict = {}
+                            for _ev in session.event_log:
+                                if _ev.get("tick") == _pt and _ev.get("event_type") in ("cooperate", "steal"):
+                                    _a = _ev.get("actor_id", "")
+                                    _tgt = _ev.get("target_id", _a)
+                                    if _a:
+                                        if _a not in _pt_acts:
+                                            _pt_acts[_a] = {}
+                                        _v = 0.66 if _ev.get("event_type") == "cooperate" else 0.0
+                                        _pt_acts[_a][_tgt] = _v
+                            if _pt_acts:
+                                _arc.update(round_num=_pt, round_actions=_pt_acts)
+
                         def _gen_narrative(_sid=session_id, _rn=round_num, _acts=_round_actions,
-                                           _names=dict(agent_display), _sess=session):
+                                           _names=dict(agent_display), _sess=session, _arc_t=_arc):
                             try:
-                                _sp = generate_story_params(seed=_rn * 7 + 42)
+                                # СЕР-9: використовуємо generate_story (правильна назва)
+                                _sp = generate_story(seed=_rn * 7 + 42)
+                                _total_rounds = max(20, duration // ticks_per_action)
                                 _narr = generate_round_narrative(
                                     round_num=_rn,
-                                    total_rounds=max(20, duration // ticks_per_action),
+                                    total_rounds=_total_rounds,
                                     actions=_acts,
                                     payoffs={p.agent_id: p.time_remaining_sec for p in _sess.players},
                                     story_params=_sp,
                                     agent_names=_names,
+                                    arc_tracker=_arc_t,  # СЕР-6
                                 )
                                 if _narr:
                                     _sess.event_log.append({

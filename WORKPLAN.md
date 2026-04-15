@@ -223,3 +223,16 @@ F1 → F2 → F3
 - СЕР-21 VERIFIED: `apply_game_end_bonuses` викликається ДО визначення переможця у всіх трьох шляхах завершення гри (elimination, hard cap, duration cap). Порядок коректний — бонуси впливають на результат при hard cap. Задача закрита.
 - Тести: 61/61 GREEN
 - Наступний пріоритет: M3 STORYTELLING items — СЕР-5 (genre/mood в промпти), СЕР-6 (Character Arc), СЕР-7 (Dynamic Event Escalation), СЕР-8 (Consequence Carryover). Або залишок M2: перевірити стан СЕР-9 (storytell в Time Wars).
+
+## [2026-04-15 18:11 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2 повністю завершені. M3 STORYTELLING — розпочато і завершено за один сеанс.
+- Дія: **M3 STORYTELLING — 5 задач DONE:**
+  - **СЕР-5 DONE** — `story_params.py::to_style_str()` — новий метод що повертає жанр/настрій/ставки для системного промпту LLM. Підключено в `situation.py` і `round_narrative.py` — тепер LLM знає жанр (thriller/drama/survival) і настрій (paranoid/tense/hopeful) кожної гри.
+  - **СЕР-6 DONE** — `storytell/character_arc.py` — новий файл. `CharacterArcTracker` накопичує зради/кооперації по кожному агенту і генерує мітки дуг (зрадник/союзник/жертва/прагматик). Підключено в `game_engine.py` (ініціалізація до циклу, update після кожного раунду) і `round_narrative.py` (arc_tracker → LLM промпт).
+  - **СЕР-7 DONE** — `round_events.py` повністю переписано. Три фази ескалації: ранні раунди (0–39%, знайомство), середні (40–74%, напруга), фінальні (75%+, кульмінація). Нові шаблони EVENTS_EARLY/MID/CLIMAX з різними моральними вагами і розподілом.
+  - **СЕР-8 DONE** — `consequences.py::build_betrayal_carryover()` — новий helper що збирає зради з усіх попередніх раундів. `generate_consequences()` тепер приймає `betrayal_carryover` і додає контекст повторних зрад в текст наслідків. Підключено в `game_engine.py`.
+  - **СЕР-9 DONE** — `serve_time_wars.py`: виправлено root bug — `generate_story_params` → `generate_story` (функція-злодій що тихо падала щоразу). Також додано `CharacterArcTracker` в TW narrative thread — arc тепер будується з усіх попередніх тіків.
+  - `storytell/__init__.py` оновлено: `CharacterArcTracker`, `CharacterArc`, `build_betrayal_carryover` додані в exports.
+  - `ARCHITECTURE.html` оновлено: M3 статус, всі 7 модулів з мітками.
+- Тести: 61/61 GREEN
+- Наступний пріоритет: M4 HUMAN PLAYER або F2 (Human player UX) або додаткові тести для storytell модуля (round_events escalation unit test).

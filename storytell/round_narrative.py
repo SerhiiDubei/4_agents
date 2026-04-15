@@ -13,6 +13,7 @@ from storytell.story_params import StoryParams
 
 if TYPE_CHECKING:
     from storytell.world_bible import WorldBible
+    from storytell.character_arc import CharacterArcTracker
 
 
 def _dn(agent_id: str, names: dict) -> str:
@@ -43,6 +44,8 @@ def generate_round_narrative(
     # T5: нові параметри
     world_bible: Optional["WorldBible"] = None,
     soul_mds: Optional[Dict[str, str]] = None,
+    # СЕР-6: character arc tracker
+    arc_tracker: Optional["CharacterArcTracker"] = None,
 ) -> str:
     """
     Генерує ШИРОКИЙ опис раунду через LLM: що відбулося для кожного і всіх разом.
@@ -50,6 +53,7 @@ def generate_round_narrative(
 
     T5: якщо передано world_bible — використовує єдиний тон/голос/метафору.
         якщо передано soul_mds — описує кожного персонажа через призму його Voice/Instinct.
+    СЕР-6: якщо передано arc_tracker — включає дуги персонажів (зрадник/союзник/жертва) в промпт.
     """
     from pipeline.seed_generator import call_openrouter
 
@@ -114,9 +118,13 @@ def generate_round_narrative(
                 soul_voice_lines.append(f"[{pname}] " + " | ".join(parts))
     soul_ctx = "\n".join(soul_voice_lines[:6]) if soul_voice_lines else ""
 
-    # Системний промпт — збагачений WorldBible
+    # СЕР-5: жанр/настрій/ставки в системному промпті
+    style_hint = story_params.to_style_str()
+
+    # Системний промпт — збагачений WorldBible + СЕР-5 стиль
     system_parts = [
         "Ти — сценарист драматичної історії. Пиши від третьої особи. Українською.",
+        f"ТОН ТА ЖАНР: {style_hint}",
         "Стиль: яскравий, кінематографічний. Опиши ЩО ВІДБУЛОСЬ ДАЛІ — для кожного персонажа і для всіх разом.",
         "Історія має продовжуватися без розривів. Мінімум 400 символів. Без діалогів — тільки опис подій.",
     ]
@@ -137,11 +145,18 @@ def generate_round_narrative(
     if prev_rounds_narrative:
         user_parts.append(f"Що було раніше:\n{prev_rounds_narrative}")
 
+    # СЕР-6: дуги персонажів — підсилюють опис розвитку в LLM
+    if arc_tracker:
+        arc_ctx = arc_tracker.get_arc_context(agent_names=names)
+        if arc_ctx:
+            user_parts.append(f"Дуги персонажів (розвиток за всю гру):\n{arc_ctx}")
+
     user = "\n\n".join(user_parts)
     user += (
         "\n\nОпиши ШИРОКО що відбулося в цьому акті: "
         "для кожного персонажа окремо (як вони пережили, що змінилося) і для всіх разом (атмосфера, напруга). "
         "Дотримуйся голосу і характеру кожного персонажа. "
+        "Якщо персонаж — зрадник або жертва (з дуг вище), підкресли це в описі. "
         "Історія має плавно продовжуватися. Мінімум 400 символів."
     )
 

@@ -43,9 +43,12 @@ def generate_situation_llm(
 
     # T5: базовий системний промпт збагачується WorldBible
     world_ctx = world_bible.to_system_context() if world_bible else ""
+    # СЕР-5: жанр/настрій/ставки прямо в системному промпті
+    style_hint = story_params.to_style_str()
     system_parts = [
         "Ти — сценарист. Пиши описово, від третьої особи. "
         "Стиль: атмосферний, кінематографічний. Українською. Тільки опис, без діалогів.",
+        f"ТОН ТА ЖАНР: {style_hint}",
     ]
     if world_ctx:
         system_parts.append(f"\nБІБЛІЯ СВІТУ (дотримуйся цього стилю):\n{world_ctx}")

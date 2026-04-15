@@ -40,6 +40,34 @@ class StoryParams:
             parts.append(f"На кону: {self.stakes}.")
         return " ".join(parts)
 
+    # СЕР-5: жанр/настрій/ставки — директива стилю для системного промпту LLM
+    def to_style_str(self) -> str:
+        """Директива стилю для системного промпту: жанр, настрій, ставки."""
+        genre_uk = {
+            "drama": "драма",
+            "thriller": "трилер",
+            "survival": "виживання",
+            "psychological": "психологічний трилер",
+        }.get(self.genre, self.genre)
+        mood_uk = {
+            "tense": "напружений",
+            "desperate": "відчайдушний",
+            "hopeful": "сповнений надії",
+            "paranoid": "параноїдальний",
+            "exhausted": "виснажений",
+        }.get(self.mood, self.mood)
+        parts = [f"Жанр: {genre_uk}. Настрій: {mood_uk}."]
+        if self.stakes:
+            stakes_hint = {
+                "виживання": "ставки — буквальне виживання кожного",
+                "втеча": "ставки — єдиний шанс на втечу",
+                "довіра": "ставки — довіра, яку можна зруйнувати назавжди",
+                "честь": "ставки — честь понад усе",
+                "справедливість": "ставки — справедливість або зрада",
+            }.get(self.stakes, f"ставки — {self.stakes}")
+            parts.append(f"Ставки: {stakes_hint}.")
+        return " ".join(parts)
+
 
 @dataclass
 class RoundEvent:
