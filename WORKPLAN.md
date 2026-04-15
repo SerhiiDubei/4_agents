@@ -213,3 +213,13 @@ F1 → F2 → F3
   - ARCHITECTURE.html оновлено: loop.py опис включає СЕР-12
 - Тести: 61/61 GREEN
 - Наступний пріоритет: СЕР-20 (підключити `_skill_applies` умови в skills.py) або СЕР-21 (ON_GAME_END bonus — перевірити порядок визначення переможця) або M3 STORYTELLING items (СЕР-5/6/7/8).
+
+## [2026-04-15 17:09 UTC] Щогодинна перевірка
+- Стан: M2 TIME WARS FIX продовжується. ВИС-9 і СЕР-21 фактично вже були виправлені раніше (підтверджено ревізією коду).
+- Дія: Три задачі M2 виконано:
+  - **СЕР-20 DONE** — `_skill_applies()` тепер перевіряється у ВСІХ trigger handlers skills.py: `apply_before_steal_roll`, `apply_on_steal_fail`, `apply_on_steal_success`, `apply_on_code_use` (раніше — тільки в `apply_on_game_end`). Це correctness + future-proofing для нових умовних скілів.
+  - **СЕР-11 DONE** — Виноc game balance параметрів у `game_modes/time_wars/tw_config.json`: base_sec=1000, drain_base=3, drain_double_every=50, ticks_per_action=10, storm_after_ticks=300. serve_time_wars.py тепер читає ці значення через `_load_tw_config()` (graceful fallback на дефолти якщо файл відсутній). trust_boost_dm/public також перенесені в config.
+  - **СЕР-10 DONE** — Детальна документація мана механіки додана в `constants.py`: джерела (+5 coop, +8 steal success, -3 steal fail, +1/round), витрати (ціни по класах C/B/A/S), початкова мана, рівновага.
+- СЕР-21 VERIFIED: `apply_game_end_bonuses` викликається ДО визначення переможця у всіх трьох шляхах завершення гри (elimination, hard cap, duration cap). Порядок коректний — бонуси впливають на результат при hard cap. Задача закрита.
+- Тести: 61/61 GREEN
+- Наступний пріоритет: M3 STORYTELLING items — СЕР-5 (genre/mood в промпти), СЕР-6 (Character Arc), СЕР-7 (Dynamic Event Escalation), СЕР-8 (Consequence Carryover). Або залишок M2: перевірити стан СЕР-9 (storytell в Time Wars).

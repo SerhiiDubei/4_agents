@@ -36,8 +36,31 @@ LOGS_DIR = LOGS_ROOT / "time_wars"  # time_wars JSONL + HTML lives here
 LOGS_ROOT.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 ROSTER_PATH = ROOT / "agents" / "roster.json"
+_TW_CONFIG_PATH = ROOT / "game_modes" / "time_wars" / "tw_config.json"
 
 _TW_PATTERN = re.compile(r"time_wars_(tw_\d+)_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jsonl")
+
+
+def _load_tw_config() -> dict:
+    """Завантажити game balance config з tw_config.json. Якщо файл відсутній — повертає дефолти."""
+    defaults = {
+        "base_sec": 1000,
+        "drain_base": 3,
+        "drain_double_every": 50,
+        "ticks_per_action": 10,
+        "storm_after_ticks": 300,
+        "duration_limit": 999_999,
+        "min_ticks_before_elimination_win": 10,
+        "trust_boost_dm": 0.06,
+        "trust_boost_public": 0.03,
+    }
+    try:
+        if _TW_CONFIG_PATH.exists():
+            loaded = json.loads(_TW_CONFIG_PATH.read_text(encoding="utf-8"))
+            defaults.update({k: v for k, v in loaded.items() if not k.startswith("_")})
+    except Exception:
+        pass
+    return defaults
 
 # In-memory store: session_id → list of events (populated after game runs)
 _sessions_store: dict[str, list[dict]] = {}
@@ -271,17 +294,15 @@ def _run_game_in_thread(session_id: str) -> None:
         has_human = _sessions_human.get(session_id, False)
         human_agent_id = agent_ids[-1] if has_human else None
 
-        # Battle royale config:
-        # - base_sec per player: enough time to survive ~30 ticks of escalating drain
-        # - duration cap: high enough that the game always ends by elimination, not timeout
-        # - drain doubles every DRAIN_DOUBLE_EVERY ticks → guaranteed last-one-standing
-        base_sec = 1000
-        DRAIN_DOUBLE_EVERY = 50   # doubles every 5 rounds → elimination guaranteed ~round 20-25
-        DRAIN_BASE = 3            # drain_base=3: coop (+30) = drain (3×10=30) → zero net, steals create spread
-        ticks_per_action = 10          # action round every 10 ticks
-        duration = 999_999             # effectively unlimited; elimination guaranteed by escalating drain
-        min_ticks = ticks_per_action
-        storm_after_ticks = 300        # storm at round 30 (tick 300) — mid/late game
+        # Battle royale config — завантажується з game_modes/time_wars/tw_config.json
+        _cfg = _load_tw_config()
+        base_sec = _cfg["base_sec"]
+        DRAIN_DOUBLE_EVERY = _cfg["drain_double_every"]
+        DRAIN_BASE = _cfg["drain_base"]
+        ticks_per_action = _cfg["ticks_per_action"]
+        duration = _cfg["duration_limit"]
+        min_ticks = _cfg["min_ticks_before_elimination_win"]
+        storm_after_ticks = _cfg["storm_after_ticks"]
         rng = random.Random()
 
         _tw_log(f"Session {session_id} starting... agents={agent_ids}")
@@ -544,7 +565,7 @@ def _run_game_in_thread(session_id: str) -> None:
                             # Support mechanic: supportive public/DM messages boost trust
                             elif any(kw in msg_text for kw in _support_kws):
                                 ch = getattr(msg, "channel", "public")
-                                trust_boost = 0.06 if ch.startswith("dm_") else 0.03
+                                trust_boost = _cfg["trust_boost_dm"] if ch.startswith("dm_") else _cfg["trust_boost_public"]
                                 target_id = ch.replace("dm_", "") if ch.startswith("dm_") else None
                                 for p2 in session.active_players():
                                     if p2.agent_id == msg.sender_id:

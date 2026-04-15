@@ -1,0 +1,12 @@
+{
+  "_comment": "TIME WARS balance parameters. Змінюй тут — не в коді. Сервер читає при старті кожної гри.",
+  "base_sec": 1000,
+  "drain_base": 3,
+  "drain_double_every": 50,
+  "ticks_per_action": 10,
+  "storm_after_ticks": 300,
+  "duration_limit": 999999,
+  "min_ticks_before_elimination_win": 30,
+  "trust_boost_dm": 0.06,
+  "trust_boost_public": 0.03
+}

@@ -252,9 +252,9 @@ header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex;
       <div class="mod fixed" onclick="sel(this,'d-twl')"><div class="mname" style="color:var(--c-game)">loop.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">Тик-цикл: drain → actions → steal/coop → codes → events. last_messages передається в decision. pick_best_code() враховує personality (СЕР-12: deception/cooperation/risk weights).</div><div class="mfile">game_modes/time_wars/loop.py</div></div>
       <div class="mod" onclick="sel(this,'d-tws')"><div class="mname" style="color:var(--c-game)">state.py</div><div class="mdesc">Session + Player: time_remaining, role, mana, inventory</div><div class="mfile">game_modes/time_wars/state.py</div></div>
       <div class="mod fixed" onclick="sel(this,'d-twac')"><div class="mname" style="color:var(--c-game)">agent_context.py <span class="badge badge-fixed">✓ FIXED</span></div><div class="mdesc">TW context builder + ROLE_CORE_OVERLAYS застосовані до CoreParams обох функцій.</div><div class="mfile">game_modes/time_wars/agent_context.py</div></div>
-      <div class="mod" onclick="sel(this,'d-twsk')"><div class="mname" style="color:var(--c-game)">skills.py</div><div class="mdesc">Скілли ролей: тригери BEFORE_STEAL / ON_SUCCESS / ON_FAIL</div><div class="mfile">game_modes/time_wars/skills.py</div></div>
-      <div class="mod" onclick="sel(this,'d-twco')"><div class="mname" style="color:var(--c-game)">constants.py</div><div class="mdesc">Баланс: COOP=+30s, drain rates, mana, steal payoffs</div><div class="mfile">game_modes/time_wars/constants.py</div></div>
-      <div class="mod" onclick="sel(this,'d-twsh')"><div class="mname" style="color:var(--c-game)">shop / codes</div><div class="mdesc">Код-карти клас C/B/A/S: ціна, ризик, ефект</div><div class="mfile">shop.py &middot; code_manifest.py &middot; codes.json</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-twsk')"><div class="mname" style="color:var(--c-game)">skills.py <span class="badge badge-fixed">✓ СЕР-20</span></div><div class="mdesc">Скілли ролей: тригери BEFORE_STEAL / ON_SUCCESS / ON_FAIL. _skill_applies() тепер перевіряється у ВСІХ trigger handlers (СЕР-20).</div><div class="mfile">game_modes/time_wars/skills.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-twco')"><div class="mname" style="color:var(--c-game)">constants.py <span class="badge badge-fixed">✓ СЕР-10</span></div><div class="mdesc">Баланс: COOP=+30s, drain rates, mana, steal payoffs. Мана механіка задокументована (СЕР-10).</div><div class="mfile">game_modes/time_wars/constants.py</div></div>
+      <div class="mod fixed" onclick="sel(this,'d-twsh')"><div class="mname" style="color:var(--c-game)">shop / codes / tw_config <span class="badge badge-fixed">✓ СЕР-11</span></div><div class="mdesc">Код-карти клас C/B/A/S. tw_config.json: game balance параметри (base_sec, drain, storm) виноcені з serve_time_wars.py (СЕР-11).</div><div class="mfile">shop.py &middot; code_manifest.py &middot; codes.json &middot; tw_config.json</div></div>
     </div>
   </div>
 </div>
@@ -1163,7 +1163,7 @@ phosphor-glow на текст
 
   <!-- ══ STATUS BLOCK ══ -->
   <div class="section" style="margin-top:18px;padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;font-size:9px;color:var(--dim);line-height:1.8;">
-    <!-- Auto-updated: 2026-04-15 13:09 UTC -->
+    <!-- Auto-updated: 2026-04-15 17:09 UTC -->
     <div style="font-size:10px;font-weight:bold;color:var(--text);margin-bottom:6px;">Project Status — 2026-04-15</div>
     <div><span style="color:#4dbb80">&#10003;</span> Social Fabric — 7 actions, budget system, trust delta <span class="badge badge-active">ACTIVE</span></div>
     <div><span style="color:#5b9bd5">&#10003;</span> MCS (Multi-Consciousness System) — 4 personas <span class="badge badge-ready">CODE READY</span></div>

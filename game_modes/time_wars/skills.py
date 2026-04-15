@@ -64,6 +64,8 @@ def apply_before_steal_roll(role_id: str, context: dict, path: Optional[Path] = 
     for skill in get_skills_for_role(role_id, path):
         if skill.get("trigger") != "BEFORE_STEAL_ROLL":
             continue
+        if not _skill_applies(skill, context):
+            continue
         eff = skill.get("effect", {})
         if "steal_roll_bonus" in eff:
             result["roll_bonus"] = result.get("roll_bonus", 0) + int(eff["steal_roll_bonus"])
@@ -79,6 +81,8 @@ def apply_on_steal_fail(role_id: str, context: dict, path: Optional[Path] = None
     result = {"penalty_override": None}
     for skill in get_skills_for_role(role_id, path):
         if skill.get("trigger") != "ON_STEAL_FAIL":
+            continue
+        if not _skill_applies(skill, context):
             continue
         eff = skill.get("effect", {})
         if "steal_fail_penalty_override" in eff:
@@ -96,6 +100,8 @@ def apply_on_steal_success(role_id: str, context: dict, path: Optional[Path] = N
     for skill in get_skills_for_role(role_id, path):
         if skill.get("trigger") != "ON_STEAL_SUCCESS":
             continue
+        if not _skill_applies(skill, context):
+            continue
         eff = skill.get("effect", {})
         if "extra_time_stolen" in eff:
             result["extra_time_stolen"] = result.get("extra_time_stolen", 0) + int(eff["extra_time_stolen"])
@@ -111,6 +117,8 @@ def apply_on_code_use(role_id: str, context: dict, path: Optional[Path] = None) 
     result = {"code_time_multiplier": 1.0}
     for skill in get_skills_for_role(role_id, path):
         if skill.get("trigger") != "ON_CODE_USE":
+            continue
+        if not _skill_applies(skill, context):
             continue
         eff = skill.get("effect", {})
         if "code_time_multiplier" in eff:

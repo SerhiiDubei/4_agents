@@ -23,12 +23,31 @@ MUTUAL_DEFECT_LOSS = 10
 STEAL_ROLL_SUCCESS_MIN = 15
 STEAL_ROLL_PARTIAL_MIN = 8
 
-# Mana (trust = mana; gain/loss per action)
-COOP_MANA_EACH = 5           # both get +5 mana on cooperate
-STEAL_MANA_SUCCESS_ACTOR = 8  # actor gains mana on successful steal
-STEAL_MANA_FAIL_ACTOR = -3   # actor loses mana on failed steal
+# ---------------------------------------------------------------------------
+# Мана механіка (СЕР-10: документація)
+# ---------------------------------------------------------------------------
+# Мана = "соціальний капітал" агента. Використовується для купівлі кодів в SHOP фазі.
+#
+# Джерела мани:
+#   +5 COOP_MANA_EACH  — взаємна кооперація (обидва гравці отримують +5)
+#   +8 STEAL_SUCCESS   — успішна крадіжка (тільки актор)
+#   -3 STEAL_FAIL      — невдала крадіжка (штраф актору)
+#   +1 MANA_PER_ROUND  — пасивний приріст щораунду (fallback, коли агент не взаємодіє)
+#
+# Витрати мани:
+#   SHOP фаза: кожен код має ціну (cost_mana). Ціна залежить від класу:
+#     C-клас: 5-15 мани  (базові ефекти)
+#     B-клас: 15-30 мани (середні ефекти)
+#     A-клас: 30-50 мани (сильні ефекти)
+#     S-клас: 50+ мани   (особливі; тільки для bottom-2 гравців — comeback mechanic)
+#
+# Стартова мана: STARTING_MANA=20 (хватить на 1 B-клас або кілька C-класів одразу)
+# Рівновага: coop (+5×2=10 загалом) / пасивний (+1 раунд) → основний шлях нагромадження = кооперація
+COOP_MANA_EACH = 5           # обидва +5 при взаємній кооперації
+STEAL_MANA_SUCCESS_ACTOR = 8  # актор +8 при успішній крадіжці
+STEAL_MANA_FAIL_ACTOR = -3   # актор -3 при невдалій крадіжці
 STARTING_MANA = 20
-MANA_PER_ROUND = 1           # minimal passive fallback; primary mana from cooperate (+5 each)
+MANA_PER_ROUND = 1           # пасивний +1/раунд; основне джерело — кооперація
 
 # Event type names (TIMER-compatible)
 EVENT_TYPE_COOPERATE = "cooperate"
