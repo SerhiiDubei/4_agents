@@ -1047,10 +1047,13 @@ async def main_menu():
     .tagline {{ color: #64748b; font-size: 1rem; letter-spacing: .1em; margin-bottom: 56px; text-align: center; }}
     .menu {{ display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 340px; }}
     .btn-start {{ font-size: 1.25rem; padding: 20px 32px; background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 4px 24px rgba(34,197,94,.3); border-radius: 12px; }}
+    .btn-human-start {{ font-size: 1rem; padding: 16px 32px; background: linear-gradient(135deg, #1d4ed8, #3b82f6); box-shadow: 0 4px 20px rgba(59,130,246,.25); border-radius: 12px; color: #fff; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; letter-spacing: .05em; transition: all .15s; }}
+    .btn-human-start:hover {{ filter: brightness(1.15); transform: translateY(-1px); }}
     .btn-history {{ font-size: 1rem; padding: 16px 32px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 12px; }}
     .btn-history:hover {{ background: #273549; color: #e2e8f0; }}
     #status {{ margin-top: 20px; font-size: .9rem; color: #4ade80; min-height: 24px; text-align: center; }}
     .count-badge {{ font-size: .8rem; background: #1e293b; color: #64748b; padding: 4px 10px; border-radius: 20px; margin-top: 8px; }}
+    .mode-hint {{ font-size: .75rem; color: #475569; text-align: center; margin-top: -4px; letter-spacing: .03em; }}
   </style>
 </head>
 <body>
@@ -1058,7 +1061,10 @@ async def main_menu():
   <p class="tagline">Час — ресурс. Хто збереже більше — переможе.</p>
   <div id="count-wrap"><span class="count-badge" id="count-badge">Завантаження...</span></div>
   <div class="menu" style="margin-top:24px;">
-    <button class="btn btn-start" id="btn-start" onclick="startGame()">▶ СТАРТ ГРИ</button>
+    <button class="btn btn-start" id="btn-start" onclick="startGame(false)">▶ СТАРТ ГРИ</button>
+    <p class="mode-hint">Режим спостерігача — AI грає сам</p>
+    <button class="btn-human-start" id="btn-human" onclick="startGame(true)">👤 ГРАТИ ЯК ЛЮДИНА</button>
+    <p class="mode-hint">Ти граєш проти AI-агентів (60с на хід)</p>
     <a href="/results" class="btn btn-history">📋 ІСТОРІЯ ІГОР</a>
   </div>
   <div id="status"></div>
@@ -1068,13 +1074,19 @@ async def main_menu():
       .then(d => document.getElementById('count-badge').textContent = d.count + ' зіграних сесій')
       .catch(() => document.getElementById('count-badge').textContent = '');
 
-    async function startGame() {{
-      const btn = document.getElementById('btn-start');
+    async function startGame(humanSlot) {{
+      const btn = humanSlot ? document.getElementById('btn-human') : document.getElementById('btn-start');
+      const otherBtn = humanSlot ? document.getElementById('btn-start') : document.getElementById('btn-human');
       btn.disabled = true;
       btn.textContent = '⏳ Запускаю...';
+      if (otherBtn) otherBtn.disabled = true;
       document.getElementById('status').textContent = 'Підготовка гри...';
       try {{
-        const r = await fetch('/api/start-game', {{ method: 'POST' }});
+        const r = await fetch('/api/start-game', {{
+          method: 'POST',
+          headers: {{'Content-Type': 'application/json'}},
+          body: JSON.stringify({{ human_slot: !!humanSlot }}),
+        }});
         const d = await r.json();
         if (d.sessionId) {{
           window.location.href = '/game?session=' + d.sessionId;
@@ -1084,7 +1096,8 @@ async def main_menu():
       }} catch(e) {{
         document.getElementById('status').textContent = '❌ ' + e.message;
         btn.disabled = false;
-        btn.textContent = '▶ СТАРТ ГРИ';
+        btn.textContent = humanSlot ? '👤 ГРАТИ ЯК ЛЮДИНА' : '▶ СТАРТ ГРИ';
+        if (otherBtn) otherBtn.disabled = false;
       }}
     }}
   </script>
@@ -1126,8 +1139,13 @@ async def game_page(session: str = ""):
     .player-card.winner {{ border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.3), 0 0 20px rgba(34,197,94,.15); background: #0a2a1a; }}
     .player-card.eliminated {{ opacity: .5; border-color: #334155; background: #0a0f1a; }}
     .player-card.active-event {{ border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.3); }}
+    .player-card.is-human {{ border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.25); }}
     .p-name {{ font-weight: 700; color: #f1f5f9; font-size: .95rem; }}
     .p-role {{ font-size: .75rem; color: #f59e0b; margin-top: 3px; }}
+    .p-you-badge {{ display: inline-block; font-size: .65rem; background: #1d4ed8; color: #bfdbfe; border-radius: 4px; padding: 1px 6px; margin-left: 6px; font-weight: 700; letter-spacing: .04em; vertical-align: middle; }}
+    .human-countdown {{ font-size: 1.8rem; font-weight: 900; color: #4ade80; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; }}
+    .human-countdown.urgent {{ color: #f87171; animation: pulse 0.5s ease-in-out infinite alternate; }}
+    @keyframes pulse {{ from {{ opacity: 1; }} to {{ opacity: .5; }} }}
     .p-skills {{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }}
     .skill-tag {{ font-size: .65rem; background: rgba(192,132,252,.15); color: #c084fc; border: 1px solid rgba(192,132,252,.35); border-radius: 4px; padding: 1px 5px; }}
     .p-time {{ font-size: 1.5rem; font-weight: 800; color: #38bdf8; margin-top: 8px; font-variant-numeric: tabular-nums; transition: color .3s; }}
@@ -1188,13 +1206,19 @@ async def game_page(session: str = ""):
     <div id="game-wrap" style="display:none;">
       <div class="players-grid" id="players-grid"></div>
       <!-- Human action panel (only shown when humanSlot=true and it's player's turn) -->
-      <div id="human-panel" style="display:none;background:#0a2a1a;border:1px solid #22c55e;border-radius:10px;padding:16px;margin-bottom:14px;">
-        <div style="color:#4ade80;font-weight:700;font-size:.9rem;margin-bottom:10px;">⚡ ТВІЙ ХІД — Раунд <span id="human-round">?</span></div>
-        <div id="human-targets" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
+      <div id="human-panel" style="display:none;background:#071020;border:2px solid #3b82f6;border-radius:12px;padding:18px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+          <div>
+            <div style="color:#93c5fd;font-weight:700;font-size:.9rem;">⚡ ТВІЙ ХІД — Раунд <span id="human-round">?</span></div>
+            <div style="color:#475569;font-size:.72rem;margin-top:2px;">Оберіть дію та ціль протягом 60 секунд</div>
+          </div>
+          <div id="human-countdown" class="human-countdown" style="margin-left:auto;">60</div>
+        </div>
+        <div id="human-targets" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button id="btn-coop" class="btn-human" onclick="humanAct('cooperate')">🤝 Кооперуватись</button>
           <button id="btn-steal" class="btn-human" onclick="humanAct('steal')">🎭 Вкрасти</button>
-          <button id="btn-pass" class="btn-human btn-pass" onclick="humanAct('pass')">⏭ Пас</button>
+          <button id="btn-pass" class="btn-human btn-pass" onclick="humanAct('pass')">⏭ Пас (пропустити хід)</button>
         </div>
         <div id="human-status" style="font-size:.75rem;color:#64748b;margin-top:8px;"></div>
       </div>
@@ -1234,6 +1258,7 @@ async def game_page(session: str = ""):
     let selectedTarget = null;
     let eliminationOrder = 0;          // increments each time a player is eliminated
     let lastStolenBy = {{}};            // agent_id → {{name, id}} — who last successfully stole from them
+    let _countdownTimer = null;        // setInterval handle for the 60s human action countdown
 
     function getEl(id) {{ return document.getElementById(id); }}
 
@@ -1262,8 +1287,11 @@ async def game_page(session: str = ""):
         const skillsHtml = (p.skills && p.skills.length)
           ? `<div class="p-skills">${{p.skills.map(s => `<span class="skill-tag">${{s}}</span>`).join('')}}</div>`
           : '';
-        return `<div class="player-card ${{cls}}">
-          <div class="p-name">${{p.name}}</div>
+        const isHumanCard = IS_HUMAN && p.id === humanAgentId;
+        const humanCls = isHumanCard ? ' is-human' : '';
+        const youBadge = isHumanCard ? `<span class="p-you-badge">ТИ</span>` : '';
+        return `<div class="player-card ${{cls}}${{humanCls}}">
+          <div class="p-name">${{p.name}}${{youBadge}}</div>
           <div class="p-role">${{p.role}}</div>
           ${{skillsHtml}}
           <div class="p-time ${{timeClass}}">${{Math.max(0, p.timeSec)}}с</div>
@@ -1504,14 +1532,48 @@ async def game_page(session: str = ""):
       selectedTarget = null;
       getEl('human-round').textContent = currentRound;
       getEl('human-status').textContent = '';
-      // Render target buttons
+      // Render target buttons via DOM (not innerHTML) to avoid XSS risk
+      const targetsEl = getEl('human-targets');
+      while (targetsEl.firstChild) targetsEl.removeChild(targetsEl.firstChild);
       const others = Object.values(players).filter(p => p.status === 'active' && p.id !== humanAgentId);
-      getEl('human-targets').innerHTML = others.map(p =>
-        `<button class="target-btn" id="tgt-${{p.id}}" onclick="selectTarget('${{p.id}}')">${{p.name}}</button>`
-      ).join('');
+      others.forEach(p => {{
+        const btn = document.createElement('button');
+        btn.className = 'target-btn';
+        btn.id = 'tgt-' + p.id;
+        btn.textContent = p.name;
+        btn.onclick = () => selectTarget(p.id);
+        targetsEl.appendChild(btn);
+      }});
       // Store current tick for submission
       getEl('human-panel').dataset.tick = tick;
       getEl('human-panel').style.display = 'block';
+      // Запустити 60-секундний таймер зворотного відліку
+      _startCountdown(60);
+    }}
+
+    function _startCountdown(seconds) {{
+      if (_countdownTimer) clearInterval(_countdownTimer);
+      let remaining = seconds;
+      const el = getEl('human-countdown');
+      if (el) {{ el.textContent = remaining; el.classList.remove('urgent'); }}
+      _countdownTimer = setInterval(() => {{
+        remaining--;
+        if (el) {{
+          el.textContent = remaining;
+          if (remaining <= 10) el.classList.add('urgent');
+          else el.classList.remove('urgent');
+        }}
+        if (remaining <= 0) {{
+          clearInterval(_countdownTimer);
+          _countdownTimer = null;
+          // Таймаут — автоматично відправляємо пас
+          const panelEl = getEl('human-panel');
+          if (panelEl && panelEl.style.display !== 'none') {{
+            panelEl.style.display = 'none';
+            addEvent('⏱ Час вийшов — автоматичний пас', 'info');
+          }}
+        }}
+      }}, 1000);
     }}
 
     function selectTarget(id) {{
@@ -1528,13 +1590,17 @@ async def game_page(session: str = ""):
         getEl('human-status').textContent = '⚠ Оберіть ціль';
         return;
       }}
+      // Зупинити таймер та сховати панель
+      if (_countdownTimer) {{ clearInterval(_countdownTimer); _countdownTimer = null; }}
       getEl('human-panel').style.display = 'none';
       fetch('/api/human-action/' + SESSION_ID, {{
         method: 'POST',
         headers: {{'Content-Type': 'application/json'}},
         body: JSON.stringify({{tick, action, target_id: target}}),
       }}).catch(console.error);
-      addEvent(`👤 Ти: ${{action}} ${{target ? '→ ' + (players[target]?.name || target) : ''}}`, 'info');
+      const actionLabels = {{ cooperate: '🤝 кооперація', steal: '🎭 крадіжка', pass: '⏭ пас' }};
+      const targetName = target ? (players[target] ? players[target].name : target) : '';
+      addEvent('👤 Ти: ' + (actionLabels[action] || action) + (targetName ? ' → ' + targetName : ''), 'info');
     }}
 
     // Connect to SSE
