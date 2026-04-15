@@ -7,6 +7,8 @@ import { GamesResultsView } from '../components/GamesResultsView';
 import { LeaderboardView } from '../components/LeaderboardView';
 import { TimeWarsResultsView } from '../components/TimeWarsResultsView';
 import { CRTOverlay } from '../components/CRTOverlay';
+import { AuthModal } from '../components/AuthModal';
+import { useAuth } from '../hooks/useAuth';
 
 type Phase = 'intro' | 'story' | 'questions' | 'result' | 'games-results' | 'leaderboard' | 'time-wars';
 
@@ -20,6 +22,8 @@ function getInitialPhase(): Phase {
 }
 
 export const InitOpenPhase: React.FC = () => {
+  const { user, logout } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
   const [phase, setPhase] = useState<Phase>(getInitialPhase);
   const [gamesCount, setGamesCount] = useState<number | null>(null);
   const [story, setStory] = useState<{ lines: string[] } | null>(null);
@@ -145,6 +149,36 @@ export const InitOpenPhase: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-game-black">
       <CRTOverlay />
+
+      {/* Панель авторизації — фіксована у верхньому куті */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-3">
+        {user ? (
+          <>
+            <span className="font-pixel text-game-cyan text-xs tracking-wider">
+              [{user.username}]
+            </span>
+            <button
+              onClick={logout}
+              className="font-pixel text-game-lightGray text-xs hover:text-game-red transition-colors tracking-wider"
+            >
+              ВИЙТИ
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setShowAuth(true)}
+            className="font-pixel text-xs text-game-gold border border-game-gold/60 px-3 py-1.5
+                       hover:bg-game-gold/10 hover:border-game-gold transition-all tracking-wider"
+          >
+            [ УВІЙТИ ]
+          </button>
+        )}
+      </div>
+
+      {/* Модальне вікно авторизації */}
+      <AnimatePresence>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {phase === 'intro' && (

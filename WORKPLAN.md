@@ -253,3 +253,13 @@ F1 → F2 → F3
   - `ARCHITECTURE.html` оновлено: статус 107 тестів, M3 TESTS badge
 - Тести: **107/107 GREEN** (+46 storytell, з 61 до 107)
 - Наступний пріоритет: M4 FRONTEND & UX — ВИС-12 (Auth UI) або ВИС-13 (Human player TIME WARS interface)
+
+## [2026-04-15 21:07 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3 повністю завершені. 107/107 тестів GREEN. M4 FRONTEND & UX — розпочато.
+- Дія: **ВИС-12 DONE** — Auth UI реалізовано у React frontend:
+  - `frontend/src/src/hooks/useAuth.ts` — хук з повним auth lifecycle: login/register/logout, JWT зберігання у localStorage, верифікація `/auth/me` при старті (авто-очищення протухлих токенів)
+  - `frontend/src/src/components/AuthModal.tsx` — модальне вікно login/register у стилі гри (CRT кути, pixel font, framer-motion анімації). Tabs: УВІЙТИ / РЕЄСТРАЦІЯ. Валідація полів + error display.
+  - `frontend/src/src/pages/InitOpenPhase.tsx` — інтегровано: панель `[УВІЙТИ]` / `[username] ВИЙТИ` у верхньому правому куті. Auth modal відкривається по кліку.
+  - ARCHITECTURE.html оновлено: M4 статус, новий AuthModal модуль у FRONTEND LAYER
+- Тести: 107/107 GREEN (backend тести не торкались, frontend зміни — нові файли без breaking changes)
+- Наступний пріоритет: ВИС-13 (Human player interface для TIME WARS — людина грає як один з агентів)
