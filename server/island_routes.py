@@ -129,6 +129,30 @@ async def island_launcher():
     return HTMLResponse("<h1>island_launcher.html not found</h1>", status_code=404)
 
 
+# ─── BAL-2/3: Leaderboard & history ──────────────────────────────────────────
+
+@router.get("/api/island/leaderboard")
+async def island_leaderboard():
+    """Aggregated per-agent stats across all saved Island games."""
+    try:
+        from pipeline.island_db import init_island_db, get_leaderboard
+        init_island_db()
+        return JSONResponse(get_leaderboard())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/api/island/history")
+async def island_history():
+    """Last 20 Island games with per-game summary."""
+    try:
+        from pipeline.island_db import init_island_db, get_recent_games
+        init_island_db()
+        return JSONResponse(get_recent_games())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @router.get("/hub")
 async def hub():
     html_path = _ROOT / "hub.html"

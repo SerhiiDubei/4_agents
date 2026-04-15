@@ -197,6 +197,26 @@ textarea::placeholder{color:var(--muted)}
 .sum-title{font-size:1.0rem;font-weight:700;color:var(--accent);margin-bottom:14px}
 .sum-row{padding:6px 0;font-size:0.88rem;border-bottom:1px solid var(--border)}
 
+/* ── STATS PANEL (BAL-2/UI-4) ── */
+.stats-panel{padding:20px;background:var(--bg)}
+.stats-panel h3{font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:14px}
+.stats-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stats-header h3{margin:0}
+.stats-refresh{background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 12px;cursor:pointer;font-size:0.82rem}
+.stats-refresh:hover{background:var(--border)}
+.stats-table{width:100%;border-collapse:collapse;font-size:0.83rem}
+.stats-table th{text-align:left;padding:6px 10px;border-bottom:2px solid var(--border);color:var(--dim);font-weight:600;white-space:nowrap}
+.stats-table td{padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.stats-table tr:hover td{background:var(--s2)}
+.stats-rank{font-weight:800;color:var(--dim);width:30px}
+.stats-name{font-weight:700;color:var(--text)}
+.stats-bar{display:inline-block;height:8px;border-radius:4px;vertical-align:middle;margin-right:4px}
+.hist-table{width:100%;border-collapse:collapse;font-size:0.82rem}
+.hist-table th{text-align:left;padding:5px 10px;border-bottom:2px solid var(--border);color:var(--dim);font-weight:600}
+.hist-table td{padding:5px 10px;border-bottom:1px solid var(--border)}
+.hist-table tr:hover td{background:var(--s2)}
+.hist-winner{color:#3dd68c;font-weight:700}
+
 /* ── LLM I/O PANEL ── */
 .llm-round{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
 .llm-round-hdr{padding:8px 14px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
@@ -283,6 +303,7 @@ textarea::placeholder{color:var(--muted)}
       <div class="tab" id="tabLLM" onclick="switchTab('llm')">
         LLM I/O <span class="tbadge" id="llmCount">0</span>
       </div>
+      <div class="tab" id="tabStats" onclick="switchTab('stats'); loadStats()">📊 Статистика</div>
     </div>
 
     <!-- LOG panel -->
@@ -310,6 +331,19 @@ textarea::placeholder{color:var(--muted)}
     <div class="panel" id="panelSum">
       <div class="sum-panel" id="sumPanel">
         <div class="log-empty"><div class="ico">&#127942;</div><div>Підсумок після завершення</div></div>
+      </div>
+    </div>
+
+    <!-- Stats panel (BAL-2/3/UI-4) -->
+    <div class="panel" id="panelStats" style="display:none">
+      <div class="stats-panel" id="statsPanel">
+        <div class="stats-header">
+          <h3>📊 Лідерборд агентів</h3>
+          <button class="stats-refresh" onclick="loadStats()">↻ Оновити</button>
+        </div>
+        <div id="statsLeaderboard"></div>
+        <h3 style="margin-top:24px">🕓 Останні ігри</h3>
+        <div id="statsHistory"></div>
       </div>
     </div>
 
@@ -341,7 +375,7 @@ function empty(el){ while(el.firstChild) el.removeChild(el.firstChild); }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(name){
-  const ids={log:['tabLog','panelLog'],we:['tabWE','panelWE'],sum:['tabSum','panelSum'],llm:['tabLLM','panelLLM']};
+  const ids={log:['tabLog','panelLog'],we:['tabWE','panelWE'],sum:['tabSum','panelSum'],llm:['tabLLM','panelLLM'],stats:['tabStats','panelStats']};
   Object.entries(ids).forEach(([t,[tid,pid]])=>{
     const te=g(tid); if(te) te.classList.toggle('active', t===name);
     const pe=g(pid); if(pe) pe.classList.toggle('active', t===name);
@@ -463,6 +497,63 @@ function lineClass(line){
   if(/ERROR|Traceback/i.test(line)) return 'err';
   if(line==='[DONE]') return 'done';
   return '';
+}
+
+// ── BAL-2/UI-4: Stats & Leaderboard ─────────────────────────────────────────
+async function loadStats(){
+  const lb = g('statsLeaderboard');
+  const hist = g('statsHistory');
+  lb.innerHTML = '<div style="color:var(--dim);padding:12px">Завантаження...</div>';
+  hist.innerHTML = '';
+
+  try{
+    const [lbRes, histRes] = await Promise.all([
+      fetch('/api/island/leaderboard').then(r=>r.json()),
+      fetch('/api/island/history').then(r=>r.json()),
+    ]);
+
+    // ── Leaderboard table ──
+    if(!lbRes.length){ lb.innerHTML='<div style="color:var(--dim);padding:12px">Ще немає ігор у базі</div>'; }
+    else {
+      let t='<table class="stats-table"><thead><tr><th>#</th><th>Агент</th><th>Ігор</th><th>Перемог</th><th>Win%</th><th>Avg score</th><th>Кооп%</th><th>Зрад%</th></tr></thead><tbody>';
+      lbRes.forEach((a,i)=>{
+        const coopBar=`<span class="stats-bar" style="width:${a.coop_pct*0.6}px;background:#3dd68c"></span>`;
+        const betrBar=`<span class="stats-bar" style="width:${a.betray_pct*0.6}px;background:#f25f5c"></span>`;
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        t+=`<tr>
+          <td class="stats-rank">${medal||i+1}</td>
+          <td class="stats-name">${a.name}</td>
+          <td>${a.games}</td>
+          <td>${a.wins}</td>
+          <td>${a.win_rate}%</td>
+          <td>${a.avg_score}</td>
+          <td>${coopBar}${a.coop_pct}%</td>
+          <td>${betrBar}${a.betray_pct}%</td>
+        </tr>`;
+      });
+      t+='</tbody></table>';
+      lb.innerHTML=t;
+    }
+
+    // ── History table ──
+    if(!histRes.length){ hist.innerHTML='<div style="color:var(--dim);padding:12px">Немає записів</div>'; }
+    else {
+      let h='<table class="hist-table"><thead><tr><th>Дата</th><th>Раундів</th><th>Переможець</th><th>Агенти</th></tr></thead><tbody>';
+      histRes.forEach(g=>{
+        const agentList = (g.agents||[]).map(a=>`${a.name} (${a.score>0?'+':''}${a.score})`).join(', ');
+        h+=`<tr>
+          <td>${g.played_at}</td>
+          <td>${g.rounds}</td>
+          <td class="hist-winner">${g.winner_name||'—'}</td>
+          <td style="color:var(--dim);font-size:0.78rem">${agentList}</td>
+        </tr>`;
+      });
+      h+='</tbody></table>';
+      hist.innerHTML=h;
+    }
+  } catch(e){
+    lb.innerHTML=`<div style="color:#f25f5c;padding:12px">Помилка: ${e.message}</div>`;
+  }
 }
 
 function appendLog(line){

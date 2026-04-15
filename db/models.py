@@ -72,6 +72,21 @@ class PlayerAction(Base):
     session = relationship("GameSession", back_populates="actions")
 
 
+class IslandGame(Base):
+    """One completed Island simulation — stores per-agent stats for leaderboard."""
+    __tablename__ = "island_games"
+
+    id          = Column(String, primary_key=True, default=_uuid)
+    game_id     = Column(String, unique=True, nullable=False, index=True)
+    played_at   = Column(DateTime, default=datetime.utcnow, index=True)
+    rounds      = Column(Integer, nullable=False)
+    world_prompt = Column(Text, nullable=True)
+    winner_id   = Column(String, nullable=True)
+    winner_name = Column(String, nullable=True)
+    # JSON list of {agent_id, name, score, coop_count, betray_count, neutral_count}
+    agents_json = Column(Text, nullable=False)
+
+
 class HumanDecision(Base):
     """Stores every decision a human player makes — used as ML training data."""
     __tablename__ = "human_decisions"

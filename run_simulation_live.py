@@ -1508,6 +1508,24 @@ def main():
         if args.verbose:
             print(f"  {DIM}[stats] update failed: {_e}{RESET}", flush=True)
 
+    # Persist game to SQLite for leaderboard (BAL-3)
+    try:
+        from pipeline.island_db import init_island_db, save_game_result
+        init_island_db()
+        save_game_result(
+            game_id      = result.simulation_id,
+            agent_ids    = result.agent_ids,
+            agent_names  = result.agent_names,
+            final_scores = result.final_scores,
+            round_actions= [r.actions for r in result.rounds],
+            rounds       = len(result.rounds),
+            winner       = result.winner,
+            world_prompt = getattr(args, "world_prompt", "") or "",
+        )
+    except Exception as _e:
+        if args.verbose:
+            print(f"  {DIM}[island_db] save failed: {_e}{RESET}", flush=True)
+
     # HTML / JSON export
     if args.html:
         from export_game_log import export_to_html
