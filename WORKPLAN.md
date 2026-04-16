@@ -294,3 +294,13 @@ F1 → F2 → F3
   - `ARCHITECTURE.html` оновлено: нова картка AnalyticsDashboardView у FRONTEND LAYER, статус-бейдж і timestamp оновлені.
 - Тести: 107/107 GREEN
 - Наступний пріоритет: Real-time Island UI (SSE live React компонент замість island_launcher.html) або M5 Infrastructure (async LLM calls, Alembic, structured logging)
+
+## [2026-04-16 21:07 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3/M4 повністю завершені. 107/107 тестів GREEN на старті.
+- Дія: **M5 Structured Logging DONE** — замінено print()/sys.stderr на Python logging у ключових серверних файлах:
+  - `config/logging_config.py` — новий модуль: `setup_logging()` з рівнями DEBUG/INFO/WARNING/ERROR, формат `[timestamp] LEVEL name message`. Зчитує LOG_LEVEL з env. Захист від дублювання handlers (uvicorn-safe). `get_logger(name)` shortcut.
+  - `serve_time_wars.py` — видалено `_tw_log()` helper (30 викликів) і всі `print(file=sys.stderr)`. Замінено на `logger = logging.getLogger("time_wars")` з правильними рівнями: info для прогресу, warning для retry/skipped, error для DB failures. Імпорт `config.logging_config.setup_logging`.
+  - `server/main.py` — додано `setup_logging()` ініціалізацію. Замінено 3 `print()` виклики на `logger.info()`/`logger.error()`. `logger = logging.getLogger("island")` вже був — тепер має proper handler.
+  - `config/__init__.py` — package init.
+- Тести: 107/107 GREEN
+- Наступний пріоритет: M5 продовження — ВИС-10 Async LLM calls (asyncio queue для паралельних LLM запитів) або Alembic database migrations.

@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import random
 import re
 import sys
@@ -29,6 +30,11 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+
+# Структурований logging — налаштовується при старті сервера
+from config.logging_config import setup_logging
+setup_logging()
+logger = logging.getLogger("time_wars")
 
 ROOT = Path(__file__).resolve().parent
 LOGS_ROOT = ROOT / "logs"           # root for static serving
@@ -91,11 +97,7 @@ def _tw_cleanup_sessions() -> None:
         _sessions_last_flush.pop(sid, None)
         _sessions_created_at.pop(sid, None)
     if expired:
-        print(f"[TW] cleaned up {len(expired)} expired sessions", flush=True, file=sys.stderr)
-
-# Logging: always print to stderr so user sees TW activity (incl. LLM calls)
-def _tw_log(msg: str) -> None:
-    print(f"[TW] {msg}", flush=True, file=sys.stderr)
+        logger.info("cleaned up %d expired sessions", len(expired))
 
 # Human player support
 _sessions_human: dict[str, bool] = {}          # session_id → has human slot
@@ -269,7 +271,7 @@ def _get_sessions() -> list[dict]:
 
 def _run_game_in_thread(session_id: str) -> None:
     """Run one TIME WARS session synchronously in a background thread."""
-    _tw_log(f"Thread started for session {session_id}")
+    logger.info(f"Thread started for session {session_id}")
     _sessions_status[session_id] = "running"
     _sessions_store[session_id] = []
     _sessions_created_at[session_id] = _time_mod.time()
@@ -305,7 +307,7 @@ def _run_game_in_thread(session_id: str) -> None:
         storm_after_ticks = _cfg["storm_after_ticks"]
         rng = random.Random()
 
-        _tw_log(f"Session {session_id} starting... agents={agent_ids}")
+        logger.info(f"Session {session_id} starting... agents={agent_ids}")
         t_session_start = time.perf_counter()
         session = create_session(
             session_id=session_id,
@@ -317,7 +319,7 @@ def _run_game_in_thread(session_id: str) -> None:
         _sessions_live_events[session_id] = []
         _sessions_last_flush[session_id] = 0
         _flush_events_to_live(session_id, session)
-        _tw_log(f"Session created in {time.perf_counter() - t_session_start:.2f}s")
+        logger.info(f"Session created in {time.perf_counter() - t_session_start:.2f}s")
         _sessions_progress[session_id] = {"round": 0, "tick": 0, "active": len(agent_ids)}
 
         # ── MCS: init NPC mood states ────────────────────────────────────────
@@ -342,17 +344,17 @@ def _run_game_in_thread(session_id: str) -> None:
                     _soul_d = _soul_p.read_text(encoding="utf-8") if _soul_p.exists() else ""
                     _mcs_states[_aid] = _NpcState.from_soul_and_core(_aid, _soul_d, _core_d)
             _mcs_ok = bool(_mcs_states)
-            _tw_log(f"MCS initialized: {len(_mcs_states)} agent mood states")
+            logger.info(f"MCS initialized: {len(_mcs_states)} agent mood states")
         except Exception as _mcs_init_err:
-            _tw_log(f"MCS init skipped (non-fatal): {_mcs_init_err}")
+            logger.warning(f"MCS init skipped (non-fatal): {_mcs_init_err}")
 
         codes_catalog = load_codes()
-        _tw_log("Entering main game loop...")
+        logger.info("Entering main game loop...")
 
         current_round_num = 0  # updated each action phase
         for t in range(1, duration + 1):
             if t <= 3 or t % 50 == 0:
-                _tw_log(f"Tick {t}...")
+                logger.info(f"Tick {t}...")
             drain = escalating_drain(t, base=DRAIN_BASE, double_every=DRAIN_DOUBLE_EVERY)
             eliminated = tick(session, t, drain_sec=drain)
 
@@ -387,7 +389,7 @@ def _run_game_in_thread(session_id: str) -> None:
                 else:
                     winner = None
                 log_game_over(session, t, winner_id=winner)
-                _tw_log(f"Game over at tick {t} | winner={winner} | total session time: {time.perf_counter() - t_session_start:.1f}s")
+                logger.info(f"Game over at tick {t} | winner={winner} | total session time: {time.perf_counter() - t_session_start:.1f}s")
                 break
 
             # Action phase every ticks_per_action ticks
@@ -399,7 +401,7 @@ def _run_game_in_thread(session_id: str) -> None:
                 _log_extra = {"drain_sec": drain, "drain_double_every": DRAIN_DOUBLE_EVERY}
                 log_round_start(session, round_num, t, t, {**sit, **_log_extra})
                 apply_mana_per_round(session, t)
-                _tw_log(f"Round {round_num} (tick {t}) | drain={drain}s | active={len(session.active_players())}")
+                logger.info(f"Round {round_num} (tick {t}) | drain={drain}s | active={len(session.active_players())}")
 
                 # ── MCS: mood tick (Level 1 math, Level 2 background LLM) ──
                 if _mcs_ok and _mcs_engine and _mcs_states:
@@ -437,7 +439,7 @@ def _run_game_in_thread(session_id: str) -> None:
 
                 # ── SHOP phase: buy as many codes as mana allows ──────────
                 t_shop = time.perf_counter()
-                _tw_log("  SHOP phase...")
+                logger.info("  SHOP phase...")
                 if codes_catalog:
                     for p in session.active_players():
                         bought = 0
@@ -463,12 +465,12 @@ def _run_game_in_thread(session_id: str) -> None:
                                 bought += 1
                             else:
                                 break
-                _tw_log(f"  SHOP done in {time.perf_counter() - t_shop:.2f}s")
+                logger.info(f"  SHOP done in {time.perf_counter() - t_shop:.2f}s")
 
                 # ── CODE phase: use codes from inventory (utility-based) ──
                 t_code = time.perf_counter()
                 run_code_phase(session, t, rng=rng)
-                _tw_log(f"  CODE done in {time.perf_counter() - t_code:.2f}s")
+                logger.info(f"  CODE done in {time.perf_counter() - t_code:.2f}s")
 
                 # ── COMM phase: LLM dialog (public + DM) ─────────────────
                 round_messages: list[dict] = []
@@ -510,7 +512,7 @@ def _run_game_in_thread(session_id: str) -> None:
                             ),
                         })
                     if agent_cfgs:
-                        _tw_log(f"  COMM phase (LLM): {len(agent_cfgs)} agents, public+DM calls...")
+                        logger.info(f"  COMM phase (LLM): {len(agent_cfgs)} agents, public+DM calls...")
                         # ROB-1: retry up to 2 times on LLM failure; ROB-2: 90s timeout per attempt
                         _comm_rd = None
                         for _attempt in range(3):
@@ -540,18 +542,18 @@ def _run_game_in_thread(session_id: str) -> None:
                                     _comm_rd = _result_holder[0]
                                     break
                                 elif _err_holder:
-                                    _tw_log(f"  COMM LLM attempt {_attempt+1} error: {_err_holder[0]}")
+                                    logger.error(f"  COMM LLM attempt {_attempt+1} error: {_err_holder[0]}")
                                 else:
-                                    _tw_log(f"  COMM LLM attempt {_attempt+1} timed out (90s)")
+                                    logger.warning(f"  COMM LLM attempt {_attempt+1} timed out (90s)")
                                 if _attempt < 2:
                                     time.sleep(2 ** _attempt)  # backoff: 1s, 2s
                             except Exception as _retry_err:
-                                _tw_log(f"  COMM retry wrapper error: {_retry_err}")
+                                logger.error(f"  COMM retry wrapper error: {_retry_err}")
                                 break
 
                         rd = _comm_rd
                         if rd is None:
-                            _tw_log("  COMM phase skipped (all attempts failed/timed out)")
+                            logger.error("  COMM phase skipped (all attempts failed/timed out)")
                         round_messages = [m.to_dict() for m in rd.messages] if rd else []
                         # Trust update from dialog tone
                         _support_kws = ["підтримую", "допоможу", "за тебе", "союзник", "довіряю", "разом ми", "покладайся", "я з тобою"]
@@ -586,8 +588,8 @@ def _run_game_in_thread(session_id: str) -> None:
                                 "sender_id_name": agent_display.get(msg.get("sender", ""), msg.get("sender", "")),
                             })
                 except Exception as _comm_err:
-                    _tw_log(f"  COMM phase ERROR: {_comm_err}")
-                _tw_log(f"  COMM done in {time.perf_counter() - t_comm:.2f}s")
+                    logger.error(f"  COMM phase ERROR: {_comm_err}")
+                logger.info(f"  COMM done in {time.perf_counter() - t_comm:.2f}s")
 
                 # ── ACTION phase: cooperate / steal / pass ────────────────
                 t_action = time.perf_counter()
@@ -631,7 +633,7 @@ def _run_game_in_thread(session_id: str) -> None:
                         apply_cooperate(session, p.agent_id, act["target_id"], t)
                     elif act["action"] == "steal" and act["target_id"]:
                         apply_steal(session, p.agent_id, act["target_id"], t, rng=rng)
-                _tw_log(f"  ACTION done in {time.perf_counter() - t_action:.2f}s | round total: {time.perf_counter() - t_round_start:.2f}s")
+                logger.info(f"  ACTION done in {time.perf_counter() - t_action:.2f}s | round total: {time.perf_counter() - t_round_start:.2f}s")
 
                 # ── СЕР-9: round_narrative для Time Wars (non-blocking) ──
                 # Виправлено: generate_story_params → generate_story (правильна назва)
@@ -698,15 +700,15 @@ def _run_game_in_thread(session_id: str) -> None:
                                         "round_num": _rn,
                                         "narrative": _narr,
                                     })
-                                    _tw_log(f"  narrative r{_rn}: {_narr[:60]}…")
+                                    logger.info(f"  narrative r{_rn}: {_narr[:60]}…")
                             except Exception as _ne:
-                                _tw_log(f"  [narrative] r{_rn}: {_ne}")
+                                logger.info(f"  [narrative] r{_rn}: {_ne}")
 
                         import threading as _threading
                         _nt = _threading.Thread(target=_gen_narrative, daemon=True)
                         _nt.start()
                 except Exception as _narr_import_err:
-                    _tw_log(f"  [narrative import] {_narr_import_err}")
+                    logger.info(f"  [narrative import] {_narr_import_err}")
 
                 _flush_events_to_live(session_id, session)
 
@@ -726,7 +728,7 @@ def _run_game_in_thread(session_id: str) -> None:
                 else:
                     winner = None
                 log_game_over(session, t, winner_id=winner)
-                _tw_log(f"Game over at tick {t} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
+                logger.info(f"Game over at tick {t} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
                 break
         else:
             # Hard cap reached — declare winner by most time remaining
@@ -734,7 +736,7 @@ def _run_game_in_thread(session_id: str) -> None:
             active = session.active_players()
             winner = max(active, key=lambda x: x.time_remaining_sec).agent_id if active else None
             log_game_over(session, duration, winner_id=winner)
-            _tw_log(f"Game hard cap at tick {duration} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
+            logger.info(f"Game hard cap at tick {duration} | winner={winner} | total: {time.perf_counter() - t_session_start:.1f}s")
 
         # Persist final trust back to agents' MEMORY.json
         try:
@@ -764,15 +766,15 @@ def _run_game_in_thread(session_id: str) -> None:
             enriched.append(e)
         _sessions_store[session_id] = enriched
         _sessions_status[session_id] = "done"
-        _tw_log(f"Game complete: {len(enriched)} events ready for SSE")
+        logger.info(f"Game complete: {len(enriched)} events ready for SSE")
 
         # Persist to database
         _save_session_to_db(session_id, session, enriched, _sessions_html.get(session_id, ""))
 
     except Exception as exc:
         import traceback
-        _tw_log(f"Game thread ERROR for {session_id}: {exc}")
-        _tw_log(traceback.format_exc())
+        logger.error(f"Game thread ERROR for {session_id}: {exc}")
+        logger.info(traceback.format_exc())
         _sessions_store[session_id] = [{"event_type": "error", "message": str(exc), "trace": traceback.format_exc()}]
         _sessions_status[session_id] = "error"
 
@@ -835,7 +837,7 @@ def _save_session_to_db(session_id: str, session: "Session", enriched_events: li
             db.close()
     except Exception as db_exc:
         import traceback as tb
-        print(f"[DB] Failed to save session {session_id}: {db_exc}\n{tb.format_exc()}")
+        logger.error("DB failed to save session %s: %s", session_id, db_exc, exc_info=True)
 
 
 # ── API ────────────────────────────────────────────────────────────────────
@@ -925,7 +927,7 @@ async def submit_human_action(session_id: str, body: HumanActionRequest):
                 finally:
                     db.close()
         except Exception as e:
-            print(f"[DB] human decision save failed: {e}")
+            logger.error("DB human decision save failed: %s", e)
 
     return JSONResponse({"ok": True, "tick": body.tick, "action": body.action})
 
@@ -941,7 +943,7 @@ async def pending_action(session_id: str):
 @app.get("/api/game-events/{session_id}")
 async def game_events(session_id: str):
     """SSE stream: real-time events from _sessions_live_events, progress updates, then __stream_end__."""
-    _tw_log(f"SSE client connected for {session_id}")
+    logger.info(f"SSE client connected for {session_id}")
 
     async def event_stream():
         # Stream events in real-time from _sessions_live_events (flushed each round)
@@ -968,7 +970,7 @@ async def game_events(session_id: str):
                 yield f"data: {json.dumps({'event_type': '__progress__', 'round': progress.get('round', 0), 'tick': progress.get('tick', 0), 'active': progress.get('active', 0)}, ensure_ascii=False)}\n\n"
 
             if status in ("done", "error"):
-                _tw_log(f"SSE: game {status} for {session_id}")
+                logger.info(f"SSE: game {status} for {session_id}")
                 break
             await asyncio.sleep(0.5)
 
@@ -1861,9 +1863,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=5174)
     parser.add_argument("--host", type=str, default="0.0.0.0")
     args = parser.parse_args()
-    print(f"\n  TIME WARS  ->  http://localhost:{args.port}")
-    print(f"  Menu       ->  http://localhost:{args.port}/")
-    print(f"  Results    ->  http://localhost:{args.port}/results\n")
+    logger.info("TIME WARS -> http://localhost:%d  (menu: /, results: /results)", args.port)
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 

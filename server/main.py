@@ -12,10 +12,10 @@ For production use, replace with Redis or DB persistence.
 """
 
 import json
+import logging
 import os
 import re
 import uuid
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, List, Dict
@@ -40,6 +40,10 @@ except ImportError:
 # Pipeline imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Структурований logging
+from config.logging_config import setup_logging
+setup_logging()
 
 from pipeline.seed_generator import generate_seed, MetaParams
 from pipeline.question_engine import (
@@ -1057,7 +1061,7 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
 
     # Key for OpenRouter: from env (Railway Variables) or from .env file — passed into call_openrouter below
     api_key, key_source = _read_openrouter_key_from_env_file()
-    print(f"[generate-game] OPENROUTER_API_KEY from {key_source}, len={len(api_key)}")
+    logger.info("OPENROUTER_API_KEY from %s, len=%d", key_source, len(api_key))
 
     try:
         # 1. Generate seed (run sync httpx in thread to avoid blocking event loop)
@@ -1138,18 +1142,13 @@ async def api_generate_game(req: GenerateGameRequest) -> GenerateGameResponse:
             seed_text=seed_text,
             questions=questions,
         )
-        # Simple structured log for successful game generation (useful for Railway logs)
-        print(
-            f"[generate-game] ok session_id={session_id} "
-            f"questions={len(questions)} model={req.model}"
-        )
+        logger.info("generate-game ok session_id=%s questions=%d model=%s", session_id, len(questions), req.model)
         return response
     except Exception as e:
         detail = str(e) or "Internal server error"
         status_code = 500
         if isinstance(e, ValueError) and detail.startswith("Invalid JSON from LLM"):
-            # LLM returned malformed JSON for questions — log full detail but respond with a friendly message.
-            print(f"[generate-game] JSON parse error from LLM: {detail}")
+            logger.error("generate-game JSON parse error from LLM: %s", detail)
             detail = "Модель повернула некоректні дані. Спробуйте ще раз або змініть налаштування."
             status_code = 502
         raise HTTPException(status_code=status_code, detail=detail)
