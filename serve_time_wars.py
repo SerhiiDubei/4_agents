@@ -150,6 +150,23 @@ except ImportError:
 
 app = FastAPI(title="TIME WARS", docs_url=None, redoc_url=None)
 
+
+@app.on_event("startup")
+def _init_db_on_startup():
+    """Ініціалізація БД через Alembic при старті TIME WARS сервера."""
+    try:
+        from db.init_alembic import run_migrations
+        run_migrations()
+    except Exception as exc:
+        # Fallback на create_all якщо Alembic недоступний
+        logger.warning("Alembic migration failed (%s), falling back to init_db()", exc)
+        try:
+            from db.database import init_db
+            init_db()
+        except Exception:
+            pass
+
+
 try:
     from fastapi.middleware.cors import CORSMiddleware
     app.add_middleware(

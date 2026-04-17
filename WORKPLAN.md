@@ -314,3 +314,15 @@ F1 → F2 → F3
   - `pipeline/llm_client.py` — замінено `print(file=sys.stderr)` на `logger.warning()` (M5 Structured Logging).
 - Тести: 107/107 GREEN
 - Наступний пріоритет: M5 — Alembic database migrations або Error monitoring або M6 Polish (СЕР-* та НИЗ-* задачі).
+
+## [2026-04-17 13:07 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3/M4/M5(Logging+AsyncLLM) виконані. 107/107 тестів GREEN на старті.
+- Дія: **M5 Alembic Migrations DONE** — підключено версіоноване управління схемою БД:
+  - `alembic/` — ініціалізовано через `alembic init`. `alembic/env.py` налаштовано: імпортує `DATABASE_URL` і `Base.metadata` з `db/`, `render_as_batch=True` для SQLite сумісності.
+  - `alembic.ini` — URL-заглушка замінена на SQLite дефолт (перекривається env.py).
+  - `alembic/versions/9fe448526709_initial_schema_*.py` — baseline міграція: всі 5 таблиць (users, game_sessions, player_actions, island_games, human_decisions) з умовним `if not in existing` щоб не ламати існуючі БД.
+  - `db/init_alembic.py` — новий хелпер `run_migrations()`: auto-stamp (існуюча БД без alembic_version) або upgrade head (нова БД або нові міграції).
+  - `server/main.py` + `serve_time_wars.py` — startup hook → `run_migrations()` з fallback на `init_db()`.
+  - Існуюча timewars.db — `alembic stamp head` виконано (ревізія 9fe448526709).
+- Тести: 107/107 GREEN
+- Наступний пріоритет: M5 — Error monitoring (Sentry або structured error log) або M6 Polish (СЕР-16 normalize dimension weights, СЕР-18 dead code reflection.py, НИЗ-3 DEFAULT_ACTION_VALUE дублювання).

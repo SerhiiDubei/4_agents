@@ -113,8 +113,14 @@ def _require_user(
 
 @app.on_event("startup")
 def _ensure_env_loaded():
-    """Load .env on startup and initialize DB."""
-    init_db()
+    """Load .env on startup and initialize DB via Alembic migrations."""
+    try:
+        from db.init_alembic import run_migrations
+        run_migrations()
+    except Exception:
+        # Fallback на create_all якщо Alembic недоступний
+        logger.warning("Alembic migration failed, falling back to init_db()")
+        init_db()
     env_file = _PROJECT_ROOT / ".env"
     if env_file.is_file():
         try:
