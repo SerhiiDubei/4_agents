@@ -10,9 +10,11 @@ llm_client.py — спільний LLM-клієнт для pipeline.
 
 from __future__ import annotations
 
-import sys
+import logging
 import time
 from typing import Optional
+
+logger = logging.getLogger("llm_client")
 
 
 def call_llm(
@@ -64,11 +66,8 @@ def call_llm(
             )
         except Exception as e:
             last_err = e
-            tag = f"[llm_client{f'/{label}' if label else ''}]"
-            print(
-                f"{tag} attempt {attempt + 1}/{retries} failed: {e}",
-                file=sys.stderr, flush=True,
-            )
+            tag = f"llm_client{f'/{label}' if label else ''}"
+            logger.warning("%s attempt %d/%d failed: %s", tag, attempt + 1, retries, e)
             if attempt < retries - 1:
                 time.sleep(retry_delay)
 

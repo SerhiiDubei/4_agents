@@ -432,8 +432,8 @@ def run_simulation(
                         for aid, prof in _roster_profiles.items()
                         if aid in agent_ids
                     }
-                    import asyncio as _asyncio
                     import sys as _sys
+                    from pipeline.async_runner import run_parallel
 
                     def _gen_sit(agent):
                         try:
@@ -453,16 +453,8 @@ def run_simulation(
                                 print(f"    [sit-gen] {agent.agent_id} ERROR: {_e}", file=_sys.stderr, flush=True)
                             return agent.agent_id, ""
 
-                    _loop = _asyncio.get_event_loop()
-                    try:
-                        if _loop.is_closed():
-                            raise RuntimeError("closed")
-                    except RuntimeError:
-                        _loop = _asyncio.new_event_loop()
-                        _asyncio.set_event_loop(_loop)
-                    sit_gen_results = _loop.run_until_complete(
-                        _asyncio.gather(*[_asyncio.to_thread(_gen_sit, a) for a in agents])
-                    )
+                    # ВИС-10: run_parallel замість ручного event loop detection
+                    sit_gen_results = run_parallel(_gen_sit, agents)
                     for aid, text in sit_gen_results:
                         situations_per_agent[aid] = text
                     if situations_per_agent:
@@ -475,11 +467,11 @@ def run_simulation(
             if situations_per_agent and use_dialog:
                 try:
                     import sys as _sys
+                    import time as _time
                     from pipeline.reflection import reflect_on_situation
+                    from pipeline.async_runner import run_parallel
                     if verbose:
                         print(f"  [r{round_num}] situation reflections (parallel)...", file=_sys.stderr, flush=True)
-                    import asyncio as _asyncio
-                    import time as _time
 
                     def _run_sit_reflect(agent):
                         _name = result.agent_names.get(agent.agent_id, agent.agent_id)
@@ -503,16 +495,8 @@ def run_simulation(
                                 print(f"    [sit]  {_name} ERROR: {_e}", file=_sys.stderr, flush=True)
                             return agent.agent_id, ""
 
-                    _loop = _asyncio.get_event_loop()
-                    try:
-                        if _loop.is_closed():
-                            raise RuntimeError("closed")
-                    except RuntimeError:
-                        _loop = _asyncio.new_event_loop()
-                        _asyncio.set_event_loop(_loop)
-                    sit_results = _loop.run_until_complete(
-                        _asyncio.gather(*[_asyncio.to_thread(_run_sit_reflect, a) for a in agents])
-                    )
+                    # ВИС-10: run_parallel замість ручного event loop detection
+                    sit_results = run_parallel(_run_sit_reflect, agents)
                     for aid, text in sit_results:
                         situation_reflections[aid] = text
                 except Exception:
@@ -699,14 +683,13 @@ def run_simulation(
                 tasks = [_reason_one(a) for a in agents]
                 return await asyncio.gather(*tasks)
 
+            # ВИС-10: isolated event loop, безпечно для Python 3.12+
             agent_reasoning: Dict[str, ReasoningResult] = {}
+            _reason_loop = asyncio.new_event_loop()
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            reasoning_results = loop.run_until_complete(_run_all_reasoning())
+                reasoning_results = _reason_loop.run_until_complete(_run_all_reasoning())
+            finally:
+                _reason_loop.close()
             for aid, r_out in reasoning_results:
                 if r_out is not None:
                     agent_reasoning[aid] = r_out
@@ -1133,12 +1116,9 @@ def run_simulation(
                     _log_reflection_error(agent.agent_id, f"round r{round_num}", _reflect_err)
                     return agent.agent_id, ""
 
-            async def _gather_reflections():
-                return await asyncio.gather(
-                    *[asyncio.to_thread(_run_reflect_one, a) for a in agents]
-                )
-
-            reflect_results = loop.run_until_complete(_gather_reflections())
+            # ВИС-10: run_parallel замість loop.run_until_complete — ізольований event loop
+            from pipeline.async_runner import run_parallel as _run_parallel_reflect
+            reflect_results = _run_parallel_reflect(_run_reflect_one, agents)
             for aid, notes in reflect_results:
                 agent_round_mems[aid].notes = notes
 

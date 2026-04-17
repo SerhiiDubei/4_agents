@@ -304,3 +304,13 @@ F1 → F2 → F3
   - `config/__init__.py` — package init.
 - Тести: 107/107 GREEN
 - Наступний пріоритет: M5 продовження — ВИС-10 Async LLM calls (asyncio queue для паралельних LLM запитів) або Alembic database migrations.
+
+## [2026-04-17 12:27 UTC] Щогодинна перевірка
+- Стан: M0/M1/M2/M3/M4/M5(Logging) виконані. 107/107 тестів GREEN на старті.
+- Дія: **ВИС-10 Async LLM DONE** — усунено антипатерни asyncio.get_event_loop() в game_engine.py:
+  - `pipeline/async_runner.py` — новий модуль: `run_parallel(fn, items)` і `run_parallel_named(fn, items)`. Ізольований event loop на кожен виклик (new_event_loop + finally close). Безпечно для Python 3.12+.
+  - `game_engine.py` — ситуація-генерація: замінено 9 рядків loop detection на `run_parallel(_gen_sit, agents)`. Sit-reflections: аналогічно `run_parallel(_run_sit_reflect, agents)`. Post-round reflections: `run_parallel(_run_reflect_one, agents)` замість `loop.run_until_complete(_gather_reflections())`.
+  - `game_engine.py` — reasoning: замінено `asyncio.get_event_loop()` на `asyncio.new_event_loop()` + `finally: loop.close()`. Більше не залежить від глобального стану event loop.
+  - `pipeline/llm_client.py` — замінено `print(file=sys.stderr)` на `logger.warning()` (M5 Structured Logging).
+- Тести: 107/107 GREEN
+- Наступний пріоритет: M5 — Alembic database migrations або Error monitoring або M6 Polish (СЕР-* та НИЗ-* задачі).
